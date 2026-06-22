@@ -50,9 +50,7 @@ function generateByRole(authors: Author[]): string {
 
   if (roleMap.size === 0) return "";
 
-  const parts = Array.from(roleMap.entries()).map(
-    ([role, initials]) => `${role}: ${initials.join(", ")}`
-  );
+  const parts = Array.from(roleMap.entries()).map(([role, initials]) => `${role}: ${initials.join(", ")}`);
 
   return `CRediT: ${parts.join("; ")}`;
 }

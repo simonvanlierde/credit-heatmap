@@ -1,130 +1,146 @@
 "use client";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { type InputMode, ROLE_NAMES, useContributionStore } from "@/store/contribution-store";
-import { type Author, scoreToLevel } from "@credit-generator/core";
-import { CREDIT_ROLES } from "@credit-generator/core";
+import { type Author, buildHeatmapSvg, CREDIT_ROLES, scoreToLevel } from "@credit-generator/core";
+import type { DefaultHeatMapDatum } from "@nivo/heatmap";
+import dynamic from "next/dynamic";
 import { useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  type InputMode,
+  ROLE_NAMES,
+  ROLE_PRESETS,
+  type RolePreset,
+  useContributionStore,
+} from "@/store/contribution-store";
 
-// ─── Per-author role assignment ───────────────────────────────────────────────
+const ResponsiveHeatMap = dynamic(() => import("@nivo/heatmap").then((m) => m.ResponsiveHeatMap), {
+  ssr: false,
+});
 
 const LEVEL_SCORES: Record<string, number> = { none: 0, tertiary: 33, secondary: 66, lead: 100 };
 
-/**
- * Role assignment panel for the currently selected author.
- * Renders as a 2-column grid of toggleable role rows.
- */
+const PRESET_LABELS: Record<RolePreset, string> = {
+  "equal-contribution": "Equal contribution",
+  "senior-author": "Senior author",
+  "data-only-contributor": "Data-only contributor",
+};
+
 export function RoleAssignment() {
-  const {
-    authors,
-    selectedAuthorIndex,
-    inputMode,
-    setInputMode,
-    setAuthorScore,
-    toggleContribution,
-  } = useContributionStore();
+  const { authors, selectedAuthorId, inputMode, setInputMode, setAuthorScore, toggleContribution, applyPreset } =
+    useContributionStore();
 
-  const author = selectedAuthorIndex !== null ? authors[selectedAuthorIndex] : null;
+  const author = authors.find((candidate) => candidate.id === selectedAuthorId) ?? null;
 
-  if (selectedAuthorIndex === null || !author) {
+  if (!author) {
     return (
       <div className="bg-white rounded-lg border border-outline-variant/20 p-8 text-center">
-        <span className="material-symbols-outlined text-3xl text-outline-variant mb-3 block">
-          person_search
-        </span>
-        <p className="text-sm text-on-surface-variant">
-          Select a contributor above to assign their CRediT roles.
-        </p>
+        <span className="material-symbols-outlined text-3xl text-outline-variant mb-3 block">person_search</span>
+        <p className="text-sm text-on-surface-variant">Select a contributor above to assign their CRediT roles.</p>
       </div>
     );
   }
 
-  const ai = selectedAuthorIndex;
-
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-outline-variant/20 p-8">
-      <div className="flex items-start justify-between mb-6">
+    <div className="bg-white rounded-lg shadow-sm border border-outline-variant/20 p-5 md:p-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
         <div>
-          <h2
-            className="text-2xl italic font-semibold text-primary"
-            style={{ fontFamily: "var(--font-headline)" }}
-          >
+          <h2 className="text-2xl italic font-semibold text-primary" style={{ fontFamily: "var(--font-headline)" }}>
             Contribution Matrix
           </h2>
           <p className="text-xs text-on-surface-variant mt-1">
-            Assign CRediT roles for{" "}
-            <span className="font-semibold text-on-surface">{author.name}</span>
+            Assign CRediT roles for <span className="font-semibold text-on-surface">{author.name}</span>
           </p>
         </div>
         <InputModeSwitcher current={inputMode} onChange={setInputMode} />
       </div>
 
-      <div className="grid grid-cols-2 gap-x-8 gap-y-1">
-        {CREDIT_ROLES.map((role, ri) => {
-          const score = author.contributions[ri]?.score ?? 0;
+      <div className="mb-5">
+        <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant mb-2">Role presets</p>
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(ROLE_PRESETS) as RolePreset[]).map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => applyPreset(author.id, preset)}
+              className="px-3 py-2 rounded-full text-xs font-medium border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary transition-colors"
+            >
+              {PRESET_LABELS[preset]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8">
+        {CREDIT_ROLES.map((role, roleIndex) => {
+          const score = author.contributions[roleIndex]?.score ?? 0;
           const active = score > 0;
+
           return (
             <div
               key={role.name}
-              className="flex items-center justify-between py-3 border-b border-surface-container-high group hover:bg-surface-container-low -mx-2 px-2 rounded transition-colors"
+              className="py-3 border-b border-surface-container-high hover:bg-surface-container-low px-3 -mx-3 rounded transition-colors"
             >
-              <span className="text-sm font-medium text-on-surface truncate mr-3">{role.name}</span>
-
-              {inputMode === "toggle" && (
-                <button
-                  type="button"
-                  onClick={() => toggleContribution(ai, ri)}
-                  aria-pressed={active}
-                  aria-label={`${role.name}: ${active ? "on" : "off"}`}
-                  className={`shrink-0 w-10 h-5 rounded-full relative transition-colors duration-200 ${
-                    active ? "bg-primary/20" : "bg-surface-container-highest"
-                  }`}
-                >
-                  <div
-                    className={`absolute top-1 w-3 h-3 rounded-full transition-all duration-200 ${
-                      active ? "right-1 bg-primary" : "left-1 bg-outline-variant"
-                    }`}
-                  />
-                </button>
-              )}
-
-              {inputMode === "levels" && (
-                <Select
-                  value={scoreToLevel(score)}
-                  onValueChange={(v) => setAuthorScore(ai, ri, LEVEL_SCORES[v] ?? 0)}
-                >
-                  <SelectTrigger className="w-24 shrink-0" aria-label={`${role.name} level`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">–</SelectItem>
-                    <SelectItem value="tertiary">Tertiary</SelectItem>
-                    <SelectItem value="secondary">Secondary</SelectItem>
-                    <SelectItem value="lead">Lead</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-
-              {inputMode === "slider" && (
-                <div className="shrink-0 flex items-center gap-2">
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={score}
-                    onChange={(e) => setAuthorScore(ai, ri, Number(e.target.value))}
-                    aria-label={`${role.name} score`}
-                    className="w-20 accent-primary"
-                  />
-                  <span className="text-xs text-on-surface-variant w-6 text-right">{score}</span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-on-surface">{role.name}</p>
+                  <p className="text-[11px] text-on-surface-variant mt-1 line-clamp-2">{role.description}</p>
                 </div>
-              )}
+                <span className="shrink-0 text-[10px] uppercase tracking-wider text-on-surface-variant bg-surface-container px-2 py-1 rounded-full">
+                  {scoreToLevel(score)}
+                </span>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                {inputMode === "toggle" && (
+                  <button
+                    type="button"
+                    onClick={() => toggleContribution(author.id, roleIndex)}
+                    aria-pressed={active}
+                    aria-label={`${role.name}: ${active ? "on" : "off"}`}
+                    className={`shrink-0 w-11 h-6 rounded-full relative transition-colors duration-200 ${
+                      active ? "bg-primary/20" : "bg-surface-container-highest"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-4 h-4 rounded-full transition-all duration-200 ${
+                        active ? "right-1 bg-primary" : "left-1 bg-outline-variant"
+                      }`}
+                    />
+                  </button>
+                )}
+
+                {inputMode === "levels" && (
+                  <Select
+                    value={scoreToLevel(score)}
+                    onValueChange={(value) => setAuthorScore(author.id, roleIndex, LEVEL_SCORES[value] ?? 0)}
+                  >
+                    <SelectTrigger className="w-full sm:w-32 shrink-0" aria-label={`${role.name} level`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="tertiary">Tertiary</SelectItem>
+                      <SelectItem value="secondary">Secondary</SelectItem>
+                      <SelectItem value="lead">Lead</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {inputMode === "slider" && (
+                  <div className="w-full sm:w-auto flex items-center gap-2">
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={score}
+                      onChange={(event) => setAuthorScore(author.id, roleIndex, Number(event.target.value))}
+                      aria-label={`${role.name} score`}
+                      className="flex-1 sm:w-28 accent-primary"
+                    />
+                    <span className="text-xs text-on-surface-variant w-8 text-right">{score}</span>
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -133,29 +149,22 @@ export function RoleAssignment() {
   );
 }
 
-function InputModeSwitcher({
-  current,
-  onChange,
-}: {
-  current: InputMode;
-  onChange: (m: InputMode) => void;
-}) {
+function InputModeSwitcher({ current, onChange }: { current: InputMode; onChange: (mode: InputMode) => void }) {
   const modes: { value: InputMode; label: string }[] = [
     { value: "toggle", label: "Binary" },
     { value: "levels", label: "Granular" },
     { value: "slider", label: "Slider" },
   ];
+
   return (
-    <div className="flex bg-surface-container-high p-1 rounded-lg gap-0.5">
+    <div className="flex w-full md:w-auto overflow-x-auto bg-surface-container-high p-1 rounded-lg gap-0.5">
       {modes.map(({ value, label }) => (
         <button
           key={value}
           type="button"
           onClick={() => onChange(value)}
-          className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-all ${
-            current === value
-              ? "bg-white text-primary shadow-sm"
-              : "text-on-surface-variant hover:text-on-surface"
+          className={`flex-1 md:flex-none px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded transition-all ${
+            current === value ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"
           }`}
         >
           {label}
@@ -165,12 +174,22 @@ function InputModeSwitcher({
   );
 }
 
-// ─── Overview heatmap table ───────────────────────────────────────────────────
+type HeatDatum = DefaultHeatMapDatum & { value: number };
+type HeatRow = { id: string; data: HeatDatum[] };
 
-/**
- * Compact heatmap table — all authors × all roles, shown as coloured squares.
- * Custom HTML/CSS, no Nivo dependency needed for this overview.
- */
+function buildHeatData(authors: Author[]): HeatRow[] {
+  return ROLE_NAMES.map((role, roleIndex) => ({
+    id: role,
+    data: authors.map((author) => ({
+      x: author.initials,
+      y: author.contributions[roleIndex]?.score ?? 0,
+      value: author.contributions[roleIndex]?.score ?? 0,
+    })),
+  }));
+}
+
+// Tooltip rendering is inlined in the chart to avoid generic type mismatches
+
 export function ContributionHeatmap() {
   const { authors } = useContributionStore();
 
@@ -185,93 +204,152 @@ export function ContributionHeatmap() {
     );
   }
 
+  const data = buildHeatData(authors);
+  const chartHeight = Math.max(220, ROLE_NAMES.length * 28 + 60);
+
   return (
-    <div className="bg-surface-container rounded-lg border border-outline-variant/10 p-6 overflow-hidden">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-surface-container rounded-lg border border-outline-variant/10 p-4 md:p-6 overflow-hidden">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
         <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant">
           Real-time Contribution Heatmap
         </h3>
         <HeatmapExportButtons authors={authors} />
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="text-[9px] uppercase tracking-wider text-on-surface-variant">
-              <th className="pb-3 font-bold pr-3 whitespace-nowrap">Role</th>
-              {authors.map((a) => (
-                <th key={a.initials} className="pb-3 px-1 font-bold text-center">
-                  {a.initials}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="text-[11px] font-medium">
-            {ROLE_NAMES.map((role, ri) => (
-              <tr key={role} className="border-b border-surface-container-highest/50">
-                <td className="py-2 pr-3 whitespace-nowrap text-on-surface">{role}</td>
-                {authors.map((author) => {
-                  const score = author.contributions[ri]?.score ?? 0;
-                  return (
-                    <td key={author.initials} className="p-1 text-center">
-                      <div
-                        className="w-4 h-4 mx-auto rounded-sm"
-                        style={{ backgroundColor: scoreToColor(score) }}
-                        title={`${author.name} – ${role}: ${score}`}
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      <div style={{ height: chartHeight, width: "100%" }}>
+        <ResponsiveHeatMap
+          data={data}
+          margin={{ top: 40, right: 20, bottom: 10, left: 185 }}
+          colors={(cell) => scoreToColor(cell.value ?? 0)}
+          emptyColor="#d1e4ff"
+          forceSquare={false}
+          xInnerPadding={0.08}
+          yInnerPadding={0.08}
+          borderRadius={2}
+          borderWidth={0}
+          borderColor={{ from: "color", modifiers: [["darker", 0.4]] }}
+          enableLabels={false}
+          axisTop={{ tickSize: 0, tickPadding: 6, tickRotation: -30, legendOffset: -36 }}
+          axisRight={null}
+          axisBottom={null}
+          axisLeft={{ tickSize: 0, tickPadding: 8, tickRotation: 0 }}
+          theme={{
+            axis: {
+              ticks: {
+                text: {
+                  fontSize: 11,
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  fill: "#404850",
+                },
+              },
+            },
+          }}
+          tooltip={(props) => {
+            const xValue = props.cell.data.x;
+            const authorName = authors.find((author) => author.initials === String(xValue))?.name ?? String(xValue);
+            // spell-checker: ignore serieId
+            const roleName = props.cell.serieId;
+            const score = props.cell.value ?? 0;
+            const level = scoreToLevel(score);
+
+            return (
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #bfc7d1",
+                  borderRadius: "6px",
+                  padding: "8px 12px",
+                  fontSize: "11px",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  color: "#001d36",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
+                  pointerEvents: "none",
+                }}
+              >
+                <strong>{authorName}</strong>
+                <span style={{ color: "#404850" }}> - {roleName}</span>
+                <br />
+                <span style={{ textTransform: "capitalize", color: "#005d90" }}>{level}</span>
+                {level !== "none" && <span style={{ color: "#404850" }}> ({score})</span>}
+              </div>
+            );
+          }}
+          legends={[]}
+          animate
+        />
       </div>
     </div>
   );
 }
 
-/** Map 0–100 score to a shade of the brand blue. */
 function scoreToColor(score: number): string {
-  if (score === 0) return "#d1e4ff"; // surface-container-highest (empty)
-  if (score <= 33) return "#94ccff"; // primary-fixed-dim (tertiary)
-  if (score <= 66) return "#0077b6"; // primary-container (secondary)
-  return "#005d90"; // primary (lead)
+  if (score === 0) return "#d1e4ff";
+  if (score <= 33) return "#94ccff";
+  if (score <= 66) return "#0077b6";
+  return "#005d90";
 }
 
-// ─── Heatmap export buttons ───────────────────────────────────────────────────
+type ExportFormat = "svg" | "png";
 
-type ExportFormat = "svg" | "png" | "pdf";
+/** Trigger a browser download for a Blob. */
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
-const EXPORT_FORMATS: { format: ExportFormat; label: string; accept: string; ext: string }[] = [
-  { format: "svg", label: "SVG", accept: "image/svg+xml", ext: "svg" },
-  { format: "png", label: "PNG", accept: "image/png", ext: "png" },
-  { format: "pdf", label: "PDF", accept: "application/pdf", ext: "pdf" },
-];
+/**
+ * Rasterise an SVG string to a PNG Blob entirely in the browser, with no
+ * server round-trip. Renders at 2× for crisp output suitable for slides/docs.
+ */
+function svgToPngBlob(svg: string, scale = 2): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round((img.naturalWidth || img.width) * scale);
+      canvas.height = Math.round((img.naturalHeight || img.height) * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error("Canvas not supported"));
+        return;
+      }
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("PNG encoding failed"));
+      }, "image/png");
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not render SVG"));
+    };
+    img.src = url;
+  });
+}
 
 function HeatmapExportButtons({ authors }: { authors: Author[] }) {
   const [loading, setLoading] = useState<ExportFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function download(format: ExportFormat, accept: string, ext: string) {
+  async function download(format: ExportFormat) {
     setLoading(format);
     setError(null);
     try {
-      const res = await fetch("/api/v1/heatmap/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: accept },
-        body: JSON.stringify({ authors }),
-      });
-      if (!res.ok) {
-        const json = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(json.error ?? `HTTP ${res.status}`);
+      const svg = buildHeatmapSvg(authors);
+      if (format === "svg") {
+        downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), "credit-heatmap.svg");
+      } else {
+        downloadBlob(await svgToPngBlob(svg), "credit-heatmap.png");
       }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `credit-heatmap.${ext}`;
-      a.click();
-      URL.revokeObjectURL(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Export failed");
     } finally {
@@ -279,19 +357,24 @@ function HeatmapExportButtons({ authors }: { authors: Author[] }) {
     }
   }
 
+  const formats: { format: ExportFormat; label: string }[] = [
+    { format: "svg", label: "SVG" },
+    { format: "png", label: "PNG" },
+  ];
+
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1 flex-wrap">
       {error && (
         <span className="text-[10px] text-error mr-1 max-w-[120px] truncate" title={error}>
           {error}
         </span>
       )}
-      {EXPORT_FORMATS.map(({ format, label, accept, ext }) => (
+      {formats.map(({ format, label }) => (
         <button
           key={format}
           type="button"
           disabled={loading !== null || authors.length === 0}
-          onClick={() => download(format, accept, ext)}
+          onClick={() => download(format)}
           className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded border border-outline-variant/40 text-on-surface-variant hover:text-primary hover:border-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {loading === format ? "…" : label}

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { AuthorSchema } from "../author.js";
 import type { Author } from "../author.js";
+import { AuthorSchema } from "../author.js";
 
 const ExportSchema = z.object({
   version: z.literal(1),

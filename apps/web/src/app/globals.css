@@ -1,8 +1,8 @@
+/* spell-checker: ignore wght */
 @import "tailwindcss";
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0");
+/* Material Symbols loaded via <link> in RootLayout to allow preconnect */
 
-@theme {
+:root {
   /* --- Brand colours (Material You blue) --- */
   --color-primary: #005d90;
   --color-primary-container: #0077b6;
@@ -57,9 +57,9 @@
   --color-on-error-container: #93000a;
 
   /* --- Typography --- */
-  --font-headline: "Newsreader", Georgia, serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-label: "Inter", system-ui, sans-serif;
+  --font-headline: var(--font-newsreader), Georgia, serif;
+  --font-body: var(--font-inter), system-ui, sans-serif;
+  --font-label: var(--font-inter), system-ui, sans-serif;
 
   /* --- Radii (tighter, like the Stitch design) --- */
   --radius-DEFAULT: 0.125rem;
@@ -72,7 +72,11 @@
 /* Material Symbols */
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined", sans-serif;
-  font-variation-settings: "FILL" 0, "wght" 300, "GRAD" 0, "opsz" 24;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 300,
+    "GRAD" 0,
+    "opsz" 24;
   vertical-align: middle;
   display: inline-block;
   line-height: 1;

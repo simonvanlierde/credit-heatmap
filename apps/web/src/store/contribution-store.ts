@@ -1,160 +1,194 @@
-import { CREDIT_ROLES, parseAuthorText, parseNameParts } from "@credit-generator/core";
-import type { Author, Contribution } from "@credit-generator/core";
+import type { Author, CreditRoleName } from "@credit-generator/core";
+import { CREDIT_ROLES, createAuthor, deduplicateAuthorInitials, parseAuthorText } from "@credit-generator/core";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 export type InputMode = "toggle" | "levels" | "slider";
+export type RolePreset = "equal-contribution" | "senior-author" | "data-only-contributor";
 
 interface ContributionState {
   authors: Author[];
-  selectedAuthorIndex: number | null;
+  selectedAuthorId: string | null;
   inputMode: InputMode;
-
-  // Author list actions
   loadAuthors: (authors: Author[]) => void;
   setAuthorsFromText: (text: string) => void;
   addAuthor: (name: string) => void;
-  removeAuthor: (index: number) => void;
-  updateAuthorName: (index: number, name: string) => void;
-  updateAuthorOrcid: (index: number, orcid: string) => void;
-  setSelectedAuthor: (index: number | null) => void;
-
-  // Contribution actions
-  setAuthorScore: (authorIndex: number, roleIndex: number, score: number) => void;
-  toggleContribution: (authorIndex: number, roleIndex: number) => void;
+  removeAuthor: (authorId: string) => void;
+  moveAuthor: (fromIndex: number, toIndex: number) => void;
+  updateAuthorName: (authorId: string, name: string) => void;
+  updateAuthorOrcid: (authorId: string, orcid: string) => void;
+  setSelectedAuthor: (authorId: string | null) => void;
+  setAuthorScore: (authorId: string, roleIndex: number, score: number) => void;
+  toggleContribution: (authorId: string, roleIndex: number) => void;
+  applyPreset: (authorId: string, preset: RolePreset) => void;
   setInputMode: (mode: InputMode) => void;
-
   reset: () => void;
 }
 
-function makeDefaultContributions(): Contribution[] {
-  return CREDIT_ROLES.map((r) => ({ role: r.name, score: 0 }));
+export const ROLE_NAMES = CREDIT_ROLES.map((role) => role.name);
+
+export const ROLE_PRESETS: Record<RolePreset, Partial<Record<(typeof ROLE_NAMES)[number], number>>> = {
+  "equal-contribution": Object.fromEntries(ROLE_NAMES.map((role) => [role, 100])),
+  "senior-author": {
+    Conceptualization: 100,
+    "Funding acquisition": 100,
+    Methodology: 66,
+    "Project administration": 100,
+    Resources: 66,
+    Supervision: 100,
+    "Writing – review & editing": 100,
+  },
+  "data-only-contributor": {
+    "Data curation": 100,
+    "Formal Analysis": 100,
+    Investigation: 100,
+    Validation: 66,
+    Visualization: 66,
+  },
+};
+
+function clampScore(score: number): number {
+  return Math.max(0, Math.min(100, score));
 }
 
-function buildAuthor(name: string): Author {
-  const { firstName, middleName, surname } = parseNameParts(name);
-  // Simple initials — uniqueness is guaranteed when building from the full list
-  const initials = [firstName, middleName, surname]
-    .filter(Boolean)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-  return {
-    name,
-    firstName,
-    middleName,
-    surname,
-    initials,
-    contributions: makeDefaultContributions(),
-  };
+function findAuthorIndex(authors: Author[], authorId: string): number {
+  return authors.findIndex((author) => author.id === authorId);
 }
 
-/** Re-deduplicate initials across the full author list in-place. */
-function deduplicateInitials(authors: Author[]): void {
-  const seen = new Set<string>();
-  for (const author of authors) {
-    const base = [author.firstName, author.middleName, author.surname]
-      .filter(Boolean)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("");
+function normalizeAuthors(authors: Author[]): Author[] {
+  return deduplicateAuthorInitials(
+    authors.map((author) =>
+      createAuthor(author.name, {
+        id: author.id,
+        orcid: author.orcid,
+        contributions: author.contributions,
+      }),
+    ),
+  );
+}
 
-    let attempt = base;
-    let extraIdx = 1;
-    while (seen.has(attempt)) {
-      if (extraIdx < author.surname.length) {
-        attempt = base + (author.surname[extraIdx]?.toLowerCase() ?? String(extraIdx));
-        extraIdx++;
-      } else {
-        attempt = base + String(seen.size);
-      }
-    }
-    author.initials = attempt;
-    seen.add(attempt);
+function ensureSelectedAuthorId(authors: Author[], selectedAuthorId: string | null): string | null {
+  if (authors.length === 0) return null;
+  if (selectedAuthorId && authors.some((author) => author.id === selectedAuthorId)) {
+    return selectedAuthorId;
   }
+  return authors[0]?.id ?? null;
 }
 
 export const useContributionStore = create<ContributionState>()(
   persist(
     immer((set) => ({
       authors: [],
-      selectedAuthorIndex: null,
+      selectedAuthorId: null,
       inputMode: "toggle",
 
       loadAuthors: (authors) =>
         set((state) => {
-          state.authors = authors;
-          deduplicateInitials(state.authors);
-          state.selectedAuthorIndex = authors.length > 0 ? 0 : null;
+          state.authors = normalizeAuthors(authors);
+          state.selectedAuthorId = ensureSelectedAuthorId(state.authors, state.selectedAuthorId);
         }),
 
       setAuthorsFromText: (text) =>
         set((state) => {
           const parsed = parseAuthorText(text);
-          const existing = new Map(state.authors.map((a) => [a.name, a]));
-          state.authors = parsed.map((a) => existing.get(a.name) ?? a);
-          deduplicateInitials(state.authors);
-          if (
-            state.selectedAuthorIndex !== null &&
-            state.selectedAuthorIndex >= state.authors.length
-          ) {
-            state.selectedAuthorIndex = state.authors.length > 0 ? 0 : null;
-          }
+          const existing = new Map(state.authors.map((author) => [author.name, author]));
+          state.authors = normalizeAuthors(parsed.map((author) => existing.get(author.name) ?? author));
+          state.selectedAuthorId = ensureSelectedAuthorId(state.authors, state.selectedAuthorId);
         }),
 
       addAuthor: (name) =>
         set((state) => {
           const trimmed = name.trim();
           if (!trimmed) return;
-          state.authors.push(buildAuthor(trimmed));
-          deduplicateInitials(state.authors);
-          state.selectedAuthorIndex = state.authors.length - 1;
+          const nextAuthor = createAuthor(trimmed);
+          state.authors = normalizeAuthors([...state.authors, nextAuthor]);
+          state.selectedAuthorId = nextAuthor.id;
         }),
 
-      removeAuthor: (index) =>
+      removeAuthor: (authorId) =>
         set((state) => {
+          const index = findAuthorIndex(state.authors, authorId);
+          if (index === -1) return;
           state.authors.splice(index, 1);
-          deduplicateInitials(state.authors);
-          if (state.selectedAuthorIndex === index) {
-            state.selectedAuthorIndex = state.authors.length > 0 ? Math.max(0, index - 1) : null;
-          } else if (state.selectedAuthorIndex !== null && state.selectedAuthorIndex > index) {
-            state.selectedAuthorIndex -= 1;
+          state.authors = normalizeAuthors(state.authors);
+          state.selectedAuthorId =
+            state.selectedAuthorId === authorId
+              ? ensureSelectedAuthorId(state.authors, null)
+              : ensureSelectedAuthorId(state.authors, state.selectedAuthorId);
+        }),
+
+      moveAuthor: (fromIndex, toIndex) =>
+        set((state) => {
+          if (
+            fromIndex < 0 ||
+            toIndex < 0 ||
+            fromIndex >= state.authors.length ||
+            toIndex >= state.authors.length ||
+            fromIndex === toIndex
+          ) {
+            return;
           }
+          const [movedAuthor] = state.authors.splice(fromIndex, 1);
+          if (!movedAuthor) return;
+          state.authors.splice(toIndex, 0, movedAuthor);
+          state.authors = normalizeAuthors(state.authors);
         }),
 
-      updateAuthorName: (index, name) =>
+      updateAuthorName: (authorId, name) =>
         set((state) => {
-          const author = state.authors[index];
-          if (!author) return;
-          const { firstName, middleName, surname } = parseNameParts(name);
-          author.name = name;
-          author.firstName = firstName;
-          author.middleName = middleName;
-          author.surname = surname;
-          deduplicateInitials(state.authors);
+          const index = findAuthorIndex(state.authors, authorId);
+          const currentAuthor = state.authors[index];
+          const trimmed = name.trim();
+          if (!currentAuthor || !trimmed) return;
+          state.authors[index] = createAuthor(trimmed, {
+            id: currentAuthor.id,
+            orcid: currentAuthor.orcid,
+            contributions: currentAuthor.contributions,
+          });
+          state.authors = normalizeAuthors(state.authors);
         }),
 
-      updateAuthorOrcid: (index, orcid) =>
+      updateAuthorOrcid: (authorId, orcid) =>
         set((state) => {
+          const index = findAuthorIndex(state.authors, authorId);
           const author = state.authors[index];
           if (!author) return;
           author.orcid = orcid.trim() || undefined;
         }),
 
-      setSelectedAuthor: (index) =>
+      setSelectedAuthor: (authorId) =>
         set((state) => {
-          state.selectedAuthorIndex = index;
+          state.selectedAuthorId = authorId;
         }),
 
-      setAuthorScore: (authorIndex, roleIndex, score) =>
+      setAuthorScore: (authorId, roleIndex, score) =>
         set((state) => {
-          const contrib = state.authors[authorIndex]?.contributions[roleIndex];
-          if (contrib) contrib.score = Math.max(0, Math.min(100, score));
+          const index = findAuthorIndex(state.authors, authorId);
+          const contribution = state.authors[index]?.contributions[roleIndex];
+          if (contribution) {
+            contribution.score = clampScore(score);
+          }
         }),
 
-      toggleContribution: (authorIndex, roleIndex) =>
+      toggleContribution: (authorId, roleIndex) =>
         set((state) => {
-          const contrib = state.authors[authorIndex]?.contributions[roleIndex];
-          if (contrib) contrib.score = contrib.score > 0 ? 0 : 100;
+          const index = findAuthorIndex(state.authors, authorId);
+          const contribution = state.authors[index]?.contributions[roleIndex];
+          if (contribution) {
+            contribution.score = contribution.score > 0 ? 0 : 100;
+          }
+        }),
+
+      applyPreset: (authorId, preset) =>
+        set((state) => {
+          const index = findAuthorIndex(state.authors, authorId);
+          const author = state.authors[index];
+          if (!author) return;
+          const presetScores = ROLE_PRESETS[preset];
+          for (const contribution of author.contributions) {
+            contribution.score = presetScores[contribution.role as CreditRoleName] ?? 0;
+          }
         }),
 
       setInputMode: (mode) =>
@@ -165,19 +199,18 @@ export const useContributionStore = create<ContributionState>()(
       reset: () =>
         set((state) => {
           state.authors = [];
-          state.selectedAuthorIndex = null;
+          state.selectedAuthorId = null;
           state.inputMode = "toggle";
         }),
     })),
     {
       name: "credit-generator-state",
+      // spell-checker: ignore partialize
       partialize: (state) => ({
         authors: state.authors,
         inputMode: state.inputMode,
-        selectedAuthorIndex: state.selectedAuthorIndex,
+        selectedAuthorId: state.selectedAuthorId,
       }),
-    }
-  )
+    },
+  ),
 );
-
-export const ROLE_NAMES = CREDIT_ROLES.map((r) => r.name);

@@ -1,17 +1,13 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Select = SelectPrimitive.Root;
 export const SelectValue = SelectPrimitive.Value;
 
-export function SelectTrigger({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Trigger>) {
+export function SelectTrigger({ className, children, ...props }: React.ComponentProps<typeof SelectPrimitive.Trigger>) {
   return (
     <SelectPrimitive.Trigger
       className={cn(
@@ -20,7 +16,7 @@ export function SelectTrigger({
         "focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary",
         "disabled:cursor-not-allowed disabled:opacity-50",
         "data-[placeholder]:text-on-surface-variant",
-        className
+        className,
       )}
       {...props}
     >
@@ -30,11 +26,7 @@ export function SelectTrigger({
   );
 }
 
-export function SelectContent({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+export function SelectContent({ className, children, ...props }: React.ComponentProps<typeof SelectPrimitive.Content>) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -45,7 +37,7 @@ export function SelectContent({
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-          className
+          className,
         )}
         {...props}
       >
@@ -55,18 +47,14 @@ export function SelectContent({
   );
 }
 
-export function SelectItem({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+export function SelectItem({ className, children, ...props }: React.ComponentProps<typeof SelectPrimitive.Item>) {
   return (
     <SelectPrimitive.Item
       className={cn(
         "relative flex w-full cursor-pointer select-none items-center rounded py-1.5 pl-8 pr-2 text-xs text-on-surface",
         "outline-none focus:bg-surface-container-low",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-        className
+        className,
       )}
       {...props}
     >

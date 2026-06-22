@@ -1,9 +1,9 @@
 "use client";
 
-import { ImportModal } from "@/components/ImportModal";
-import { useContributionStore } from "@/store/contribution-store";
 import type { Author } from "@credit-generator/core";
 import { useState } from "react";
+import { ImportModal } from "@/components/ImportModal";
+import { useContributionStore } from "@/store/contribution-store";
 
 /**
  * Import / Export buttons rendered in the nav bar.
@@ -11,10 +11,10 @@ import { useState } from "react";
  */
 export function HeaderActions() {
   const [importOpen, setImportOpen] = useState(false);
-  const { loadAuthors } = useContributionStore();
+  const loadAuthors = useContributionStore((s) => s.loadAuthors);
 
-  function handleImport(authors: Author[]) {
-    loadAuthors(authors);
+  function handleImport(importedAuthors: Author[]) {
+    loadAuthors(importedAuthors);
   }
 
   return (
