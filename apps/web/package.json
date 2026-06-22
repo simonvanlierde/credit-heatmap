@@ -7,7 +7,8 @@
     "dev": "next dev --port 3000",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf .next"
+    "clean": "rm -rf .next",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@credit-generator/core": "workspace:*",
@@ -33,6 +34,7 @@
     "@types/node": "^22.10.7",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "tailwindcss": "^4.0.6"
+    "tailwindcss": "^4.0.6",
+    "@playwright/test": "^1.40.0"
   }
 }

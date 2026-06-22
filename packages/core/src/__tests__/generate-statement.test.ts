@@ -4,12 +4,19 @@ import { parseAuthorText } from "../parse-authors.js";
 
 function makeAuthors() {
   const authors = parseAuthorText("Jane Smith\nBob White");
-  // Give Jane: Conceptualization (lead=100), Software (secondary=50)
-  authors[0]?.contributions[0]!.score = 100; // Conceptualization
-  authors[0]?.contributions[8]!.score = 50; // Software
-  // Give Bob: Conceptualization (tertiary=20), Investigation (lead=100)
-  authors[1]?.contributions[0]!.score = 20; // Conceptualization
-  authors[1]?.contributions[4]!.score = 100; // Investigation
+  const [jane, bob] = authors;
+  if (!jane || !bob) throw new Error("expected 2 authors");
+
+  const janeConc = jane.contributions[0];
+  const janeSoft = jane.contributions[8];
+  const bobConc = bob.contributions[0];
+  const bobInv = bob.contributions[4];
+  if (!janeConc || !janeSoft || !bobConc || !bobInv) throw new Error("expected contributions");
+
+  janeConc.score = 100; // Conceptualization lead
+  janeSoft.score = 50; // Software secondary
+  bobConc.score = 20; // Conceptualization tertiary
+  bobInv.score = 100; // Investigation lead
   return authors;
 }
 

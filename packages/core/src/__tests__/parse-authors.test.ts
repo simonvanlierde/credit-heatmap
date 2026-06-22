@@ -19,6 +19,7 @@ describe("parseNameParts", () => {
   });
 
   it("strips non-alpha characters", () => {
+    // spell-checker: ignore O'Brien Séan
     const result = parseNameParts("O'Brien, Séan");
     expect(result.firstName).toBe("OBrien");
   });
