@@ -21,13 +21,12 @@ export const CREDIT_ROLES = [
   {
     name: "Formal Analysis",
     description:
-      "Application of statistical, mathematical, computational, or other formal techniques to analyse or synthesize study data.",
+      "Application of statistical, mathematical, computational, or other formal techniques to analyze or synthesize study data.",
     url: "https://credit.niso.org/contributor-roles/formal-analysis/",
   },
   {
     name: "Funding acquisition",
-    description:
-      "Acquisition of the financial support for the project leading to this publication.",
+    description: "Acquisition of the financial support for the project leading to this publication.",
     url: "https://credit.niso.org/contributor-roles/funding-acquisition/",
   },
   {
@@ -43,8 +42,7 @@ export const CREDIT_ROLES = [
   },
   {
     name: "Project administration",
-    description:
-      "Management and coordination responsibility for the research activity planning and execution.",
+    description: "Management and coordination responsibility for the research activity planning and execution.",
     url: "https://credit.niso.org/contributor-roles/project-administration/",
   },
   {

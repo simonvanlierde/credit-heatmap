@@ -1,6 +1,17 @@
 import type { Author, Contribution } from "./author.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
 
+export function createAuthorId(): string {
+  return globalThis.crypto.randomUUID();
+}
+
+export function createDefaultContributions(): Contribution[] {
+  return CREDIT_ROLES.map((r) => ({
+    role: r.name,
+    score: 0,
+  }));
+}
+
 /**
  * Parse a single display name string into first / middle / surname parts.
  * Mirrors the logic from the original Python app's `extract_name_parts()`.
@@ -44,42 +55,55 @@ function buildInitials(firstName: string, middleName: string, surname: string): 
  * appending lowercase characters from the surname — matching the original
  * Python app's `generate_unique_initials()` strategy.
  */
-export function parseAuthors(names: string[]): Author[] {
+export function createAuthor(
+  name: string,
+  overrides?: {
+    id?: string;
+    orcid?: string;
+    contributions?: Contribution[];
+  },
+): Author {
+  const { firstName, middleName, surname } = parseNameParts(name);
+
+  return {
+    id: overrides?.id ?? createAuthorId(),
+    name,
+    firstName,
+    middleName,
+    surname,
+    initials: buildInitials(firstName, middleName, surname),
+    ...(overrides?.orcid ? { orcid: overrides.orcid } : {}),
+    contributions:
+      overrides?.contributions?.map((contribution) => ({ ...contribution })) ?? createDefaultContributions(),
+  };
+}
+
+export function deduplicateAuthorInitials(authors: Author[]): Author[] {
   const existingInitials = new Set<string>();
 
-  const defaultContributions: Contribution[] = CREDIT_ROLES.map((r) => ({
-    role: r.name,
-    score: 0,
-  }));
-
-  return names.map((name) => {
-    const { firstName, middleName, surname } = parseNameParts(name);
-
-    let initials = buildInitials(firstName, middleName, surname);
-
-    // Deduplicate: append characters from surname until unique
+  for (const author of authors) {
+    const initials = buildInitials(author.firstName, author.middleName, author.surname);
     let attempt = initials;
     let extraIdx = 1;
+
     while (existingInitials.has(attempt)) {
-      if (extraIdx < surname.length) {
-        attempt = initials + (surname[extraIdx]?.toLowerCase() ?? String(extraIdx));
-        extraIdx++;
+      if (extraIdx < author.surname.length) {
+        attempt = initials + (author.surname[extraIdx]?.toLowerCase() ?? String(extraIdx));
+        extraIdx += 1;
       } else {
         attempt = initials + String(existingInitials.size);
       }
     }
-    initials = attempt;
-    existingInitials.add(initials);
 
-    return {
-      name,
-      firstName,
-      middleName,
-      surname,
-      initials,
-      contributions: defaultContributions.map((c) => ({ ...c })),
-    };
-  });
+    author.initials = attempt;
+    existingInitials.add(attempt);
+  }
+
+  return authors;
+}
+
+export function parseAuthors(names: string[]): Author[] {
+  return deduplicateAuthorInitials(names.map((name) => createAuthor(name)));
 }
 
 /**

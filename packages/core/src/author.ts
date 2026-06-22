@@ -22,6 +22,11 @@ export const ContributionSchema = z.object({
 export type Contribution = z.infer<typeof ContributionSchema>;
 
 export const AuthorSchema = z.object({
+  /** Stable unique identifier for UI state and persistence */
+  id: z
+    .string()
+    .min(1)
+    .default(() => globalThis.crypto.randomUUID()),
   /** Display name as entered by the user (e.g. "Jane A. Smith") */
   name: z.string().min(1),
   /** Parsed first name */
@@ -45,6 +50,9 @@ export const AuthorSchema = z.object({
 });
 
 export type Author = z.infer<typeof AuthorSchema>;
+
+/** ORCID iD bare format: 0000-0001-2345-678X */
+export const ORCID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
 
 /** Contribution level derived from a 0-100 score */
 export type ContributionLevel = "none" | "tertiary" | "secondary" | "lead";

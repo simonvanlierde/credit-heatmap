@@ -1,3 +1,5 @@
+// spell-checker: ignore archivearticle, mathml
+
 import type { Author } from "../author.js";
 import { activeContributions } from "../author.js";
 import { getRoleByName } from "../credit-roles.js";
@@ -10,7 +12,7 @@ const DOCTYPE =
  * Output mirrors the format produced by the original Python app.
  */
 export function toJats4rXml(authors: Author[]): string {
-  const contribs = authors.map(authorToXml).join("\n    ");
+  const contributions = authors.map(authorToXml).join("\n    ");
 
   return `<?xml version='1.0' encoding='UTF-8'?>
 ${DOCTYPE}
@@ -21,7 +23,7 @@ ${DOCTYPE}
   <front>
     <article-meta>
       <contrib-group>
-    ${contribs}
+    ${contributions}
       </contrib-group>
       <permissions>
         <copyright-statement>© 2019 JATS4R</copyright-statement>
@@ -39,9 +41,7 @@ ${DOCTYPE}
 }
 
 function authorToXml(author: Author): string {
-  const givenNames = author.middleName
-    ? `${author.firstName} ${author.middleName}`
-    : author.firstName;
+  const givenNames = author.middleName ? `${author.firstName} ${author.middleName}` : author.firstName;
 
   const orcidEl = author.orcid
     ? `\n      <contrib-id contrib-id-type="orcid">${escapeXml(author.orcid)}</contrib-id>`

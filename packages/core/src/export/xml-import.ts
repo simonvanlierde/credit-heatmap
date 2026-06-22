@@ -1,5 +1,6 @@
 import type { Author, Contribution } from "../author.js";
 import { CREDIT_ROLES } from "../credit-roles.js";
+import { createAuthor, deduplicateAuthorInitials } from "../parse-authors.js";
 
 /**
  * Parse a JATS4R XML string (as produced by `toJats4rXml()` or the original
@@ -17,7 +18,7 @@ export function fromJats4rXml(xmlString: string): Author[] {
   if (typeof DOMParser === "undefined") {
     throw new Error(
       "DOMParser is not available in this environment. " +
-        "Use fromXmlDocument() with a server-side DOM parser instead."
+        "Use fromXmlDocument() with a server-side DOM parser instead.",
     );
   }
   const parser = new DOMParser();
@@ -38,49 +39,24 @@ export function fromJats4rXml(xmlString: string): Author[] {
 export function fromXmlDocument(doc: Document): Author[] {
   const roleNames = new Set<string>(CREDIT_ROLES.map((r) => r.name));
 
-  const contribs = Array.from(doc.querySelectorAll("contrib"));
-  if (contribs.length === 0) return [];
+  const contributions = Array.from(doc.querySelectorAll("contrib"));
+  if (contributions.length === 0) return [];
 
-  const seen = new Set<string>();
-
-  return contribs.map((contrib) => {
+  const authors = contributions.map((contrib) => {
     const givenNamesEl = contrib.querySelector("given-names");
     const surnameEl = contrib.querySelector("surname");
 
     const givenNames = givenNamesEl?.textContent?.trim() ?? "";
     const surname = surnameEl?.textContent?.trim() ?? "";
 
-    // Split given names into first + optional middle
-    const parts = givenNames.split(/\s+/).filter(Boolean);
-    const firstName = parts[0] ?? "";
-    const middleName = parts.length > 1 ? (parts[1] ?? "") : "";
-
-    const displayName = [firstName, middleName, surname].filter(Boolean).join(" ");
-
-    // Build unique initials
-    const baseInitials = [firstName, middleName, surname]
-      .filter(Boolean)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .join("");
-
-    let initials = baseInitials;
-    let extraIdx = 1;
-    while (seen.has(initials)) {
-      if (extraIdx < surname.length) {
-        initials = baseInitials + (surname[extraIdx]?.toLowerCase() ?? String(extraIdx));
-        extraIdx++;
-      } else {
-        initials = baseInitials + String(seen.size);
-      }
-    }
-    seen.add(initials);
+    const displayName = [givenNames, surname].filter(Boolean).join(" ");
 
     // Parse role elements — `vocab-term` attribute is authoritative; fall back to text content
     const roleEls = Array.from(contrib.querySelectorAll("role"));
     const activeRoleNames = new Set(
       roleEls
         .map((el) => el.getAttribute("vocab-term") ?? el.textContent?.trim() ?? "")
-        .filter((name) => roleNames.has(name))
+        .filter((name) => roleNames.has(name)),
     );
 
     const contributions: Contribution[] = CREDIT_ROLES.map((r) => ({
@@ -92,20 +68,11 @@ export function fromXmlDocument(doc: Document): Author[] {
     const orcidEl = contrib.querySelector('contrib-id[contrib-id-type="orcid"]');
     const orcid = orcidEl?.textContent?.trim() ?? "";
 
-    const author: Author = {
-      name: displayName,
-      firstName,
-      middleName,
-      surname,
-      initials,
+    return createAuthor(displayName, {
       contributions,
-    };
-
-    // Attach ORCID only if the field exists on the type
-    if (orcid) {
-      (author as Author & { orcid?: string }).orcid = orcid;
-    }
-
-    return author;
+      ...(orcid ? { orcid } : {}),
+    });
   });
+
+  return deduplicateAuthorInitials(authors);
 }
