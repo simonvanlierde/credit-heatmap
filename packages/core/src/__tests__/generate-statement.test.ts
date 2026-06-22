@@ -46,4 +46,18 @@ describe("generateStatement", () => {
     const authors = parseAuthorText("Alice Brown");
     expect(generateStatement(authors, { format: "by-role" })).toBe("");
   });
+
+  it("appends level labels for non-lead scores when showLevels is set", () => {
+    const stmt = generateStatement(makeAuthors(), { format: "by-author", showLevels: true });
+    // Jane: Conceptualization is lead (100) → no label; Software is secondary (50) → labelled
+    expect(stmt).toContain("Conceptualization, Software (Secondary)");
+    // Bob: Conceptualization is tertiary (20) → labelled
+    expect(stmt).toContain("Conceptualization (Tertiary)");
+  });
+
+  it("ignores showLevels for the by-role format", () => {
+    const withLevels = generateStatement(makeAuthors(), { format: "by-role", showLevels: true });
+    const without = generateStatement(makeAuthors(), { format: "by-role" });
+    expect(withLevels).toBe(without);
+  });
 });
