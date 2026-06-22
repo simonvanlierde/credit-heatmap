@@ -1,0 +1,70 @@
+name: E2E (Playwright)
+
+on:
+    workflow_dispatch:
+    pull_request:
+        types: [labeled]
+
+jobs:
+    e2e:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Determine whether to run
+              id: check
+              uses: actions/github-script@v6
+              with:
+                  script: |
+                      const core = require('@actions/core');
+                      const github = require('@actions/github');
+                      const eventName = process.env.GITHUB_EVENT_NAME;
+                      if (eventName === 'workflow_dispatch') {
+                        core.setOutput('should_run', 'true');
+                        return;
+                      }
+                      const pr = github.context.payload.pull_request;
+                      if (!pr) {
+                        core.setOutput('should_run', 'false');
+                        return;
+                      }
+                      const labels = (pr.labels || []).map(l => l.name);
+                      core.setOutput('should_run', labels.includes('e2e') ? 'true' : 'false');
+
+            - name: Setup Node.js
+              if: steps.check.outputs.should_run == 'true'
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Install pnpm
+              if: steps.check.outputs.should_run == 'true'
+              run: corepack enable && corepack prepare pnpm@latest --activate
+
+            - name: Cache pnpm store
+              if: steps.check.outputs.should_run == 'true'
+              uses: actions/cache@v4
+              with:
+                  path: ~/.pnpm-store
+                  key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+            - name: Install dependencies
+              if: steps.check.outputs.should_run == 'true'
+              run: pnpm install --frozen-lockfile
+
+            - name: Install Playwright browsers
+              if: steps.check.outputs.should_run == 'true'
+              run: pnpm --filter @credit-generator/web exec playwright install --with-deps
+
+            - name: Run Playwright E2E
+              if: steps.check.outputs.should_run == 'true'
+              env:
+                  CI: true
+              run: pnpm --filter @credit-generator/web test:e2e --workers=1
+
+            - name: Upload Playwright traces on failure
+              if: steps.check.outputs.should_run == 'true' && failure()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: playwright-traces
+                  path: apps/web/test-results || playwright-report || ./**/playwright-report || ''

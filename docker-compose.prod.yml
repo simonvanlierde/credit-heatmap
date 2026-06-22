@@ -1,0 +1,27 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    environment:
+      - CLOUDFLARE_TUNNEL_TOKEN
+    command:
+      [
+        "sh",
+        "-c",
+        "exec cloudflared tunnel --no-autoupdate run --token \"$CLOUDFLARE_TUNNEL_TOKEN\"",
+      ]
+    depends_on:
+      - nginx
+    profiles:
+      - tunnel
+    restart: unless-stopped
