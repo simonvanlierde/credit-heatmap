@@ -1,16 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Single self-contained Next.js app: domain logic runs in the browser via
+  // @credit-generator/core, and the only server endpoint (ORCID proxy) is a
+  // route handler under src/app/api. No external API to proxy to.
   output: "standalone",
-  // Proxy API calls to the Hono API in development
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `http://localhost:${process.env.API_PORT ?? 3001}/api/:path*`,
-      },
-    ];
-  },
 };
 
 export default nextConfig;
