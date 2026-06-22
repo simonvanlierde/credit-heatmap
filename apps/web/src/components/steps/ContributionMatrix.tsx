@@ -216,7 +216,22 @@ export function ContributionHeatmap() {
         <HeatmapExportButtons authors={authors} />
       </div>
 
-      <div style={{ height: chartHeight, width: "100%" }}>
+      {/* Text alternative for screen readers — the SVG heatmap below is decorative to AT. */}
+      <ul className="sr-only">
+        {authors.map((author) => {
+          const active = author.contributions.filter((c) => c.score > 0);
+          return (
+            <li key={author.id}>
+              {author.name}:{" "}
+              {active.length === 0
+                ? "no contributions assigned"
+                : active.map((c) => `${c.role} (${scoreToLevel(c.score)})`).join(", ")}
+            </li>
+          );
+        })}
+      </ul>
+
+      <div style={{ height: chartHeight, width: "100%" }} aria-hidden="true">
         <ResponsiveHeatMap
           data={data}
           margin={{ top: 40, right: 20, bottom: 10, left: 185 }}

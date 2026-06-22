@@ -12,6 +12,7 @@ interface ContributionState {
   selectedAuthorId: string | null;
   inputMode: InputMode;
   loadAuthors: (authors: Author[]) => void;
+  loadSample: () => void;
   setAuthorsFromText: (text: string) => void;
   addAuthor: (name: string) => void;
   removeAuthor: (authorId: string) => void;
@@ -52,6 +53,39 @@ function clampScore(score: number): number {
   return Math.max(0, Math.min(100, score));
 }
 
+/** A small, realistic three-author dataset for the first-run "Load sample" action. */
+function buildSampleAuthors(): Author[] {
+  const scores: Record<string, Partial<Record<CreditRoleName, number>>> = {
+    "Jane A. Smith": {
+      Conceptualization: 100,
+      Methodology: 66,
+      "Writing – original draft": 100,
+      Supervision: 33,
+    },
+    "Bob White": {
+      Investigation: 100,
+      "Data curation": 100,
+      Software: 66,
+      "Formal Analysis": 66,
+    },
+    "Carol Davis": {
+      "Funding acquisition": 100,
+      "Project administration": 100,
+      "Writing – review & editing": 100,
+      Resources: 66,
+    },
+  };
+
+  return Object.entries(scores).map(([name, roleScores]) =>
+    createAuthor(name, {
+      contributions: ROLE_NAMES.map((role) => ({
+        role,
+        score: roleScores[role as CreditRoleName] ?? 0,
+      })),
+    }),
+  );
+}
+
 function findAuthorIndex(authors: Author[], authorId: string): number {
   return authors.findIndex((author) => author.id === authorId);
 }
@@ -87,6 +121,13 @@ export const useContributionStore = create<ContributionState>()(
         set((state) => {
           state.authors = normalizeAuthors(authors);
           state.selectedAuthorId = ensureSelectedAuthorId(state.authors, state.selectedAuthorId);
+        }),
+
+      loadSample: () =>
+        set((state) => {
+          const authors = buildSampleAuthors();
+          state.authors = normalizeAuthors(authors);
+          state.selectedAuthorId = state.authors[0]?.id ?? null;
         }),
 
       setAuthorsFromText: (text) =>

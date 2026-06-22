@@ -99,6 +99,9 @@ export function StatementOutput() {
       </div>
 
       {/* Actions */}
+      <span className="sr-only" role="status" aria-live="polite">
+        {copied ? "Copied to clipboard" : ""}
+      </span>
       <div className="relative z-10 flex items-center gap-2 flex-wrap">
         <button
           type="button"

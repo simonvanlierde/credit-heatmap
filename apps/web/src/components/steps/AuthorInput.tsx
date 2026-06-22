@@ -22,6 +22,7 @@ export function AuthorList() {
   const {
     authors,
     addAuthor,
+    loadSample,
     moveAuthor,
     removeAuthor,
     updateAuthorName,
@@ -107,6 +108,23 @@ export function AuthorList() {
           {authors.length} author{authors.length !== 1 ? "s" : ""}
         </span>
       </div>
+
+      {authors.length === 0 && (
+        <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
+          <span className="material-symbols-outlined text-3xl text-outline-variant mb-2 block">group_add</span>
+          <p className="text-sm text-on-surface-variant">
+            No contributors yet. Add a name below, use <strong>Import</strong> in the header, or
+          </p>
+          <button
+            type="button"
+            onClick={loadSample}
+            className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary hover:text-on-primary hover:border-primary transition-colors"
+          >
+            <span className="material-symbols-outlined text-lg">auto_awesome</span>
+            Load sample data
+          </button>
+        </div>
+      )}
 
       <div className="space-y-2">
         {authors.map((author, index) => {
@@ -223,14 +241,34 @@ export function AuthorList() {
                 </div>
               </div>
 
-              <div className="shrink-0 flex items-center gap-2">
-                <button
-                  type="button"
-                  aria-label={`Drag to reorder ${author.name}`}
-                  className="text-outline-variant cursor-grab active:cursor-grabbing"
+              <div className="shrink-0 flex items-center gap-1">
+                <span
+                  className="text-outline-variant cursor-grab active:cursor-grabbing hidden md:inline"
+                  aria-hidden="true"
+                  title="Drag to reorder"
                 >
                   <span className="material-symbols-outlined text-lg">drag_indicator</span>
-                </button>
+                </span>
+                <div className="flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => moveAuthor(index, index - 1)}
+                    disabled={index === 0}
+                    aria-label={`Move ${author.name} up`}
+                    className="flex items-center justify-center w-6 h-6 text-outline-variant hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <span className="material-symbols-outlined text-base leading-none">keyboard_arrow_up</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveAuthor(index, index + 1)}
+                    disabled={index === authors.length - 1}
+                    aria-label={`Move ${author.name} down`}
+                    className="flex items-center justify-center w-6 h-6 text-outline-variant hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <span className="material-symbols-outlined text-base leading-none">keyboard_arrow_down</span>
+                  </button>
+                </div>
                 <span className="text-xs font-mono text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">
                   {author.initials}
                 </span>
@@ -239,7 +277,7 @@ export function AuthorList() {
               <button
                 type="button"
                 onClick={() => removeAuthor(author.id)}
-                className="shrink-0 text-outline-variant hover:text-error transition-colors opacity-0 group-hover:opacity-100"
+                className="shrink-0 text-outline-variant hover:text-error transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
                 aria-label={`Remove ${author.name}`}
               >
                 <span className="material-symbols-outlined text-lg">delete</span>
