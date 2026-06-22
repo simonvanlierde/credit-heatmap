@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "rangeStrategy": "bump"
+    },
+    {
+      "matchManagers": ["npm", "pnpm"],
+      "groupName": "all npm & pnpm dependencies",
+      "rangeStrategy": "bump",
+      "automerge": true,
+      "automergeType": "pr",
+      "matchUpdateTypes": ["patch"],
+      "schedule": ["every weekend"]
+    },
+    {
+      "matchManagers": ["npm", "pnpm"],
+      "groupName": "all npm & pnpm minor/major",
+      "rangeStrategy": "bump",
+      "automerge": false,
+      "matchUpdateTypes": ["minor", "major"],
+      "schedule": ["every weekend"]
+    }
+  ]
+}

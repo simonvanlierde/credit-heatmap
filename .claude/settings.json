@@ -39,8 +39,12 @@
       "Skill(update-config)",
       "Skill(update-config:*)",
       "Bash(pnpm:*)",
-      "Bash(pnpm --filter @credit-generator/web add:*",
-      "Bash(pnpm --filter @credit-generator/api add:*"
+      "Bash(for wt:*)",
+      "Bash(do echo:*)",
+      "Bash(git -C $wt status --short)",
+      "Bash(done)",
+      "Bash(git worktree:*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({**d.get\\(''''dependencies'''',{}\\), **d.get\\(''''devDependencies'''',{}\\)}, indent=2\\)\\)\")"
     ]
   }
 }

@@ -1,9 +1,11 @@
+# Node  
 node_modules
 .turbo
 dist
 .next
 coverage
 *.tsbuildinfo
+**/test-results/
 
 # env files
 .env
@@ -13,3 +15,7 @@ coverage
 # OS
 .DS_Store
 Thumbs.db
+
+# Local config
+.vscode
+.claude

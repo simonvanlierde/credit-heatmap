@@ -1,0 +1,18 @@
+version: "0.2"
+dictionaries:
+  - cpp-compound-words
+  - docker
+  - fonts
+  - npm
+words:
+  - nivo
+  - orcid
+ignoreWords:
+  - contribs
+  - JATS4R
+  - linkedom
+ignorePaths:
+  - "**/*-lock.**"
+  - "**/**.tsbuildinfo"
+  - "**/dist/**"
+  - "**/coverage/**"

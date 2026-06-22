@@ -1,0 +1,23 @@
+pre-commit:
+    parallel: true
+    commands:
+        lint-staged:
+            run: npx --no-install lint-staged
+            root: .
+        biome:
+            run: pnpm lint
+            root: .
+commit-msg:
+    commands:
+        commitlint:
+            run: npx --no-install commitlint --edit $1
+            root: .
+
+pre-push:
+    commands:
+        lint:
+            run: pnpm lint
+            root: .
+        core-smoke:
+            run: pnpm --filter @credit-generator/core test -- -t smoke
+            root: .
