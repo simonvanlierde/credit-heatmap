@@ -32,6 +32,29 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByLabel("Full Name").first()).toHaveValue("Jane Smith");
     await expect(page.getByText("2 authors")).toBeVisible();
     await expect(page.locator("svg").first()).toBeVisible();
+
+    // Imported names have no roles yet → a validation notice appears.
+    await expect(page.getByText(/has no assigned CRediT roles/).first()).toBeVisible();
+  });
+
+  test("Share link round-trips the state through the URL", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByText("3 authors")).toBeVisible();
+
+    await page.getByRole("button", { name: "Share" }).click();
+    const shareUrl = await page.evaluate(() => navigator.clipboard.readText());
+    expect(shareUrl).toContain("#s=");
+
+    // Open the link in a fresh page (clears local storage) and confirm the state loads.
+    const fresh = await context.newPage();
+    await fresh.addInitScript(() => window.localStorage.clear());
+    await fresh.goto(shareUrl);
+    await expect(fresh.getByText("3 authors")).toBeVisible();
+    await expect(fresh.getByText("Jane A. Smith", { exact: true })).toBeVisible();
+    // The share hash is cleared after loading.
+    expect(new URL(fresh.url()).hash).toBe("");
   });
 
   test("XML export downloads client-side (no API round-trip)", async ({ page }) => {
