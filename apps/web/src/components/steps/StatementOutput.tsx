@@ -1,7 +1,14 @@
 "use client";
 
 import type { StatementFormat } from "@credit-generator/core";
-import { generateStatement, toCsv, toJats4rXml, toJson } from "@credit-generator/core";
+import {
+  generateStatement,
+  toCsv,
+  toJats4rXml,
+  toJson,
+  toMarkdown,
+  validateContributions,
+} from "@credit-generator/core";
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -14,6 +21,7 @@ export function StatementOutput() {
   const [copied, setCopied] = useState(false);
 
   const statement = generateStatement(authors, { format, showLevels });
+  const issues = validateContributions(authors);
 
   async function handleCopy() {
     await navigator.clipboard.writeText(statement);
@@ -98,6 +106,27 @@ export function StatementOutput() {
         )}
       </div>
 
+      {/* Validation notices */}
+      {issues.length > 0 && (
+        <ul className="relative z-10 flex flex-col gap-1.5" aria-label="Statement checks">
+          {issues.map((issue) => (
+            <li
+              key={issue.message}
+              className={`flex items-start gap-2 text-xs rounded px-3 py-2 ${
+                issue.level === "warning"
+                  ? "bg-error-container/30 text-error"
+                  : "bg-surface-container-high text-on-surface-variant"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px] leading-none mt-px">
+                {issue.level === "warning" ? "warning" : "info"}
+              </span>
+              <span>{issue.message}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* Actions */}
       <span className="sr-only" role="status" aria-live="polite">
         {copied ? "Copied to clipboard" : ""}
@@ -128,6 +157,20 @@ export function StatementOutput() {
           className="flex items-center gap-2 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Copy XML
+        </button>
+
+        <button
+          type="button"
+          onClick={async () => {
+            if (authors.length === 0) return;
+            await navigator.clipboard.writeText(toMarkdown(authors));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+          disabled={authors.length === 0}
+          className="flex items-center gap-2 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Copy MD
         </button>
         <button
           type="button"
