@@ -11,19 +11,15 @@ install:
 
 # Start the web app in dev mode (on :3000)
 dev:
-    pnpm turbo dev
+    pnpm dev
 
-# Start only the web app
-web:
-    pnpm --filter @credit-generator/web dev
-
-# Build all packages
+# Build core + the web app
 build:
-    pnpm turbo build
+    pnpm build
 
 # Run all unit tests (packages/core)
 test:
-    pnpm turbo test
+    pnpm test
 
 # Run tests in watch mode (packages/core only)
 test-watch:
@@ -44,7 +40,7 @@ cspell:
 
 # Type-check all packages
 typecheck:
-    pnpm turbo typecheck
+    pnpm typecheck
 
 # Lint with Biome
 lint:
@@ -56,14 +52,14 @@ lint-fix:
 
 # Clean all build artifacts
 clean:
-    pnpm turbo clean
+    pnpm clean
 
 # Full CI pass: typecheck + lint + test + build
 ci:
-    pnpm turbo typecheck && \
+    pnpm typecheck && \
     pnpm biome check . && \
-    pnpm turbo test && \
-    pnpm turbo build
+    pnpm test && \
+    pnpm build
 
 # Build and start the Docker Compose stack
 docker-up:

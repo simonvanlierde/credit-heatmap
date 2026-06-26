@@ -7,8 +7,7 @@
       "!**/coverage",
       "!.next",
       "!pnpm-lock.yaml",
-      "!package-lock.json",
-      "!.turbo"
+      "!package-lock.json"
     ]
   },
   "formatter": {

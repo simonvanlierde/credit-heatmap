@@ -1,10 +1,56 @@
 # CRediT Generator
 
-A web tool for building [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) author contribution statements for scholarly publications.
+A web tool for building [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) author
+contribution statements for scholarly publications.
 
-Authors are added by name, their 14 CRediT roles are assigned via an interactive matrix, and the app generates a formatted statement ready to paste into a manuscript — along with JATS4R XML and JSON exports for journal submission systems.
+Add contributors by name, assign their 14 CRediT roles via an interactive matrix, and the app
+generates a formatted statement ready to paste into a manuscript — alongside a contribution
+heatmap and exports (JATS4R XML, CSV, JSON, Markdown) for journal submission systems.
 
-This is a full-stack TypeScript rewrite of the original [Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator).
+This is a TypeScript rewrite of the original
+[Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator).
+
+<!-- Live demo: add your deployment URL here -->
+
+---
+
+## Features
+
+- **Contributor management** — add/rename/reorder authors, paste an ORCID iD to auto-fill the name
+- **Contribution matrix** — assign roles per author as a binary toggle, granular level, or 0–100 slider, with presets (equal contribution, senior author, data-only)
+- **Live statement** — three formats (by role, by author, short) with optional level annotations
+- **Contribution heatmap** — interactive preview plus SVG and PNG download (rendered in the browser)
+- **Exports** — JATS4R XML, CSV, JSON, and a Markdown table; copy or download
+- **Validation** — journal-style checks (authors with no roles, missing key roles)
+- **Shareable links** — encode the whole draft into a URL to hand to a co-author
+- **Import** — paste names, or drop a JSON / CSV / JATS4R XML file to restore a session
+
+---
+
+## Architecture
+
+The app is deliberately small: a single **Next.js** application plus one **pure domain package**.
+
+```text
+Browser
+  └─ Next.js 15 app  (repo root, App Router)
+       ├─ React UI + Zustand store (persisted to localStorage)
+       ├─ @credit-generator/core   ← all domain logic, runs in the browser
+       │     statements · JATS4R XML · CSV · JSON · Markdown · heatmap SVG · validation
+       └─ /api/orcid  (route handler) ──→ pub.orcid.org    ← the only server-side call
+```
+
+Almost everything is a pure function in [`packages/core`](packages/core/README.md), so it runs
+client-side: statement generation, XML/CSV/JSON/Markdown, the heatmap SVG (converted to PNG via
+`<canvas>`), and XML import (native `DOMParser`). The **only** thing that genuinely needs a server
+is the ORCID lookup, because the ORCID public API has no permissive CORS headers — so it's a single
+Next.js route handler.
+
+An earlier version had a separate Hono REST API (with OpenAPI docs, server-side Sharp/Satori PNG/PDF
+rendering, and an nginx-fronted two-container deploy). That was collapsed on purpose: it was more
+surface area than the tool needs. Keeping `packages/core` framework-agnostic (its only runtime
+dependency is `zod`) preserves the option to wrap it in a CLI, serverless API, or document plugin
+later — without carrying that machinery now.
 
 ---
 
@@ -12,45 +58,48 @@ This is a full-stack TypeScript rewrite of the original [Python/Dash CRediT Gene
 
 | Layer | Choice | Why |
 |---|---|---|
-| Monorepo | Turborepo + pnpm workspaces | Fast cached builds; packages/core shared between web and api |
-| Language | TypeScript 5 strict | Catch errors at compile time; safer refactoring |
-| Frontend | Next.js 15 (App Router) | React Server Components; easy deployment as a standalone Docker image |
-| Styling | Tailwind CSS v4 | Design tokens via `@theme`; zero runtime CSS |
-| State | Zustand + immer + persist | Simple, mutation-friendly store; survives page refresh |
-| Validation | Zod | Runtime-safe schemas shared between frontend and API |
-| API | Hono + @hono/zod-openapi | Lightweight, edge-ready; OpenAPI schema auto-generated |
-| Heatmap | @nivo/heatmap (UI) + hand-crafted SVG (API export) | Interactive in-browser chart; clean SVG for download |
-| PNG export | Sharp | Converts the SVG to PNG server-side; no headless browser needed |
-| Testing | Vitest | Fast ESM-native unit tests on packages/core |
-| Linting | Biome | Single tool for formatting + linting |
-| CI | GitHub Actions | Typecheck → lint → test → build on every PR |
-| Deploy | Docker + Coolify on Hetzner VPS | Two images (web, api); docker-compose for local dev |
+| Workspace | pnpm workspaces | One app at the root + a reusable `packages/core` library |
+| Language | TypeScript 5 (strict) | Compile-time safety; `noUncheckedIndexedAccess` on |
+| Frontend | Next.js 15 (App Router) | RSC; deploys as a standalone Docker image |
+| Styling | Tailwind CSS v4 | Design tokens via `@theme`; no runtime CSS |
+| State | Zustand + immer + persist | Simple, mutation-friendly store; survives refresh |
+| Validation | Zod | Runtime-safe schemas at trust boundaries |
+| Heatmap | @nivo/heatmap (preview) + hand-crafted SVG (`core`) | Interactive chart; one SVG source for download + canvas PNG |
+| Testing | Vitest (unit) + Playwright (e2e) | Fast ESM unit tests; browser happy-path coverage |
+| Linting | Biome | One tool for format + lint |
+| CI | GitHub Actions | lint · typecheck · test · build on every PR |
+| Deploy | Docker (single service) + optional nginx / Cloudflare Tunnel | One container; compose profiles for prod and tunnel |
 
 ---
 
 ## Repository structure
 
-```
-credit-generator/
-├── apps/
-│   ├── web/          Next.js 15 frontend (port 3000)
-│   └── api/          Hono REST API (port 3001)
+```text
+credit-generator/                The Next.js app lives at the repo root
+├── src/                        UI (components, store, /api/orcid route handler)
+├── e2e/                        Playwright happy-path tests
+├── next.config.ts
 ├── packages/
-│   └── core/         Pure TypeScript domain logic
-│       ├── src/credit-roles.ts       14 CRediT roles as a typed const
-│       ├── src/author.ts             Zod schemas; score → level helpers
-│       ├── src/parse-authors.ts      Name parsing + unique-initials logic
-│       ├── src/generate-statement.ts 3 statement formats (by-role, by-author, short)
-│       └── src/export/               JATS4R XML + JSON serialisers
-├── justfile                          Dev commands (requires just)
-├── turbo.json
+│   └── core/                   Pure, framework-agnostic domain logic (see its README)
+│       ├── src/credit-roles.ts        14 CRediT roles as a typed const
+│       ├── src/author.ts              Zod schemas; score → level helpers
+│       ├── src/parse-authors.ts       Name parsing + unique-initials logic
+│       ├── src/generate-statement.ts  3 statement formats
+│       ├── src/validate.ts            Journal-style contribution checks
+│       └── src/export/                JATS4R XML, CSV, JSON, Markdown, heatmap SVG
+├── justfile                    Dev commands (requires just)
+├── tsconfig.base.json          Shared compiler options (app + core extend it)
 ├── pnpm-workspace.yaml
-└── docker-compose.yml
+├── docker-compose.yml          Single web service
+├── docker-compose.dev.yml      Dev port mapping
+├── docker-compose.prod.yml     nginx + optional Cloudflare Tunnel
+└── nginx/
 ```
 
 ### Contribution score model
 
-Contributions are stored as a 0–100 integer (`score`) rather than a boolean. This lets the UI offer three input modes — toggle (0 or 100), granular levels (0/33/66/100), or a continuous slider — without changing the underlying data model. Level boundaries:
+Contributions are stored as a 0–100 integer (`score`) rather than a boolean, so the UI can offer a
+toggle, granular levels, or a slider without changing the data model. Boundaries:
 
 | Score | Level |
 |---|---|
@@ -59,96 +108,81 @@ Contributions are stored as a 0–100 integer (`score`) rather than a boolean. T
 | 34–66 | Secondary |
 | 67–100 | Lead |
 
-### API endpoints
+See [`packages/core/README.md`](packages/core/README.md) for the full domain model.
+
+### Server endpoints
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/api/v1/statement/generate` | Generate a text statement from an author list |
-| POST | `/api/v1/heatmap/generate` | Return an SVG (default) or PNG (`Accept: image/png`) heatmap |
-| GET | `/api/docs` | Swagger UI |
-| GET | `/api/openapi.json` | OpenAPI 3.0 schema |
+| GET | `/api/orcid?id=…` | Proxy an ORCID public lookup (CORS workaround) |
+| GET | `/health` | Liveness check for Docker / load balancers |
+
+Everything else — statements, exports, heatmap — happens in the browser.
 
 ---
 
 ## Quick start
 
-**Prerequisites:** Node ≥ 22, pnpm ≥ 9, [just](https://github.com/casey/just) (optional but recommended)
+**Prerequisites:** Node ≥ 22, pnpm ≥ 9, [just](https://github.com/casey/just) (optional)
 
 ```bash
-# Clone and install
 git clone https://github.com/your-org/credit-generator
 cd credit-generator
 just install        # or: pnpm install
 
-# Run web + API together
-just dev            # or: pnpm turbo dev
-
-# Open
-# Web:  http://localhost:3000
-# API:  http://localhost:3001
-# Docs: http://localhost:3001/api/docs
+just dev            # or: pnpm dev
+# open http://localhost:3000
 ```
 
 ### Useful commands
 
 ```bash
-just dev            # Start all apps in watch mode
-just web            # Web only
-just api            # API only
-just test           # Run unit tests
-just test-watch     # Tests in watch mode
-just typecheck      # TypeScript check across all packages
+just dev            # Next.js dev server (watch)
+just web            # same, web filter only
+just build          # production build
+just test           # unit tests
+just typecheck      # TypeScript across all packages
 just lint           # Biome lint
-just lint-fix       # Lint + auto-fix
-just build          # Production build
-just ci             # Full CI pass locally
-just docker-up      # Build + run Docker Compose stack
+just lint-fix       # Biome lint + auto-fix
+just ci             # full local CI pass
+just docker-up      # build + run the dev Docker stack
+just docker-prod-up # build + run the production stack
+just docker-smoke   # build the stack and curl /health
 ```
 
-### Without just
-
-```bash
-pnpm install
-pnpm turbo dev      # dev
-pnpm turbo test     # test
-pnpm turbo build    # build
-pnpm biome check .  # lint
-```
+Without `just`: `pnpm install`, then `pnpm dev | test | build` and `pnpm biome check .`.
 
 ---
 
-## Development
-
-### packages/core
-
-All business logic lives here — no framework dependencies. Changes here rebuild both `apps/web` and `apps/api` (Turborepo handles the dependency ordering). Add tests in `src/__tests__/`.
+## Testing
 
 ```bash
-pnpm --filter @credit-generator/core test
-pnpm --filter @credit-generator/core build
+pnpm --filter @credit-generator/core test     # unit tests (Vitest)
+pnpm test:e2e                                  # browser happy paths (Playwright)
 ```
 
-### apps/web
+Unit tests cover the domain layer (parsing, statements, all exports, the heatmap SVG, validation).
+The Playwright suite covers loading sample data, importing names, the client-side XML download, and
+the share-link round-trip. E2e runs on manual dispatch or on PRs labelled `e2e`.
 
-Next.js App Router. The Zustand store persists to `localStorage` so author data survives refresh. `next.config.ts` proxies `/api/*` requests to the Hono API in development.
-
-### apps/api
-
-Hono with `@hono/zod-openapi`. Stateless — no database. The Zod schemas in `apps/api/src/schemas.ts` re-use types from `packages/core`.
+CI (`.github/workflows/ci.yml`) runs lint, typecheck, test, and build in parallel on every push and
+PR; `docker.yml` validates the compose files and smoke-tests the built stack.
 
 ---
 
 ## Docker
 
 ```bash
-# Local stack
-docker compose up --build
+# Local stack (port 3000)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
-# Individual images
-docker build -f apps/web/Dockerfile -t credit-generator-web .
-docker build -f apps/api/Dockerfile -t credit-generator-api .
+# Production stack behind nginx on one public port
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+# …with a Cloudflare Tunnel
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --build
 ```
 
-Images use Next.js `output: "standalone"` and multi-stage builds to keep sizes small.
-
----
+The image uses Next.js `output: "standalone"` with a multi-stage build. The nginx front door listens
+on `NGINX_PORT` (default `8080`); set `CLOUDFLARE_TUNNEL_TOKEN` to enable the `tunnel` profile. See
+[.env.example](.env.example) for deployment variables.
