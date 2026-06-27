@@ -53,21 +53,13 @@ ci:
     pnpm test && \
     pnpm build
 
-# Build and start the Docker Compose stack
+# Build and start the app container
 docker-up:
-    just docker-dev-up
+    docker compose up --build
 
-# Start the dev Docker Compose stack
-docker-dev-up:
-    docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-
-# Tear down Docker Compose stack
+# Tear down the app container
 docker-down:
-    just docker-dev-down
-
-# Tear down the dev Docker Compose stack
-docker-dev-down:
-    docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+    docker compose down
 
 # Install git hooks (lefthook)
 install-hooks:
@@ -77,28 +69,12 @@ install-hooks:
 install-hooks-reset:
     pnpm dlx lefthook install --reset
 
-# Start the production Docker Compose stack
-docker-prod-up:
-    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Validate the Docker Compose file
+docker-config:
+    docker compose config >/dev/null
 
-# Start the production Docker Compose stack with the Cloudflare Tunnel profile
-docker-prod-up-tunnel:
-    docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --build
-
-# Tear down the production Docker Compose stack
-docker-prod-down:
-    docker compose -f docker-compose.yml -f docker-compose.prod.yml down
-
-# Validate the dev Docker Compose file
-docker-config-dev:
-    docker compose -f docker-compose.yml -f docker-compose.dev.yml config >/dev/null
-
-# Validate the production Docker Compose file
-docker-config-prod:
-    CLOUDFLARE_TUNNEL_TOKEN=dummy docker compose -f docker-compose.yml -f docker-compose.prod.yml config >/dev/null
-
-# Run the production compose smoke test locally (builds, checks /health, tears down)
+# Build the container and smoke-test /health, then tear down
 docker-smoke:
-    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-    for i in $(seq 1 60); do curl -fsS "http://127.0.0.1:${NGINX_PORT:-8080}/health" && curl -fsS "http://127.0.0.1:${NGINX_PORT:-8080}/" && break || sleep 2; done
-    docker compose -f docker-compose.yml -f docker-compose.prod.yml down -v --remove-orphans
+    docker compose up -d --build
+    for i in $(seq 1 60); do curl -fsS "http://127.0.0.1:${PORT:-3000}/health" && curl -fsS "http://127.0.0.1:${PORT:-3000}/" && break || sleep 2; done
+    docker compose down -v --remove-orphans
