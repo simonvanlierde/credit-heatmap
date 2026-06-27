@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.6.1
     environment:
       - CLOUDFLARE_TUNNEL_TOKEN
     command:
