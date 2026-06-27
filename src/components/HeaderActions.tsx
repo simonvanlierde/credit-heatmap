@@ -12,7 +12,7 @@ import { useContributionStore } from "@/store/contribution-store";
  */
 export function HeaderActions() {
   const [importOpen, setImportOpen] = useState(false);
-  const [shared, setShared] = useState(false);
+  const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "error">("idle");
   const authors = useContributionStore((s) => s.authors);
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
 
@@ -22,7 +22,8 @@ export function HeaderActions() {
     const fromHash = decodeShareHash(window.location.hash);
     if (fromHash && fromHash.length > 0) {
       loadAuthors(fromHash);
-      window.history.replaceState(null, "", window.location.pathname);
+      // Drop only the fragment; keep any query string intact.
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
   }, [loadAuthors]);
 
@@ -31,9 +32,13 @@ export function HeaderActions() {
   }
 
   async function handleShare() {
-    await navigator.clipboard.writeText(buildShareUrl(authors));
-    setShared(true);
-    setTimeout(() => setShared(false), 2000);
+    try {
+      await navigator.clipboard.writeText(buildShareUrl(authors));
+      setShareStatus("copied");
+    } catch {
+      setShareStatus("error");
+    }
+    setTimeout(() => setShareStatus("idle"), 2000);
   }
 
   return (
@@ -45,8 +50,10 @@ export function HeaderActions() {
           disabled={authors.length === 0}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary border border-primary/30 hover:bg-primary hover:text-on-primary hover:border-primary transition-colors rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <span className="material-symbols-outlined text-lg">{shared ? "check" : "link"}</span>
-          {shared ? "Link copied" : "Share"}
+          <span className="material-symbols-outlined text-lg">
+            {shareStatus === "copied" ? "check" : shareStatus === "error" ? "error" : "link"}
+          </span>
+          {shareStatus === "copied" ? "Link copied" : shareStatus === "error" ? "Copy failed" : "Share"}
         </button>
         <button
           type="button"
