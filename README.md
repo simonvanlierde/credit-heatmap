@@ -59,8 +59,8 @@ later — without carrying that machinery now.
 | Layer | Choice | Why |
 |---|---|---|
 | Workspace | pnpm workspaces | One app at the root + a reusable `packages/core` library |
-| Language | TypeScript 5 (strict) | Compile-time safety; `noUncheckedIndexedAccess` on |
-| Frontend | Next.js 15 (App Router) | RSC; deploys as a standalone Docker image |
+| Language | TypeScript 6 (strict) | Compile-time safety; `noUncheckedIndexedAccess` on |
+| Frontend | Next.js 15 (App Router) | RSC; deploys self-hosted or serverless (see [Deployment](#deployment)) |
 | Styling | Tailwind CSS v4 | Design tokens via `@theme`; no runtime CSS |
 | State | Zustand + immer + persist | Simple, mutation-friendly store; survives refresh |
 | Validation | Zod | Runtime-safe schemas at trust boundaries |
@@ -68,7 +68,7 @@ later — without carrying that machinery now.
 | Testing | Vitest (unit) + Playwright (e2e) | Fast ESM unit tests; browser happy-path coverage |
 | Linting | Biome | One tool for format + lint |
 | CI | GitHub Actions | lint · typecheck · test · build on every PR |
-| Deploy | Docker (single service) + optional nginx / Cloudflare Tunnel | One container; compose profiles for prod and tunnel |
+| Deploy | Docker self-host **or** Cloudflare Workers (OpenNext) | Two targets: a portable container, or zero-ops serverless edge |
 
 ---
 
@@ -79,6 +79,8 @@ credit-generator/                The Next.js app lives at the repo root
 ├── src/                        UI (components, store, /api/orcid route handler)
 ├── e2e/                        Playwright happy-path tests
 ├── next.config.ts
+├── open-next.config.ts         Cloudflare/OpenNext serverless adapter
+├── wrangler.jsonc              Cloudflare Worker config
 ├── packages/
 │   └── core/                   Pure, framework-agnostic domain logic (see its README)
 │       ├── src/credit-roles.ts        14 CRediT roles as a typed const
@@ -170,7 +172,16 @@ PR; `docker.yml` validates the compose files and smoke-tests the built stack.
 
 ---
 
-## Docker
+## Deployment
+
+The app supports two deploy targets. Pick by trade-off — a portable, self-hostable container, or
+zero-ops serverless. `packages/core` is framework-agnostic, so neither target leaks into the
+domain logic.
+
+### Self-host — Docker + nginx
+
+A multi-stage build packages the Next.js `output: "standalone"` server into a single container,
+fronted by nginx and optionally exposed through a Cloudflare Tunnel.
 
 ```bash
 # Local stack (port 3000)
@@ -183,6 +194,18 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --build
 ```
 
-The image uses Next.js `output: "standalone"` with a multi-stage build. The nginx front door listens
-on `NGINX_PORT` (default `8080`); set `CLOUDFLARE_TUNNEL_TOKEN` to enable the `tunnel` profile. See
-[.env.example](.env.example) for deployment variables.
+The nginx front door listens on `NGINX_PORT` (default `8080`); set `CLOUDFLARE_TUNNEL_TOKEN` to
+enable the `tunnel` profile. See [.env.example](.env.example) for deployment variables.
+`docker.yml` smoke-tests this stack in CI.
+
+### Serverless — Cloudflare Workers (OpenNext)
+
+[`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare) adapts the Next.js build to run on
+Cloudflare Workers, with no server to keep alive — how the live demo is hosted.
+
+```bash
+pnpm preview        # build + run the Worker locally
+pnpm deploy         # build + deploy to Cloudflare
+```
+
+Configured in [open-next.config.ts](open-next.config.ts) and [wrangler.jsonc](wrangler.jsonc).
