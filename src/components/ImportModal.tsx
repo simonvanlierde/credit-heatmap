@@ -23,7 +23,8 @@ type DetectedFormat = "csv" | "json" | "xml" | "names" | "unknown";
 function detect(text: string): DetectedFormat {
   const trimmed = text.trim();
   if (trimmed.startsWith("<")) return "xml";
-  if (trimmed.includes(",") && trimmed.toLowerCase().includes("name")) return "csv";
+  // JSON must be checked before the CSV heuristic: a toJson() payload contains
+  // both a comma and a "name" field, so the CSV check would misclassify it.
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
       JSON.parse(trimmed);
@@ -32,6 +33,7 @@ function detect(text: string): DetectedFormat {
       /* fall through */
     }
   }
+  if (trimmed.includes(",") && trimmed.toLowerCase().includes("name")) return "csv";
   if (trimmed.length > 0) return "names";
   return "unknown";
 }
@@ -84,8 +86,16 @@ export function ImportModal({ open, onImport, onClose }: Props) {
       let authors: Author[];
       if (format === "json") {
         authors = fromJson(text.trim());
+        if (authors.length === 0) {
+          setError("That JSON export contains no contributors.");
+          return;
+        }
       } else if (format === "csv") {
         authors = fromCsv(text.trim());
+        if (authors.length === 0) {
+          setError("No contributor rows found in the CSV.");
+          return;
+        }
       } else if (format === "xml") {
         authors = fromJats4rXml(text.trim());
         if (authors.length === 0) {
