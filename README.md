@@ -92,10 +92,8 @@ credit-generator/                The Next.js app lives at the repo root
 ├── justfile                    Dev commands (requires just)
 ├── tsconfig.base.json          Shared compiler options (app + core extend it)
 ├── pnpm-workspace.yaml
-├── docker-compose.yml          Single web service
-├── docker-compose.dev.yml      Dev port mapping
-├── docker-compose.prod.yml     nginx + optional Cloudflare Tunnel
-└── nginx/
+├── Dockerfile                  Multi-stage standalone build
+└── docker-compose.yml          Single-container run
 ```
 
 ### Contribution score model
@@ -168,7 +166,7 @@ The Playwright suite covers loading sample data, importing names, the client-sid
 the share-link round-trip. E2e runs on manual dispatch or on PRs labelled `e2e`.
 
 CI (`.github/workflows/ci.yml`) runs lint, typecheck, test, and build in parallel on every push and
-PR; `docker.yml` validates the compose files and smoke-tests the built stack.
+PR; `docker.yml` builds the container and smoke-tests it.
 
 ---
 
@@ -178,25 +176,18 @@ The app supports two deploy targets. Pick by trade-off — a portable, self-host
 zero-ops serverless. `packages/core` is framework-agnostic, so neither target leaks into the
 domain logic.
 
-### Self-host — Docker + nginx
+### Self-host — Docker
 
-A multi-stage build packages the Next.js `output: "standalone"` server into a single container,
-fronted by nginx and optionally exposed through a Cloudflare Tunnel.
+A multi-stage build packages the Next.js `output: "standalone"` server into a single container that
+serves everything, including the `/api/*` route handlers. No reverse proxy is required; put one
+(nginx, Caddy, a cloud load balancer) in front only if your environment needs it.
 
 ```bash
-# Local stack (port 3000)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-
-# Production stack behind nginx on one public port
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-
-# …with a Cloudflare Tunnel
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --build
+docker compose up --build      # build + run on http://localhost:3000
 ```
 
-The nginx front door listens on `NGINX_PORT` (default `8080`); set `CLOUDFLARE_TUNNEL_TOKEN` to
-enable the `tunnel` profile. See [.env.example](.env.example) for deployment variables.
-`docker.yml` smoke-tests this stack in CI.
+Override the published port with `PORT` (see [.env.example](.env.example)). `docker.yml` builds the
+container and smoke-tests `/health` in CI.
 
 ### Serverless — Cloudflare Workers (OpenNext)
 
