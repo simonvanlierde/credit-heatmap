@@ -59,6 +59,9 @@ export function fromXmlDocument(doc: Document): Author[] {
         .filter((name) => roleNames.has(name)),
     );
 
+    // JATS4R carries no score, only role presence — so every active role comes
+    // back as 100. A score of e.g. 50 exported to XML re-imports as 100; this
+    // lossy round-trip is by design (the format has no field for it).
     const contributions: Contribution[] = CREDIT_ROLES.map((r) => ({
       role: r.name,
       score: activeRoleNames.has(r.name) ? 100 : 0,

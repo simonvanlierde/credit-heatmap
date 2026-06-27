@@ -45,6 +45,12 @@ describe("round-trip exports", () => {
     const janeActive = pJane?.contributions.filter((c) => c.score > 0).map((c) => c.role);
     expect(janeActive).toContain("Conceptualization");
     expect(janeActive).toContain("Software");
+
+    // JATS4R has no score field, so the round-trip is lossy by design: a
+    // score of 50 (Software) comes back as 100, not the original value.
+    const reSoftware = pJane?.contributions.find((c) => c.role === "Software");
+    expect(jc8.score).toBe(50);
+    expect(reSoftware?.score).toBe(100);
   });
 
   it("JSON round-trip preserves all fields including id", () => {

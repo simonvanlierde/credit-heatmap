@@ -48,6 +48,8 @@ function authorToXml(author: Author): string {
     ? `\n      <contrib-id contrib-id-type="orcid">${escapeXml(author.orcid)}</contrib-id>`
     : "";
 
+  // JATS4R encodes role presence only — the 0–100 score is not representable,
+  // so an export→import round-trip is lossy (see fromXmlDocument).
   const roles = activeContributions(author)
     .map((c) => {
       const role = getRoleByName(c.role);
