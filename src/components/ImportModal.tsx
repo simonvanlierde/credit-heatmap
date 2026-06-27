@@ -52,13 +52,13 @@ export function ImportModal({ open, onImport, onClose }: Props) {
 
   const format: DetectedFormat = detect(text);
 
-  function handleFileRead(file: File) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setText((e.target?.result as string) ?? "");
+  async function handleFileRead(file: File) {
+    try {
+      setText(await file.text());
       setError(null);
-    };
-    reader.readAsText(file);
+    } catch {
+      setError("Could not read that file.");
+    }
   }
 
   function handleFileDrop(e: React.DragEvent<HTMLDivElement>) {

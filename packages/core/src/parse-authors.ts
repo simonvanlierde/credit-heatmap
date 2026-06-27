@@ -20,7 +20,7 @@ export function parseNameParts(name: string): {
   const parts = cleaned.split(/\s+/).filter(Boolean);
 
   const firstName = parts[0] ?? "";
-  const surname = parts.length > 1 ? (parts[parts.length - 1] ?? "") : "";
+  const surname = parts.length > 1 ? (parts.at(-1) ?? "") : "";
   const middleName = parts.length > 2 ? (parts[1] ?? "") : "";
 
   return { firstName, middleName, surname };
