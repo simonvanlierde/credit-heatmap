@@ -29,7 +29,7 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Import Data" }).click();
 
     // The contributor name is rendered in an editable input.
-    await expect(page.getByLabel("Full Name").first()).toHaveValue("Jane Smith");
+    await expect(page.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Jane Smith");
     await expect(page.getByText("2 authors")).toBeVisible();
     await expect(page.locator("svg").first()).toBeVisible();
 
@@ -62,9 +62,11 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByText("3 authors")).toBeVisible();
 
-    // The JATS4R export is generated in the browser and downloaded directly.
+    // XML (JATS4R) is the default export format; downloading generates it in the
+    // browser and saves it directly (no API round-trip).
+    await expect(page.getByRole("combobox", { name: "Export format" })).toHaveText(/XML \(JATS4R\)/);
     const downloadPromise = page.waitForEvent("download");
-    await page.getByRole("button", { name: /XML \(JATS4R\)/ }).click();
+    await page.getByRole("button", { name: "Download" }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe("credit-contributors.xml");
   });
