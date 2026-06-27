@@ -4,9 +4,6 @@ pre-commit:
         lint-staged:
             run: npx --no-install lint-staged
             root: .
-        biome:
-            run: pnpm lint
-            root: .
 commit-msg:
     commands:
         commitlint:
@@ -18,6 +15,6 @@ pre-push:
         lint:
             run: pnpm lint
             root: .
-        core-smoke:
-            run: pnpm --filter @credit-generator/core test -- -t smoke
+        test:
+            run: pnpm test
             root: .

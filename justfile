@@ -25,14 +25,6 @@ test:
 test-watch:
     pnpm --filter @credit-generator/core exec vitest
 
-# Run quick smoke tests for core (used by pre-push)
-core-smoke:
-    pnpm --filter @credit-generator/core test -- -t smoke
-
-# Run the quick smoke tests
-smoke:
-    just core-smoke
-
 # Run cspell across the repository (respects cspell.json)
 cspell:
     pnpm exec cspell --no-progress "**/*"
