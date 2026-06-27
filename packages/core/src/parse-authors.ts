@@ -1,4 +1,5 @@
 import type { Author, Contribution } from "./author.js";
+import { ORCID_INPUT_REGEX } from "./author.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
 
 /**
@@ -6,17 +7,22 @@ import { CREDIT_ROLES } from "./credit-roles.js";
  * Mirrors the logic from the original Python app's `extract_name_parts()`.
  *
  * Rules:
- *  - Strip non-alpha characters (keeps spaces)
+ *  - Strip punctuation/digits, keeping Unicode letters, combining marks,
+ *    apostrophes, hyphens and whitespace (so "José", "O'Brien" and
+ *    "Mary-Jane" survive intact)
  *  - First token  → firstName
  *  - Last token   → surname  (when >1 token)
  *  - Middle token → middleName (only when >2 tokens; first of any middle tokens)
+ *
+ * A single-token name (e.g. "Madonna") yields a firstName with empty
+ * middleName and surname — that is intentional, not an error.
  */
 export function parseNameParts(name: string): {
   firstName: string;
   middleName: string;
   surname: string;
 } {
-  const cleaned = name.replace(/[^a-zA-Z\s]/g, "").trim();
+  const cleaned = name.replace(/[^\p{L}\p{M}'\-\s]/gu, "").trim();
   const parts = cleaned.split(/\s+/).filter(Boolean);
 
   const firstName = parts[0] ?? "";
@@ -54,6 +60,14 @@ export function createAuthor(
 ): Author {
   const { firstName, middleName, surname } = parseNameParts(name);
 
+  if (!firstName && !middleName && !surname) {
+    throw new Error("Author name must contain at least one letter.");
+  }
+
+  if (overrides?.orcid && !ORCID_INPUT_REGEX.test(overrides.orcid)) {
+    throw new Error(`Invalid ORCID iD: "${overrides.orcid}"`);
+  }
+
   return {
     id: overrides?.id ?? globalThis.crypto.randomUUID(),
     name,
@@ -62,17 +76,30 @@ export function createAuthor(
     surname,
     initials: buildInitials(firstName, middleName, surname),
     ...(overrides?.orcid ? { orcid: overrides.orcid } : {}),
-    contributions:
-      overrides?.contributions?.map((contribution) => ({ ...contribution })) ??
-      CREDIT_ROLES.map((r) => ({ role: r.name, score: 0 })),
+    contributions: normalizeContributions(overrides?.contributions),
   };
 }
 
+/**
+ * Project an arbitrary contributions list onto the canonical CREDIT_ROLES order
+ * and length, keyed by role name. Imported, shared, or older-export data may
+ * carry contributions in a different order or with roles missing; the matrix and
+ * heatmap index contributions positionally, so they must be canonicalized here.
+ */
+function normalizeContributions(contributions?: Contribution[]): Contribution[] {
+  const scoreByRole = new Map(contributions?.map((c) => [c.role, c.score]));
+  return CREDIT_ROLES.map((r) => ({ role: r.name, score: scoreByRole.get(r.name) ?? 0 }));
+}
+
+/**
+ * Assign unique initials across a list of authors without mutating the input.
+ * Returns a new array of authors; the originals are left untouched.
+ */
 export function deduplicateAuthorInitials(authors: Author[]): Author[] {
   const existingInitials = new Set<string>();
 
-  for (const author of authors) {
-    const initials = buildInitials(author.firstName, author.middleName, author.surname);
+  return authors.map((author) => {
+    const initials = author.initials;
     let attempt = initials;
     let extraIdx = 1;
 
@@ -85,11 +112,9 @@ export function deduplicateAuthorInitials(authors: Author[]): Author[] {
       }
     }
 
-    author.initials = attempt;
     existingInitials.add(attempt);
-  }
-
-  return authors;
+    return { ...author, initials: attempt };
+  });
 }
 
 export function parseAuthors(names: string[]): Author[] {

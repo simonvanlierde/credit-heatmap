@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { CreditRoleName } from "./credit-roles.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
 
 /**
@@ -15,11 +16,17 @@ import { CREDIT_ROLES } from "./credit-roles.js";
  * the data model — the UI input mode is a presentation concern only.
  */
 export const ContributionSchema = z.object({
-  role: z.enum(CREDIT_ROLES.map((r) => r.name) as [string, ...string[]]),
+  role: z.enum(CREDIT_ROLES.map((r) => r.name) as [CreditRoleName, ...CreditRoleName[]]),
   score: z.number().int().min(0).max(100),
 });
 
 export type Contribution = z.infer<typeof ContributionSchema>;
+
+/** ORCID iD bare format: 0000-0001-2345-678X */
+export const ORCID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
+
+/** ORCID iD accepted on input: bare form or the canonical orcid.org URL. */
+export const ORCID_INPUT_REGEX = /^(https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
 
 export const AuthorSchema = z.object({
   /** Stable unique identifier for UI state and persistence */
@@ -44,15 +51,12 @@ export const AuthorSchema = z.object({
    * ORCID iD in URL form (e.g. "https://orcid.org/0000-0002-1825-0097")
    * or bare 16-digit format ("0000-0002-1825-0097"). Optional.
    */
-  orcid: z.string().optional(),
+  orcid: z.string().regex(ORCID_INPUT_REGEX, "Invalid ORCID iD.").optional(),
   /** Scores for each of the 14 CRediT roles, keyed by role name */
   contributions: z.array(ContributionSchema),
 });
 
 export type Author = z.infer<typeof AuthorSchema>;
-
-/** ORCID iD bare format: 0000-0001-2345-678X */
-export const ORCID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
 
 /** Contribution level derived from a 0-100 score */
 export type ContributionLevel = "none" | "tertiary" | "secondary" | "lead";

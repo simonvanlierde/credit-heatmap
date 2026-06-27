@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Author } from "../author.js";
+import { CREDIT_ROLES } from "../credit-roles.js";
 import { buildHeatmapSvg } from "../export/heatmap-svg.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { createAuthor, parseAuthorText } from "../parse-authors.js";
 
 function authorsWithScores(): Author[] {
   const authors = parseAuthorText("Jane Smith\nBob White");
@@ -55,5 +56,18 @@ describe("buildHeatmapSvg", () => {
     expect(transposed).not.toBe(normal);
     const cells = transposed.match(/width="22"/g) ?? [];
     expect(cells).toHaveLength(authors.length * 14);
+  });
+
+  it("renders the same cells regardless of contribution array order", () => {
+    const canonical = CREDIT_ROLES.map((r) => ({
+      role: r.name,
+      score: r.name === "Software" ? 100 : 0,
+    }));
+    const shuffled = [...canonical].reverse();
+
+    const a = buildHeatmapSvg([createAuthor("Jane Smith", { contributions: canonical })]);
+    const b = buildHeatmapSvg([createAuthor("Jane Smith", { contributions: shuffled })]);
+
+    expect(b).toBe(a);
   });
 });

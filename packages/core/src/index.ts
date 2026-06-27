@@ -4,6 +4,7 @@ export {
   activeContributions,
   ContributionSchema,
   hasContributions,
+  ORCID_INPUT_REGEX,
   ORCID_REGEX,
   scoreToLevel,
 } from "./author.js";
@@ -21,8 +22,6 @@ export type { StatementFormat, StatementOptions } from "./generate-statement.js"
 export { generateStatement } from "./generate-statement.js";
 export {
   createAuthor,
-  createAuthorId,
-  createDefaultContributions,
   deduplicateAuthorInitials,
   parseAuthors,
   parseAuthorText,

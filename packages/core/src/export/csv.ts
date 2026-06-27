@@ -7,11 +7,21 @@ const ORCID_HEADER = "ORCID";
 
 const CSV_HEADERS = [NAME_HEADER, ORCID_HEADER, ...CREDIT_ROLES.map((role) => role.name)];
 
+/** Leading characters a spreadsheet may interpret as the start of a formula. */
+const FORMULA_PREFIX = /^[=+\-@\t\r]/;
+
 function escapeCsvValue(value: string): string {
-  if (/["\n,]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // Prefix a single quote so Excel/Sheets treat formula-like cells as text.
+  const guarded = FORMULA_PREFIX.test(value) ? `'${value}` : value;
+  if (/["\n,]/.test(guarded)) {
+    return `"${guarded.replace(/"/g, '""')}"`;
   }
-  return value;
+  return guarded;
+}
+
+/** Inverse of the formula guard added by `escapeCsvValue`. */
+function unescapeCsvValue(value: string): string {
+  return value.startsWith("'") && FORMULA_PREFIX.test(value.slice(1)) ? value.slice(1) : value;
 }
 
 function parseCsvLine(line: string): string[] {
@@ -42,7 +52,7 @@ function parseCsvLine(line: string): string[] {
   }
 
   values.push(current);
-  return values.map((value) => value.trim());
+  return values.map((value) => unescapeCsvValue(value.trim()));
 }
 
 export function toCsv(authors: Author[]): string {
@@ -103,6 +113,5 @@ export function fromCsv(csv: string): Author[] {
     });
   });
 
-  deduplicateAuthorInitials(authors);
-  return authors;
+  return deduplicateAuthorInitials(authors);
 }

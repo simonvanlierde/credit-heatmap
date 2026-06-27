@@ -4,6 +4,7 @@ import {
   activeContributions,
   ContributionSchema,
   hasContributions,
+  ORCID_INPUT_REGEX,
   ORCID_REGEX,
   scoreToLevel,
 } from "../author.js";
@@ -59,6 +60,19 @@ describe("ORCID_REGEX", () => {
   });
 });
 
+describe("ORCID_INPUT_REGEX", () => {
+  it("accepts both bare and orcid.org URL forms", () => {
+    expect(ORCID_INPUT_REGEX.test("0000-0002-1825-0097")).toBe(true);
+    expect(ORCID_INPUT_REGEX.test("https://orcid.org/0000-0002-1825-0097")).toBe(true);
+    expect(ORCID_INPUT_REGEX.test("0000-0001-2345-678X")).toBe(true);
+  });
+
+  it("rejects malformed iDs", () => {
+    expect(ORCID_INPUT_REGEX.test("not-an-orcid")).toBe(false);
+    expect(ORCID_INPUT_REGEX.test("0000-0002-1825-009")).toBe(false);
+  });
+});
+
 describe("schemas", () => {
   it("defaults a random id and accepts a minimal valid author", () => {
     const author = AuthorSchema.parse({
@@ -93,5 +107,18 @@ describe("schemas", () => {
 
   it("rejects an unknown role name", () => {
     expect(() => ContributionSchema.parse({ role: "Not A Role", score: 50 })).toThrow();
+  });
+
+  it("rejects a malformed ORCID but accepts a valid one", () => {
+    const base = {
+      name: "Jane Smith",
+      firstName: "Jane",
+      middleName: "",
+      surname: "Smith",
+      initials: "JS",
+      contributions: [],
+    };
+    expect(() => AuthorSchema.parse({ ...base, orcid: "bogus" })).toThrow();
+    expect(AuthorSchema.parse({ ...base, orcid: "0000-0002-1825-0097" }).orcid).toBe("0000-0002-1825-0097");
   });
 });

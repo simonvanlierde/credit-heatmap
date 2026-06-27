@@ -28,4 +28,18 @@ describe("CSV import/export", () => {
   it('requires a "Name" column', () => {
     expect(() => fromCsv("ORCID\n0000-0000-0000-0001")).toThrow('CSV must include a "Name" column.');
   });
+
+  it("guards formula-injection cells on export and unescapes them on import", () => {
+    const authors = parseAuthorText("=HYPERLINK Evil\n@SUM Attack");
+    const csv = toCsv(authors);
+
+    // The exported name cells must be neutralised with a leading apostrophe.
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain("'@SUM");
+
+    // Re-importing strips the guard, restoring the original display name.
+    const parsed = fromCsv(csv);
+    expect(parsed[0]?.name).toBe("=HYPERLINK Evil");
+    expect(parsed[1]?.name).toBe("@SUM Attack");
+  });
 });

@@ -64,6 +64,11 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
   const nAuthors = authors.length;
   const nRoles = roles.length;
 
+  // Look up scores by role name so rendering doesn't assume the author's
+  // contributions array is in CREDIT_ROLES order.
+  const scoreFor = (author: Author | undefined, roleName: string): number =>
+    author?.contributions.find((c) => c.role === roleName)?.score ?? 0;
+
   // Apply scale to layout constants
   const ROLE_LABEL_W_S = ROLE_LABEL_W * scale;
   const AUTHOR_LABEL_H_S = AUTHOR_LABEL_H * scale;
@@ -135,7 +140,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
       // Cells
       for (let ai = 0; ai < nAuthors; ai++) {
         const cx = gridX + ai * (CELL_S + GAP_S);
-        const score = authors[ai]?.contributions[ri]?.score ?? 0;
+        const score = scoreFor(authors[ai], roles[ri]?.name ?? "");
         const fill = scoreToFill(score);
         const rx = 3 * scale;
         lines.push(
@@ -157,7 +162,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
 
       for (let ri = 0; ri < nRoles; ri++) {
         const cx = gridX + ri * (CELL_S + GAP_S);
-        const score = authors[ai]?.contributions[ri]?.score ?? 0;
+        const score = scoreFor(authors[ai], roles[ri]?.name ?? "");
         const fill = scoreToFill(score);
         const rx = 3 * scale;
         lines.push(

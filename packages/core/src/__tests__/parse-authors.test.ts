@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAuthorText, parseNameParts } from "../parse-authors.js";
+import { createAuthor, deduplicateAuthorInitials, parseAuthorText, parseNameParts } from "../parse-authors.js";
 
 describe("parseNameParts", () => {
   it("parses a three-part name", () => {
@@ -18,10 +18,56 @@ describe("parseNameParts", () => {
     });
   });
 
-  it("strips non-alpha characters", () => {
-    // spell-checker: ignore O'Brien Séan
-    const result = parseNameParts("O'Brien, Séan");
-    expect(result.firstName).toBe("OBrien");
+  it("keeps Unicode letters, apostrophes and hyphens; drops other punctuation", () => {
+    // spell-checker: ignore Séan García
+    expect(parseNameParts("José García")).toEqual({
+      firstName: "José",
+      middleName: "",
+      surname: "García",
+    });
+    expect(parseNameParts("Mary-Jane Watson")).toEqual({
+      firstName: "Mary-Jane",
+      middleName: "",
+      surname: "Watson",
+    });
+    // The comma is stripped, the apostrophe survives.
+    expect(parseNameParts("O'Brien, Séan").firstName).toBe("O'Brien");
+  });
+
+  it("treats a single-token name as a first name with empty surname", () => {
+    expect(parseNameParts("Madonna")).toEqual({
+      firstName: "Madonna",
+      middleName: "",
+      surname: "",
+    });
+  });
+});
+
+describe("createAuthor", () => {
+  it("throws when the name contains no letters", () => {
+    expect(() => createAuthor("123")).toThrow(/at least one letter/);
+    expect(() => createAuthor("!!!")).toThrow(/at least one letter/);
+  });
+
+  it("rejects a malformed ORCID but accepts bare and URL forms", () => {
+    expect(() => createAuthor("Jane Smith", { orcid: "not-an-orcid" })).toThrow(/ORCID/);
+    expect(createAuthor("Jane Smith", { orcid: "0000-0002-1825-0097" }).orcid).toBe("0000-0002-1825-0097");
+    expect(createAuthor("Jane Smith", { orcid: "https://orcid.org/0000-0002-1825-0097" }).orcid).toBe(
+      "https://orcid.org/0000-0002-1825-0097",
+    );
+  });
+});
+
+describe("deduplicateAuthorInitials", () => {
+  it("does not mutate the input authors", () => {
+    const original = [createAuthor("Alice Brown"), createAuthor("Amy Burke")];
+    const beforeInitials = original.map((a) => a.initials);
+
+    const deduped = deduplicateAuthorInitials(original);
+
+    expect(original.map((a) => a.initials)).toEqual(beforeInitials);
+    expect(deduped[0]).not.toBe(original[0]);
+    expect(deduped[1]?.initials).not.toBe(deduped[0]?.initials);
   });
 });
 

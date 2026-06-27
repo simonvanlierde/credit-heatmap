@@ -1,5 +1,6 @@
 import type { Author } from "./author.js";
 import { hasContributions } from "./author.js";
+import type { CreditRoleName } from "./credit-roles.js";
 
 export type ValidationLevel = "warning" | "info";
 
@@ -9,7 +10,7 @@ export interface ValidationIssue {
 }
 
 /** Roles most journals expect to be assigned to at least one contributor. */
-const EXPECTED_ROLES = ["Conceptualization", "Writing – original draft"] as const;
+const EXPECTED_ROLES: CreditRoleName[] = ["Conceptualization", "Writing – original draft"];
 
 /**
  * Check a set of authors for common CRediT statement problems, mirroring the
