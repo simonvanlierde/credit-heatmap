@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { ORCID_REGEX } from "@credit-generator/core";
+import { useRef, useState } from "react";
+import { StepBadge } from "@/components/ui/step-badge";
 import { useContributionStore } from "@/store/contribution-store";
 
-const ORCID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
 const ORCID_EXTRACT_REGEX = /(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/i;
+
+/** Pull a valid ORCID iD out of arbitrary text (a raw id or an orcid.org URL). */
+function detectOrcid(text: string): string | null {
+  const candidate = text.trim().match(ORCID_EXTRACT_REGEX)?.[1]?.toUpperCase() ?? "";
+  return ORCID_REGEX.test(candidate) ? candidate : null;
+}
 
 interface OrcidLookupResult {
   firstName: string;
@@ -17,6 +24,8 @@ interface OrcidRowState {
   successFor: string | null;
   error: string | null;
 }
+
+const EMPTY_ROW_STATE: OrcidRowState = { loading: false, successFor: null, error: null };
 
 export function AuthorList() {
   const {
@@ -32,37 +41,43 @@ export function AuthorList() {
   } = useContributionStore();
 
   const [newName, setNewName] = useState("");
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
   const [orcidStates, setOrcidStates] = useState<Record<string, OrcidRowState>>({});
-
-  function handleAdd() {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
-    addAuthor(trimmed);
-    setNewName("");
-  }
-
-  function handleNewNameKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter") {
-      handleAdd();
-    }
-  }
+  // Rows where the user has revealed the ORCID input but not yet entered an iD.
+  const [orcidEditing, setOrcidEditing] = useState<Record<string, boolean>>({});
+  // Set just before an Enter-commit so the unmount blur doesn't re-apply the iD.
+  const orcidCommittedRef = useRef(false);
 
   function getOrcidState(authorId: string): OrcidRowState {
-    return orcidStates[authorId] ?? { loading: false, successFor: null, error: null };
+    return orcidStates[authorId] ?? EMPTY_ROW_STATE;
   }
 
   function setOrcidState(authorId: string, patch: Partial<OrcidRowState>) {
     setOrcidStates((prev) => ({
       ...prev,
-      [authorId]: {
-        ...(prev[authorId] ?? { loading: false, successFor: null, error: null }),
-        ...patch,
-      },
+      [authorId]: { ...(prev[authorId] ?? EMPTY_ROW_STATE), ...patch },
     }));
   }
 
-  async function handleOrcidLookup(authorId: string, orcid: string) {
+  /**
+   * Look up the canonical name for an ORCID and apply it to the row.
+   *
+   * When `rollbackOnFailure` is set (a row that was *added* from a bare iD and so
+   * has the raw iD as its placeholder name), a failed or name-less lookup removes
+   * the junk row and surfaces the error on the add field instead of leaving an
+   * author literally named after the ORCID.
+   */
+  async function lookupOrcid(authorId: string, orcid: string, rollbackOnFailure = false) {
+    function fail(message: string) {
+      if (rollbackOnFailure) {
+        removeAuthor(authorId);
+        setAddError(message);
+        setNewName(orcid);
+      } else {
+        setOrcidState(authorId, { loading: false, error: message, successFor: null });
+      }
+    }
+
     setOrcidState(authorId, { loading: true, error: null, successFor: null });
     try {
       const res = await fetch(`/api/orcid?id=${encodeURIComponent(orcid)}`);
@@ -75,33 +90,79 @@ export function AuthorList() {
           typeof (data as Record<string, unknown>).error === "string"
             ? ((data as Record<string, unknown>).error as string)
             : "Lookup failed";
-        setOrcidState(authorId, { loading: false, error: message, successFor: null });
+        fail(message);
         return;
       }
 
       const result = (await res.json()) as OrcidLookupResult;
+      if (!result.displayName.trim()) {
+        fail("ORCID record has no name");
+        return;
+      }
       updateAuthorName(authorId, result.displayName);
       setOrcidState(authorId, { loading: false, successFor: orcid, error: null });
     } catch {
-      setOrcidState(authorId, { loading: false, error: "Network error", successFor: null });
+      fail("Network error");
     }
   }
 
-  function handleOrcidPaste(event: React.ClipboardEvent<HTMLInputElement>, authorId: string) {
-    const pastedText = event.clipboardData.getData("text").trim();
-    const orcid = pastedText.match(ORCID_EXTRACT_REGEX)?.[1]?.toUpperCase() ?? "";
-    if (!ORCID_REGEX.test(orcid)) return;
-
-    event.preventDefault();
+  /** Attach an ORCID to a row and look up the canonical name. */
+  function applyOrcid(authorId: string, orcid: string) {
     updateAuthorOrcid(authorId, orcid);
+    setOrcidEditing((prev) => ({ ...prev, [authorId]: false }));
     setOrcidState(authorId, { error: null, successFor: null });
-    void handleOrcidLookup(authorId, orcid);
+    void lookupOrcid(authorId, orcid);
+  }
+
+  function clearOrcid(authorId: string) {
+    updateAuthorOrcid(authorId, "");
+    setOrcidState(authorId, EMPTY_ROW_STATE);
+    setOrcidEditing((prev) => ({ ...prev, [authorId]: false }));
+  }
+
+  /** Pasting an ORCID into any field attaches it instead of dropping in raw text. */
+  function handleSmartPaste(event: React.ClipboardEvent<HTMLInputElement>, authorId: string) {
+    const orcid = detectOrcid(event.clipboardData.getData("text"));
+    if (!orcid) return;
+    event.preventDefault();
+    applyOrcid(authorId, orcid);
+  }
+
+  function handleAdd() {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    setAddError(null);
+    const orcid = detectOrcid(trimmed);
+    if (orcid) {
+      // Seed the row with the iD as a placeholder name, then fill it from ORCID.
+      // If the lookup fails, the row is rolled back so no junk author survives.
+      addAuthor(orcid, orcid);
+      const newId = useContributionStore.getState().selectedAuthorId;
+      if (newId) void lookupOrcid(newId, orcid, true);
+    } else {
+      addAuthor(trimmed);
+    }
+    setNewName("");
+  }
+
+  function handleNewNameKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") handleAdd();
+  }
+
+  /** Select the row when the user clicks its background (not an input/button/link). */
+  function handleRowClick(event: React.MouseEvent<HTMLDivElement>, authorId: string) {
+    if ((event.target as HTMLElement).closest("input, button, a")) return;
+    setSelectedAuthor(authorId);
   }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-outline-variant/20 p-5 md:p-8">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl italic font-semibold text-primary" style={{ fontFamily: "var(--font-headline)" }}>
+        <h2
+          className="flex items-center gap-2 text-2xl italic font-semibold text-primary"
+          style={{ fontFamily: "var(--font-headline)" }}
+        >
+          <StepBadge step={1} />
           Contributors
         </h2>
         <span className="text-xs uppercase tracking-widest text-on-surface-variant">
@@ -113,7 +174,7 @@ export function AuthorList() {
         <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
           <span className="material-symbols-outlined text-3xl text-outline-variant mb-2 block">group_add</span>
           <p className="text-sm text-on-surface-variant">
-            No contributors yet. Add a name below, use <strong>Import</strong> in the header, or
+            No contributors yet. Add a name or ORCID below, use <strong>Import</strong> in the header, or
           </p>
           <button
             type="button"
@@ -130,27 +191,21 @@ export function AuthorList() {
         {authors.map((author, index) => {
           const isSelected = selectedAuthorId === author.id;
           const orcidValue = author.orcid ?? "";
-          const orcidNonEmpty = orcidValue.length > 0;
+          const hasOrcid = orcidValue.length > 0;
           const orcidValid = ORCID_REGEX.test(orcidValue);
           const rowState = getOrcidState(author.id);
+          const editingOrcid = orcidEditing[author.id] ?? false;
 
           return (
-            // biome-ignore lint/a11y/noStaticElementInteractions: drag-to-reorder is a mouse-only progressive enhancement layered on the row.
+            // biome-ignore lint/a11y/useKeyWithClickEvents: the radio button below is the keyboard-accessible selector; the row click is a pointer-only convenience.
+            // biome-ignore lint/a11y/noStaticElementInteractions: same as above — keyboard selection is handled by the radio button, this is a pointer affordance only.
             <div
               key={author.id}
-              draggable
-              onDragStart={() => setDragIndex(index)}
-              onDragEnd={() => setDragIndex(null)}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => {
-                if (dragIndex === null) return;
-                moveAuthor(dragIndex, index);
-                setDragIndex(null);
-              }}
+              onClick={(event) => handleRowClick(event, author.id)}
               className={`group flex items-start gap-3 p-4 rounded-lg border transition-colors duration-150 ${
                 isSelected
-                  ? "bg-surface-container-low border-primary/30 ring-1 ring-primary/20"
-                  : "bg-surface border-transparent hover:bg-surface-container-low hover:border-outline-variant/30"
+                  ? "bg-surface-container-low border-primary/40 ring-1 ring-primary/30"
+                  : "cursor-pointer bg-surface border-transparent hover:bg-surface-container-low hover:border-outline-variant/30"
               }`}
             >
               <button
@@ -165,90 +220,106 @@ export function AuthorList() {
                 }`}
               />
 
-              <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor={`author-name-${author.id}`}
-                    className="block text-[10px] uppercase tracking-widest font-bold mb-1 text-on-surface-variant"
-                  >
-                    Full Name
-                  </label>
-                  <input
-                    id={`author-name-${author.id}`}
-                    type="text"
-                    value={author.name}
-                    onChange={(event) => updateAuthorName(author.id, event.target.value)}
-                    className="w-full bg-transparent border-none p-0 focus:ring-0 text-on-surface font-medium border-b border-primary/20 focus:border-primary outline-none text-sm"
-                  />
-                </div>
+              <div className="flex-1 min-w-0">
+                <label
+                  htmlFor={`author-name-${author.id}`}
+                  className="block text-[10px] uppercase tracking-widest font-bold mb-1 text-on-surface-variant"
+                >
+                  Name or ORCID iD
+                </label>
+                <input
+                  id={`author-name-${author.id}`}
+                  type="text"
+                  value={author.name}
+                  onChange={(event) => updateAuthorName(author.id, event.target.value)}
+                  onPaste={(event) => handleSmartPaste(event, author.id)}
+                  className="w-full bg-transparent border-none p-0 focus:ring-0 text-on-surface font-medium border-b border-primary/20 focus:border-primary outline-none text-sm"
+                />
 
-                <div>
-                  <label
-                    htmlFor={`author-orcid-${author.id}`}
-                    className="block text-[10px] uppercase tracking-widest font-bold mb-1 text-on-surface-variant flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-[12px]">fingerprint</span>
-                    ORCID iD
-                  </label>
-                  <div className="flex items-center gap-1">
-                    <div className="relative flex-1">
-                      <input
-                        id={`author-orcid-${author.id}`}
-                        type="text"
-                        value={orcidValue}
-                        onPaste={(event) => handleOrcidPaste(event, author.id)}
-                        onChange={(event) => {
-                          updateAuthorOrcid(author.id, event.target.value);
-                          setOrcidState(author.id, { error: null, successFor: null });
-                        }}
-                        placeholder="0000-0000-0000-0000"
-                        className="w-full bg-transparent border-none p-0 pr-4 focus:ring-0 text-on-surface-variant text-xs border-b border-outline-variant/40 focus:border-primary outline-none font-mono"
-                      />
-                      {orcidNonEmpty && (
-                        <span
-                          className={`absolute right-0 top-0 text-xs leading-none select-none ${
-                            orcidValid ? "text-primary" : "text-error"
-                          }`}
-                          aria-hidden="true"
-                        >
-                          {orcidValid ? "✓" : "✗"}
-                        </span>
-                      )}
-                    </div>
-                    {orcidValid && (
+                {/* ORCID: a chip when set, a reveal-on-demand input otherwise. */}
+                {hasOrcid ? (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <a
+                      href={`https://orcid.org/${orcidValue}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-mono text-on-surface-variant hover:text-primary transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">fingerprint</span>
+                      {orcidValue}
+                      {!orcidValid && <span className="text-error">✗</span>}
+                    </a>
+                    {orcidValid && rowState.successFor !== orcidValue && (
                       <button
                         type="button"
                         disabled={rowState.loading}
-                        onClick={() => handleOrcidLookup(author.id, orcidValue)}
-                        aria-label="Look up name from ORCID"
-                        className="shrink-0 flex items-center justify-center w-5 h-5 text-on-surface-variant hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Look up name from ORCID"
+                        onClick={() => lookupOrcid(author.id, orcidValue)}
+                        className="text-[11px] text-primary hover:underline disabled:opacity-50"
                       >
-                        {rowState.loading ? (
-                          <span className="text-xs leading-none">…</span>
-                        ) : (
-                          <span className="material-symbols-outlined text-base leading-none">person_search</span>
-                        )}
+                        {rowState.loading ? "Looking up…" : "Look up name"}
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => clearOrcid(author.id)}
+                      aria-label="Remove ORCID iD"
+                      className="text-on-surface-variant hover:text-error transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[14px] leading-none">close</span>
+                    </button>
+                    {rowState.error !== null && (
+                      <span className="text-[10px] text-error leading-tight">{rowState.error}</span>
+                    )}
+                    {rowState.successFor === orcidValue && (
+                      <span className="text-[10px] text-primary leading-tight">Name updated from ORCID</span>
+                    )}
                   </div>
-                  {rowState.error !== null && (
-                    <p className="mt-0.5 text-[10px] text-error leading-tight">{rowState.error}</p>
-                  )}
-                  {rowState.successFor === orcidValue && rowState.successFor !== null && (
-                    <p className="mt-0.5 text-[10px] text-primary leading-tight">Name updated from ORCID</p>
-                  )}
-                </div>
+                ) : editingOrcid ? (
+                  <input
+                    // biome-ignore lint/a11y/noAutofocus: revealed on explicit user action, so focusing it is expected.
+                    autoFocus
+                    type="text"
+                    aria-label="ORCID iD"
+                    placeholder="0000-0000-0000-0000 or paste a URL"
+                    onPaste={(event) => handleSmartPaste(event, author.id)}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      const orcid = detectOrcid(event.currentTarget.value);
+                      if (orcid) {
+                        // Mark the commit so the unmount blur below doesn't re-apply it.
+                        orcidCommittedRef.current = true;
+                        applyOrcid(author.id, orcid);
+                      }
+                    }}
+                    onBlur={(event) => {
+                      if (orcidCommittedRef.current) {
+                        orcidCommittedRef.current = false;
+                        return;
+                      }
+                      const orcid = detectOrcid(event.currentTarget.value);
+                      if (orcid) applyOrcid(author.id, orcid);
+                      else setOrcidEditing((prev) => ({ ...prev, [author.id]: false }));
+                    }}
+                    className="mt-1.5 w-full max-w-[15rem] bg-transparent p-0 focus:ring-0 text-on-surface-variant text-xs border-b border-outline-variant/40 focus:border-primary outline-none font-mono"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setOrcidEditing((prev) => ({ ...prev, [author.id]: true }))}
+                    className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[12px]">add</span>
+                    ORCID iD
+                  </button>
+                )}
               </div>
 
               <div className="shrink-0 flex items-center gap-1">
-                <span
-                  className="text-outline-variant cursor-grab active:cursor-grabbing hidden md:inline"
-                  aria-hidden="true"
-                  title="Drag to reorder"
-                >
-                  <span className="material-symbols-outlined text-lg">drag_indicator</span>
-                </span>
+                {isSelected && (
+                  <span className="hidden sm:inline text-[10px] uppercase tracking-wider font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    Editing
+                  </span>
+                )}
                 <div className="flex flex-col">
                   <button
                     type="button"
@@ -277,7 +348,7 @@ export function AuthorList() {
               <button
                 type="button"
                 onClick={() => removeAuthor(author.id)}
-                className="shrink-0 text-outline-variant hover:text-error transition-opacity opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+                className="shrink-0 text-outline-variant hover:text-error transition-colors"
                 aria-label={`Remove ${author.name}`}
               >
                 <span className="material-symbols-outlined text-lg">delete</span>
@@ -287,14 +358,19 @@ export function AuthorList() {
         })}
       </div>
 
+      {addError !== null && <p className="mt-4 -mb-2 text-xs text-error">{addError}</p>}
+
       <div className="mt-4 flex gap-2 items-center">
         <input
           type="text"
           value={newName}
-          onChange={(event) => setNewName(event.target.value)}
+          onChange={(event) => {
+            setNewName(event.target.value);
+            if (addError !== null) setAddError(null);
+          }}
           onKeyDown={handleNewNameKeyDown}
-          placeholder="Add author name…"
-          aria-label="New author name"
+          placeholder="Add author name or ORCID iD…"
+          aria-label="New author name or ORCID iD"
           className="flex-1 bg-surface-container-low border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none px-3 py-2 text-sm rounded-t text-on-surface placeholder-outline transition-colors"
         />
         <button

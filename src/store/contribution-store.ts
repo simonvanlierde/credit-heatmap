@@ -1,10 +1,16 @@
 import type { Author, CreditRoleName } from "@credit-generator/core";
-import { CREDIT_ROLES, createAuthor, deduplicateAuthorInitials, parseAuthorText } from "@credit-generator/core";
+import {
+  CREDIT_ROLES,
+  createAuthor,
+  deduplicateAuthorInitials,
+  ORCID_INPUT_REGEX,
+  parseAuthorText,
+} from "@credit-generator/core";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
-export type InputMode = "toggle" | "levels" | "slider";
+export type InputMode = "toggle" | "levels";
 export type RolePreset = "equal-contribution" | "senior-author" | "data-only-contributor";
 
 interface ContributionState {
@@ -14,7 +20,7 @@ interface ContributionState {
   loadAuthors: (authors: Author[]) => void;
   loadSample: () => void;
   setAuthorsFromText: (text: string) => void;
-  addAuthor: (name: string) => void;
+  addAuthor: (name: string, orcid?: string) => void;
   removeAuthor: (authorId: string) => void;
   moveAuthor: (fromIndex: number, toIndex: number) => void;
   updateAuthorName: (authorId: string, name: string) => void;
@@ -138,11 +144,11 @@ export const useContributionStore = create<ContributionState>()(
           state.selectedAuthorId = ensureSelectedAuthorId(state.authors, state.selectedAuthorId);
         }),
 
-      addAuthor: (name) =>
+      addAuthor: (name, orcid) =>
         set((state) => {
           const trimmed = name.trim();
           if (!trimmed) return;
-          const nextAuthor = createAuthor(trimmed);
+          const nextAuthor = createAuthor(trimmed, orcid ? { orcid } : undefined);
           state.authors = normalizeAuthors([...state.authors, nextAuthor]);
           state.selectedAuthorId = nextAuthor.id;
         }),
@@ -195,7 +201,11 @@ export const useContributionStore = create<ContributionState>()(
           const index = findAuthorIndex(state.authors, authorId);
           const author = state.authors[index];
           if (!author) return;
-          author.orcid = orcid.trim() || undefined;
+          const trimmed = orcid.trim();
+          // Reject invalid values: an unvalidated iD here would make the next
+          // normalizeAuthors() -> createAuthor() throw inside this reducer.
+          if (trimmed && !ORCID_INPUT_REGEX.test(trimmed)) return;
+          author.orcid = trimmed || undefined;
         }),
 
       setSelectedAuthor: (authorId) =>
@@ -246,6 +256,15 @@ export const useContributionStore = create<ContributionState>()(
     })),
     {
       name: "credit-generator-state",
+      version: 1,
+      // v0 persisted a now-removed "slider" input mode; fold it into "levels".
+      migrate: (persisted) => {
+        const state = persisted as Partial<ContributionState> | undefined;
+        if (state && (state.inputMode as string) === "slider") {
+          state.inputMode = "levels";
+        }
+        return state as ContributionState;
+      },
       // spell-checker: ignore partialize
       partialize: (state) => ({
         authors: state.authors,

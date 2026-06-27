@@ -4,7 +4,17 @@ import { type Author, buildHeatmapSvg, CREDIT_ROLES, scoreToLevel } from "@credi
 import type { DefaultHeatMapDatum } from "@nivo/heatmap";
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StepBadge } from "@/components/ui/step-badge";
 import {
   type InputMode,
   ROLE_NAMES,
@@ -28,8 +38,20 @@ const PRESET_LABELS: Record<RolePreset, string> = {
 export function RoleAssignment() {
   const { authors, selectedAuthorId, inputMode, setInputMode, setAuthorScore, toggleContribution, applyPreset } =
     useContributionStore();
+  // A preset awaiting confirmation because it would overwrite existing scores.
+  const [pendingPreset, setPendingPreset] = useState<RolePreset | null>(null);
 
   const author = authors.find((candidate) => candidate.id === selectedAuthorId) ?? null;
+
+  function handlePreset(preset: RolePreset) {
+    if (!author) return;
+    const hasScores = author.contributions.some((contribution) => contribution.score > 0);
+    if (hasScores) {
+      setPendingPreset(preset);
+    } else {
+      applyPreset(author.id, preset);
+    }
+  }
 
   if (!author) {
     return (
@@ -44,7 +66,11 @@ export function RoleAssignment() {
     <div className="bg-white rounded-lg shadow-sm border border-outline-variant/20 p-5 md:p-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
         <div>
-          <h2 className="text-2xl italic font-semibold text-primary" style={{ fontFamily: "var(--font-headline)" }}>
+          <h2
+            className="flex items-center gap-2 text-2xl italic font-semibold text-primary"
+            style={{ fontFamily: "var(--font-headline)" }}
+          >
+            <StepBadge step={2} />
             Contribution Matrix
           </h2>
           <p className="text-xs text-on-surface-variant mt-1">
@@ -61,7 +87,7 @@ export function RoleAssignment() {
             <button
               key={preset}
               type="button"
-              onClick={() => applyPreset(author.id, preset)}
+              onClick={() => handlePreset(preset)}
               className="px-3 py-2 rounded-full text-xs font-medium border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary transition-colors"
             >
               {PRESET_LABELS[preset]}
@@ -69,6 +95,33 @@ export function RoleAssignment() {
           ))}
         </div>
       </div>
+
+      <Dialog open={pendingPreset !== null} onOpenChange={(open) => !open && setPendingPreset(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Replace contributions?</DialogTitle>
+            <DialogDescription>
+              Applying the <strong>{pendingPreset ? PRESET_LABELS[pendingPreset] : ""}</strong> preset overwrites all
+              current CRediT scores for <strong>{author.name}</strong>. This can’t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose className="px-4 py-2 rounded-lg text-sm font-medium border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary transition-colors">
+              Cancel
+            </DialogClose>
+            <button
+              type="button"
+              onClick={() => {
+                if (pendingPreset) applyPreset(author.id, pendingPreset);
+                setPendingPreset(null);
+              }}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-on-primary hover:bg-primary-container transition-colors"
+            >
+              Replace
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8">
         {CREDIT_ROLES.map((role, roleIndex) => {
@@ -125,21 +178,6 @@ export function RoleAssignment() {
                     </SelectContent>
                   </Select>
                 )}
-
-                {inputMode === "slider" && (
-                  <div className="w-full sm:w-auto flex items-center gap-2">
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={score}
-                      onChange={(event) => setAuthorScore(author.id, roleIndex, Number(event.target.value))}
-                      aria-label={`${role.name} score`}
-                      className="flex-1 sm:w-28 accent-primary"
-                    />
-                    <span className="text-xs text-on-surface-variant w-8 text-right">{score}</span>
-                  </div>
-                )}
               </div>
             </div>
           );
@@ -152,8 +190,7 @@ export function RoleAssignment() {
 function InputModeSwitcher({ current, onChange }: { current: InputMode; onChange: (mode: InputMode) => void }) {
   const modes: { value: InputMode; label: string }[] = [
     { value: "toggle", label: "Binary" },
-    { value: "levels", label: "Granular" },
-    { value: "slider", label: "Slider" },
+    { value: "levels", label: "Levels" },
   ];
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import type { StatementFormat } from "@credit-generator/core";
+import type { Author, StatementFormat } from "@credit-generator/core";
 import {
   generateStatement,
   toCsv,
@@ -12,21 +12,47 @@ import {
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StepBadge } from "@/components/ui/step-badge";
 import { useContributionStore } from "@/store/contribution-store";
+
+type DataFormat = "xml" | "json" | "csv" | "markdown";
+
+/** Machine-readable export formats, each able to be copied or downloaded. */
+const DATA_FORMATS: Record<
+  DataFormat,
+  { label: string; serialize: (authors: Author[]) => string; filename: string; mime: string }
+> = {
+  xml: { label: "XML (JATS4R)", serialize: toJats4rXml, filename: "credit-contributors.xml", mime: "application/xml" },
+  json: { label: "JSON", serialize: toJson, filename: "credit_result.json", mime: "application/json" },
+  csv: { label: "CSV", serialize: toCsv, filename: "credit_result.csv", mime: "text/csv;charset=utf-8" },
+  markdown: {
+    label: "Markdown",
+    serialize: toMarkdown,
+    filename: "credit-contributors.md",
+    mime: "text/markdown;charset=utf-8",
+  },
+};
 
 export function StatementOutput() {
   const { authors } = useContributionStore();
   const [format, setFormat] = useState<StatementFormat>("by-author");
   const [showLevels, setShowLevels] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+  const [dataFormat, setDataFormat] = useState<DataFormat>("xml");
 
   const statement = generateStatement(authors, { format, showLevels });
   const issues = validateContributions(authors);
+  const hasAuthors = authors.length > 0;
 
-  async function handleCopy() {
-    await navigator.clipboard.writeText(statement);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("error");
+    }
+    setTimeout(() => setCopyStatus("idle"), 2000);
   }
 
   function downloadFile(content: string, filename: string, mime: string) {
@@ -37,6 +63,12 @@ export function StatementOutput() {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function downloadData() {
+    if (!hasAuthors) return;
+    const { serialize, filename, mime } = DATA_FORMATS[dataFormat];
+    downloadFile(serialize(authors), filename, mime);
   }
 
   const formats: { value: StatementFormat; label: string }[] = [
@@ -60,7 +92,8 @@ export function StatementOutput() {
 
       {/* Header */}
       <div className="relative z-10">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">
+        <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">
+          <StepBadge step={3} />
           Author Contribution Statement
         </h3>
         <div className="flex flex-wrap items-center gap-3 mt-3">
@@ -127,90 +160,60 @@ export function StatementOutput() {
         </ul>
       )}
 
-      {/* Actions */}
       <span className="sr-only" role="status" aria-live="polite">
-        {copied ? "Copied to clipboard" : ""}
+        {copyStatus === "copied" ? "Copied to clipboard" : copyStatus === "error" ? "Copy failed" : ""}
       </span>
-      <div className="relative z-10 flex items-center gap-2 flex-wrap">
-        <button
-          type="button"
-          onClick={async () => {
-            await navigator.clipboard.writeText(toJson(authors));
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-          disabled={authors.length === 0}
-          className="flex items-center gap-2 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Copy JSON
-        </button>
 
+      {/* Primary action: copy the prose statement */}
+      <div className="relative z-10 flex flex-col gap-4">
         <button
           type="button"
-          onClick={async () => {
-            if (authors.length === 0) return;
-            await navigator.clipboard.writeText(toJats4rXml(authors));
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-          disabled={authors.length === 0}
-          className="flex items-center gap-2 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Copy XML
-        </button>
-
-        <button
-          type="button"
-          onClick={async () => {
-            if (authors.length === 0) return;
-            await navigator.clipboard.writeText(toMarkdown(authors));
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-          disabled={authors.length === 0}
-          className="flex items-center gap-2 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          Copy MD
-        </button>
-        <button
-          type="button"
-          onClick={handleCopy}
+          onClick={() => copyText(statement)}
           disabled={!statement}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-outline-variant text-primary hover:bg-primary hover:text-on-primary hover:border-primary rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary-container transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <span className="material-symbols-outlined text-[18px]">content_copy</span>
-          {copied ? "Copied!" : "Copy text"}
+          {copyStatus === "copied" ? "Copied!" : copyStatus === "error" ? "Copy failed" : "Copy statement"}
         </button>
 
-        <button
-          type="button"
-          disabled={authors.length === 0}
-          onClick={() => downloadFile(toJats4rXml(authors), "credit-contributors.xml", "application/xml")}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <span className="material-symbols-outlined text-[18px]">download</span>
-          XML (JATS4R)
-        </button>
+        {/* Secondary: pick a data format, then copy or download it */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant mr-1">
+            Export data
+          </span>
+          <Select value={dataFormat} onValueChange={(value) => setDataFormat(value as DataFormat)}>
+            <SelectTrigger className="w-40 py-1.5 text-sm" aria-label="Export format">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(DATA_FORMATS) as DataFormat[]).map((value) => (
+                <SelectItem key={value} value={value} className="text-sm">
+                  {DATA_FORMATS[value].label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <button
-          type="button"
-          onClick={() => downloadFile(toJson(authors), "credit_result.json", "application/json")}
-          disabled={authors.length === 0}
-          className="flex items-center gap-2 px-4 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <span className="material-symbols-outlined text-[18px]">data_object</span>
-          JSON
-        </button>
+          <button
+            type="button"
+            onClick={() => copyText(DATA_FORMATS[dataFormat].serialize(authors))}
+            disabled={!hasAuthors}
+            className="flex items-center gap-1.5 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <span className="material-symbols-outlined text-[18px]">content_copy</span>
+            Copy
+          </button>
 
-        <button
-          type="button"
-          onClick={() => downloadFile(toCsv(authors), "credit_result.csv", "text/csv;charset=utf-8")}
-          disabled={authors.length === 0}
-          className="flex items-center gap-2 px-4 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <span className="material-symbols-outlined text-[18px]">table_view</span>
-          CSV
-        </button>
+          <button
+            type="button"
+            onClick={downloadData}
+            disabled={!hasAuthors}
+            className="flex items-center gap-1.5 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <span className="material-symbols-outlined text-[18px]">download</span>
+            Download
+          </button>
+        </div>
       </div>
     </div>
   );
