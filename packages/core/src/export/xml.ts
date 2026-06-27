@@ -3,6 +3,7 @@
 import type { Author } from "../author.js";
 import { activeContributions } from "../author.js";
 import { getRoleByName } from "../credit-roles.js";
+import { escapeXml } from "./escape-xml.js";
 
 const DOCTYPE =
   '<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD with MathML3 v1.2 20190208//EN" "JATS-archivearticle1-mathml3.dtd">';
@@ -61,13 +62,4 @@ function authorToXml(author: Author): string {
       </string-name>
 ${roles}
     </contrib>`;
-}
-
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
 }

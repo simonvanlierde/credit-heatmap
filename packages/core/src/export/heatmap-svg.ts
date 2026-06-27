@@ -1,5 +1,6 @@
 import type { Author } from "../author.js";
 import { CREDIT_ROLES } from "../credit-roles.js";
+import { escapeXml } from "./escape-xml.js";
 
 // Layout constants
 const ROLE_LABEL_W = 200;
@@ -100,7 +101,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
       const cx = gridX + ai * (CELL_S + GAP_S) + CELL_S / 2;
       const cy = gridY - GAP_S - 4 * scale;
       lines.push(
-        `<text transform="translate(${cx},${cy}) rotate(-45)" text-anchor="start" font-family="${FONT}" font-size="${11 * scale}" font-weight="500" fill="${COLOR_TEXT}">${escXml(
+        `<text transform="translate(${cx},${cy}) rotate(-45)" text-anchor="start" font-family="${FONT}" font-size="${11 * scale}" font-weight="500" fill="${COLOR_TEXT}">${escapeXml(
           authors[ai]?.initials ?? "",
         )}</text>`,
       );
@@ -111,7 +112,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
       const cx = gridX + ri * (CELL_S + GAP_S) + CELL_S / 2;
       const cy = gridY - GAP_S - 4 * scale;
       lines.push(
-        `<text transform="translate(${cx},${cy}) rotate(-45)" text-anchor="start" font-family="${FONT}" font-size="${11 * scale}" font-weight="500" fill="${COLOR_TEXT}">${escXml(
+        `<text transform="translate(${cx},${cy}) rotate(-45)" text-anchor="start" font-family="${FONT}" font-size="${11 * scale}" font-weight="500" fill="${COLOR_TEXT}">${escapeXml(
           roles[ri]?.name ?? "",
         )}</text>`,
       );
@@ -126,7 +127,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
 
       // Role label
       lines.push(
-        `<text x="${PAD_S + ROLE_LABEL_W_S}" y="${labelY}" text-anchor="end" font-family="${FONT}" font-size="${10.5 * scale}" fill="${COLOR_TEXT_DIM}">${escXml(
+        `<text x="${PAD_S + ROLE_LABEL_W_S}" y="${labelY}" text-anchor="end" font-family="${FONT}" font-size="${10.5 * scale}" fill="${COLOR_TEXT_DIM}">${escapeXml(
           roles[ri]?.name ?? "",
         )}</text>`,
       );
@@ -149,7 +150,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
 
       // Author label (initials) on the left
       lines.push(
-        `<text x="${PAD_S + ROLE_LABEL_W_S - 6 * scale}" y="${cy + CELL_S / 2 + 4 * scale}" text-anchor="end" font-family="${FONT}" font-size="${10.5 * scale}" fill="${COLOR_TEXT_DIM}">${escXml(
+        `<text x="${PAD_S + ROLE_LABEL_W_S - 6 * scale}" y="${cy + CELL_S / 2 + 4 * scale}" text-anchor="end" font-family="${FONT}" font-size="${10.5 * scale}" fill="${COLOR_TEXT_DIM}">${escapeXml(
           authors[ai]?.initials ?? "",
         )}</text>`,
       );
@@ -192,10 +193,6 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
 
   lines.push("</svg>");
   return lines.join("\n");
-}
-
-function escXml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 function normalizeHex(h: string): string {
