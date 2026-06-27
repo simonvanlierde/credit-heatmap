@@ -7,6 +7,8 @@
     "dev": "pnpm --filter @credit-generator/core build && next dev --port 3000",
     "build": "pnpm --filter @credit-generator/core build && next build",
     "start": "next start",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "typecheck": "pnpm --filter @credit-generator/core build && tsc --noEmit",
@@ -38,6 +40,7 @@
     "@biomejs/biome": "^2.5.0",
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
+    "@opennextjs/cloudflare": "^1.20.1",
     "@playwright/test": "^1.40.0",
     "@tailwindcss/postcss": "^4.0.6",
     "@types/node": "^22.10.7",
@@ -47,7 +50,8 @@
     "lefthook": "^2.1.9",
     "lint-staged": "^17.0.8",
     "tailwindcss": "^4.0.6",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "wrangler": "^4.105.0"
   },
   "lint-staged": {
     "*.{js,ts,tsx,jsx,json,md,css,scss,html}": "biome check --write --no-errors-on-unmatched",

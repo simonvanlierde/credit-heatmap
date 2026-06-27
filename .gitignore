@@ -6,6 +6,10 @@ coverage
 *.tsbuildinfo
 **/test-results/
 
+# Cloudflare / OpenNext build output
+.open-next
+.wrangler
+
 # env files
 .env
 .env.local
