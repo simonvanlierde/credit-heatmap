@@ -12,18 +12,24 @@ This is a TypeScript rewrite of the original
 
 <!-- Live demo: add your deployment URL here -->
 
+![The CRediT Generator workspace: a contributors list and contribution matrix on the left, a live heatmap and exportable statement on the right](docs/screenshots/hero.png)
+
 ---
 
 ## Features
 
-- **Contributor management** — add/rename/reorder authors, paste an ORCID iD to auto-fill the name
-- **Contribution matrix** — assign roles per author as a binary toggle, granular level, or 0–100 slider, with presets (equal contribution, senior author, data-only)
+- **Contributor management** — add/rename/reorder authors; paste an ORCID iD (or URL) into any field to auto-fill the name
+- **Contribution matrix** — assign roles per author as a binary toggle or a granular level, with presets (equal contribution, senior author, data-only) guarded by a confirmation before they overwrite existing work
 - **Live statement** — three formats (by role, by author, short) with optional level annotations
 - **Contribution heatmap** — interactive preview plus SVG and PNG download (rendered in the browser)
 - **Exports** — JATS4R XML, CSV, JSON, and a Markdown table; copy or download
 - **Validation** — journal-style checks (authors with no roles, missing key roles)
 - **Shareable links** — encode the whole draft into a URL to hand to a co-author
 - **Import** — paste names, or drop a JSON / CSV / JATS4R XML file to restore a session
+
+| First run | Statement & export |
+|---|---|
+| ![Empty first-run state inviting you to add a contributor, import, or load sample data](docs/screenshots/empty-state.png) | ![The contribution statement with format options, a copy-statement button, and a format picker offering copy or download](docs/screenshots/statement-export.png) |
 
 ---
 
@@ -99,7 +105,7 @@ credit-generator/                The Next.js app lives at the repo root
 ### Contribution score model
 
 Contributions are stored as a 0–100 integer (`score`) rather than a boolean, so the UI can offer a
-toggle, granular levels, or a slider without changing the data model. Boundaries:
+binary toggle or granular levels without changing the data model. Boundaries:
 
 | Score | Level |
 |---|---|
