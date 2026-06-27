@@ -1,17 +1,6 @@
 import type { Author, Contribution } from "./author.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
 
-export function createAuthorId(): string {
-  return globalThis.crypto.randomUUID();
-}
-
-export function createDefaultContributions(): Contribution[] {
-  return CREDIT_ROLES.map((r) => ({
-    role: r.name,
-    score: 0,
-  }));
-}
-
 /**
  * Parse a single display name string into first / middle / surname parts.
  * Mirrors the logic from the original Python app's `extract_name_parts()`.
@@ -66,7 +55,7 @@ export function createAuthor(
   const { firstName, middleName, surname } = parseNameParts(name);
 
   return {
-    id: overrides?.id ?? createAuthorId(),
+    id: overrides?.id ?? globalThis.crypto.randomUUID(),
     name,
     firstName,
     middleName,
@@ -74,7 +63,8 @@ export function createAuthor(
     initials: buildInitials(firstName, middleName, surname),
     ...(overrides?.orcid ? { orcid: overrides.orcid } : {}),
     contributions:
-      overrides?.contributions?.map((contribution) => ({ ...contribution })) ?? createDefaultContributions(),
+      overrides?.contributions?.map((contribution) => ({ ...contribution })) ??
+      CREDIT_ROLES.map((r) => ({ role: r.name, score: 0 })),
   };
 }
 
