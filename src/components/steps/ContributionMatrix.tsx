@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StepBadge } from "@/components/ui/step-badge";
+import { download as downloadBlob } from "@/lib/utils";
 import {
   type InputMode,
   ROLE_NAMES,
@@ -342,16 +343,6 @@ function scoreToColor(score: number): string {
 }
 
 type ExportFormat = "svg" | "png";
-
-/** Trigger a browser download for a Blob. */
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 /**
  * Rasterise an SVG string to a PNG Blob entirely in the browser, with no

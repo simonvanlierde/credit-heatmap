@@ -14,6 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StepBadge } from "@/components/ui/step-badge";
+import { useCopyStatus } from "@/lib/use-copy-status";
+import { download } from "@/lib/utils";
 import { useContributionStore } from "@/store/contribution-store";
 
 type DataFormat = "xml" | "json" | "csv" | "markdown";
@@ -38,37 +40,17 @@ export function StatementOutput() {
   const { authors } = useContributionStore();
   const [format, setFormat] = useState<StatementFormat>("by-author");
   const [showLevels, setShowLevels] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
+  const [copyStatus, copyText] = useCopyStatus();
   const [dataFormat, setDataFormat] = useState<DataFormat>("xml");
 
   const statement = generateStatement(authors, { format, showLevels });
   const issues = validateContributions(authors);
   const hasAuthors = authors.length > 0;
 
-  async function copyText(text: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopyStatus("copied");
-    } catch {
-      setCopyStatus("error");
-    }
-    setTimeout(() => setCopyStatus("idle"), 2000);
-  }
-
-  function downloadFile(content: string, filename: string, mime: string) {
-    const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   function downloadData() {
     if (!hasAuthors) return;
     const { serialize, filename, mime } = DATA_FORMATS[dataFormat];
-    downloadFile(serialize(authors), filename, mime);
+    download(new Blob([serialize(authors)], { type: mime }), filename);
   }
 
   const formats: { value: StatementFormat; label: string }[] = [

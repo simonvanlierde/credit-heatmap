@@ -4,6 +4,7 @@ import type { Author } from "@credit-generator/core";
 import { useEffect, useState } from "react";
 import { ImportModal } from "@/components/ImportModal";
 import { buildShareUrl, decodeShareHash } from "@/lib/share";
+import { useCopyStatus } from "@/lib/use-copy-status";
 import { useContributionStore } from "@/store/contribution-store";
 
 /**
@@ -12,7 +13,7 @@ import { useContributionStore } from "@/store/contribution-store";
  */
 export function HeaderActions() {
   const [importOpen, setImportOpen] = useState(false);
-  const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "error">("idle");
+  const [shareStatus, copyShareUrl] = useCopyStatus();
   const authors = useContributionStore((s) => s.authors);
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
 
@@ -31,14 +32,8 @@ export function HeaderActions() {
     loadAuthors(importedAuthors);
   }
 
-  async function handleShare() {
-    try {
-      await navigator.clipboard.writeText(buildShareUrl(authors));
-      setShareStatus("copied");
-    } catch {
-      setShareStatus("error");
-    }
-    setTimeout(() => setShareStatus("idle"), 2000);
+  function handleShare() {
+    void copyShareUrl(buildShareUrl(authors));
   }
 
   return (
