@@ -9,11 +9,13 @@ import {
   toMarkdown,
   validateContributions,
 } from "@credit-generator/core";
-import { useState } from "react";
+import { Copy, Download, Info, TriangleAlert } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StepBadge } from "@/components/ui/step-badge";
+import { contributorInkColor } from "@/lib/contributor-color";
 import { useCopyStatus } from "@/lib/use-copy-status";
 import { download } from "@/lib/utils";
 import { useContributionStore } from "@/store/contribution-store";
@@ -35,6 +37,31 @@ const DATA_FORMATS: Record<
     mime: "text/markdown;charset=utf-8",
   },
 };
+
+/**
+ * Wrap each author's name in the generated statement with their contributor
+ * hue, so the same color identifies a person on the badge, heatmap, and here.
+ * Longest names first, so a name that is a substring of another still matches
+ * the right person.
+ */
+function colorizeStatement(text: string, authors: Author[]): ReactNode {
+  if (authors.length === 0) return text;
+  const named = authors
+    .map((author, index) => ({ name: author.name, color: contributorInkColor(index) }))
+    .sort((a, b) => b.name.length - a.name.length);
+  const pattern = named.map((n) => n.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  return text.split(new RegExp(`(${pattern})`, "g")).map((part, idx) => {
+    const match = named.find((n) => n.name === part);
+    return match ? (
+      // biome-ignore lint/suspicious/noArrayIndexKey: split segments are positional and stable for a given render.
+      <strong key={idx} className="font-semibold" style={{ color: match.color }}>
+        {part}
+      </strong>
+    ) : (
+      part
+    );
+  });
+}
 
 export function StatementOutput() {
   const { authors } = useContributionStore();
@@ -60,20 +87,9 @@ export function StatementOutput() {
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-md border border-outline-variant/10 p-8 relative flex flex-col gap-6">
-      {/* Decorative quote mark */}
-      <div className="absolute top-5 left-5 text-primary/10 select-none pointer-events-none">
-        <span
-          className="text-7xl font-bold leading-none"
-          style={{ fontFamily: "var(--font-headline)" }}
-          aria-hidden="true"
-        >
-          "
-        </span>
-      </div>
-
+    <div className="bg-white rounded-lg shadow-md border border-outline-variant/10 p-8 flex flex-col gap-6">
       {/* Header */}
-      <div className="relative z-10">
+      <div>
         <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">
           <StepBadge step={3} />
           Author Contribution Statement
@@ -113,7 +129,7 @@ export function StatementOutput() {
         style={{ fontFamily: "var(--font-headline)" }}
       >
         {statement ? (
-          <p className="text-base italic leading-relaxed text-on-surface">{statement}</p>
+          <p className="text-base italic leading-relaxed text-on-surface">{colorizeStatement(statement, authors)}</p>
         ) : (
           <p className="text-sm text-on-surface-variant not-italic">
             No contributions assigned yet — select a contributor and toggle their roles.
@@ -133,9 +149,11 @@ export function StatementOutput() {
                   : "bg-surface-container-high text-on-surface-variant"
               }`}
             >
-              <span className="material-symbols-outlined text-[16px] leading-none mt-px">
-                {issue.level === "warning" ? "warning" : "info"}
-              </span>
+              {issue.level === "warning" ? (
+                <TriangleAlert className="h-4 w-4 shrink-0 mt-px" />
+              ) : (
+                <Info className="h-4 w-4 shrink-0 mt-px" />
+              )}
               <span>{issue.message}</span>
             </li>
           ))}
@@ -154,7 +172,7 @@ export function StatementOutput() {
           disabled={!statement}
           className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary-container transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <span className="material-symbols-outlined text-[18px]">content_copy</span>
+          <Copy className="h-[18px] w-[18px]" />
           {copyStatus === "copied" ? "Copied!" : copyStatus === "error" ? "Copy failed" : "Copy statement"}
         </button>
 
@@ -182,7 +200,7 @@ export function StatementOutput() {
             disabled={!hasAuthors}
             className="flex items-center gap-1.5 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined text-[18px]">content_copy</span>
+            <Copy className="h-[18px] w-[18px]" />
             Copy
           </button>
 
@@ -192,7 +210,7 @@ export function StatementOutput() {
             disabled={!hasAuthors}
             className="flex items-center gap-1.5 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <span className="material-symbols-outlined text-[18px]">download</span>
+            <Download className="h-[18px] w-[18px]" />
             Download
           </button>
         </div>

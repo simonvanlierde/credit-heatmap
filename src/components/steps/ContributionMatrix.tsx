@@ -2,6 +2,7 @@
 
 import { type Author, buildHeatmapSvg, CREDIT_ROLES, scoreToLevel } from "@credit-generator/core";
 import type { DefaultHeatMapDatum } from "@nivo/heatmap";
+import { UserSearch } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StepBadge } from "@/components/ui/step-badge";
+import { contributorColor, contributorTextColor, type HeatmapColorMode, heatCellColor } from "@/lib/contributor-color";
 import { download as downloadBlob } from "@/lib/utils";
 import {
   type InputMode,
@@ -23,6 +25,12 @@ import {
   type RolePreset,
   useContributionStore,
 } from "@/store/contribution-store";
+
+const COLOR_MODE_LABELS: Record<HeatmapColorMode, string> = {
+  "by-author": "By author",
+  monochrome: "Monochrome",
+  grayscale: "Grayscale",
+};
 
 const ResponsiveHeatMap = dynamic(() => import("@nivo/heatmap").then((m) => m.ResponsiveHeatMap), {
   ssr: false,
@@ -57,7 +65,7 @@ export function RoleAssignment() {
   if (!author) {
     return (
       <div className="bg-white rounded-lg border border-outline-variant/20 p-8 text-center">
-        <span className="material-symbols-outlined text-3xl text-outline-variant mb-3 block">person_search</span>
+        <UserSearch className="h-8 w-8 text-outline-variant mb-3 mx-auto" />
         <p className="text-sm text-on-surface-variant">Select a contributor above to assign their CRediT roles.</p>
       </div>
     );
@@ -139,7 +147,11 @@ export function RoleAssignment() {
                   <p className="text-sm font-medium text-on-surface">{role.name}</p>
                   <p className="text-[11px] text-on-surface-variant mt-1 line-clamp-2">{role.description}</p>
                 </div>
-                <span className="shrink-0 text-[10px] uppercase tracking-wider text-on-surface-variant bg-surface-container px-2 py-1 rounded-full">
+                <span
+                  className={`shrink-0 font-mono text-[10px] uppercase tracking-wider px-2 py-1 rounded-full ${
+                    active ? "bg-primary/10 text-primary font-medium" : "bg-surface-container text-on-surface-variant"
+                  }`}
+                >
                   {scoreToLevel(score)}
                 </span>
               </div>
@@ -215,7 +227,19 @@ function InputModeSwitcher({ current, onChange }: { current: InputMode; onChange
 type HeatDatum = DefaultHeatMapDatum & { value: number };
 type HeatRow = { id: string; data: HeatDatum[] };
 
-function buildHeatData(authors: Author[]): HeatRow[] {
+function buildHeatData(authors: Author[], transpose: boolean): HeatRow[] {
+  if (transpose) {
+    // Rows = authors, columns = roles.
+    return authors.map((author) => ({
+      id: author.initials,
+      data: ROLE_NAMES.map((role, roleIndex) => ({
+        x: role,
+        y: author.contributions[roleIndex]?.score ?? 0,
+        value: author.contributions[roleIndex]?.score ?? 0,
+      })),
+    }));
+  }
+  // Rows = roles, columns = authors.
   return ROLE_NAMES.map((role, roleIndex) => ({
     id: role,
     data: authors.map((author) => ({
@@ -229,7 +253,12 @@ function buildHeatData(authors: Author[]): HeatRow[] {
 // Tooltip rendering is inlined in the chart to avoid generic type mismatches
 
 export function ContributionHeatmap() {
-  const { authors } = useContributionStore();
+  const { authors, heatmapColorMode, setHeatmapColorMode } = useContributionStore();
+  const [transpose, setTranspose] = useState(false);
+
+  // Resolve a cell's author (by initials) to its position, so its hue matches
+  // the badge and statement byline regardless of heatmap orientation.
+  const indexByInitials = new Map(authors.map((author, index) => [author.initials, index]));
 
   if (authors.length === 0) {
     return (
@@ -242,8 +271,14 @@ export function ContributionHeatmap() {
     );
   }
 
-  const data = buildHeatData(authors);
-  const chartHeight = Math.max(220, ROLE_NAMES.length * 28 + 60);
+  const data = buildHeatData(authors, transpose);
+  const rowCount = transpose ? authors.length : ROLE_NAMES.length;
+  const chartHeight = Math.max(220, rowCount * 28 + 60);
+  // Left axis holds row labels, top axis holds (rotated) column labels — role
+  // names are long, initials are short, so the margins swap with orientation.
+  const margin = transpose
+    ? { top: 130, right: 90, bottom: 10, left: 70 }
+    : { top: 40, right: 20, bottom: 10, left: 185 };
 
   return (
     <div className="bg-surface-container rounded-lg border border-outline-variant/10 p-4 md:p-6 overflow-hidden">
@@ -251,7 +286,13 @@ export function ContributionHeatmap() {
         <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-on-surface-variant">
           Real-time Contribution Heatmap
         </h3>
-        <HeatmapExportButtons authors={authors} />
+        <HeatmapExportButtons
+          authors={authors}
+          transpose={transpose}
+          onTransposeChange={setTranspose}
+          colorMode={heatmapColorMode}
+          onColorModeChange={setHeatmapColorMode}
+        />
       </div>
 
       {/* Text alternative for screen readers — the SVG heatmap below is decorative to AT. */}
@@ -272,9 +313,12 @@ export function ContributionHeatmap() {
       <div style={{ height: chartHeight, width: "100%" }} aria-hidden="true">
         <ResponsiveHeatMap
           data={data}
-          margin={{ top: 40, right: 20, bottom: 10, left: 185 }}
-          colors={(cell) => scoreToColor(cell.value ?? 0)}
-          emptyColor="#d1e4ff"
+          margin={margin}
+          colors={(cell) => {
+            const initials = transpose ? String(cell.serieId) : String(cell.data.x);
+            return heatCellColor(heatmapColorMode, indexByInitials.get(initials) ?? 0, cell.value ?? 0);
+          }}
+          emptyColor="#ececea"
           forceSquare={false}
           xInnerPadding={0.08}
           yInnerPadding={0.08}
@@ -282,7 +326,7 @@ export function ContributionHeatmap() {
           borderWidth={0}
           borderColor={{ from: "color", modifiers: [["darker", 0.4]] }}
           enableLabels={false}
-          axisTop={{ tickSize: 0, tickPadding: 6, tickRotation: -30, legendOffset: -36 }}
+          axisTop={{ tickSize: 0, tickPadding: 6, tickRotation: transpose ? -45 : -30, legendOffset: -36 }}
           axisRight={null}
           axisBottom={null}
           axisLeft={{ tickSize: 0, tickPadding: 8, tickRotation: 0 }}
@@ -291,17 +335,20 @@ export function ContributionHeatmap() {
               ticks: {
                 text: {
                   fontSize: 11,
-                  fontFamily: "Inter, system-ui, sans-serif",
-                  fill: "#404850",
+                  fontFamily: "var(--font-plex-sans), system-ui, sans-serif",
+                  fill: "#595c63",
                 },
               },
             },
           }}
           tooltip={(props) => {
-            const xValue = props.cell.data.x;
-            const authorName = authors.find((author) => author.initials === String(xValue))?.name ?? String(xValue);
             // spell-checker: ignore serieId
-            const roleName = props.cell.serieId;
+            // Axes swap with `transpose`, so resolve which of x / serieId is which.
+            const xValue = String(props.cell.data.x);
+            const serie = String(props.cell.serieId);
+            const authorInitials = transpose ? serie : xValue;
+            const roleName = transpose ? xValue : serie;
+            const authorName = authors.find((author) => author.initials === authorInitials)?.name ?? authorInitials;
             const score = props.cell.value ?? 0;
             const level = scoreToLevel(score);
 
@@ -309,21 +356,21 @@ export function ContributionHeatmap() {
               <div
                 style={{
                   background: "#ffffff",
-                  border: "1px solid #bfc7d1",
+                  border: "1px solid #e4e4e1",
                   borderRadius: "6px",
                   padding: "8px 12px",
                   fontSize: "11px",
-                  fontFamily: "Inter, system-ui, sans-serif",
-                  color: "#001d36",
+                  fontFamily: "var(--font-plex-sans), system-ui, sans-serif",
+                  color: "#16181c",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.10)",
                   pointerEvents: "none",
                 }}
               >
                 <strong>{authorName}</strong>
-                <span style={{ color: "#404850" }}> - {roleName}</span>
+                <span style={{ color: "#595c63" }}> - {roleName}</span>
                 <br />
-                <span style={{ textTransform: "capitalize", color: "#005d90" }}>{level}</span>
-                {level !== "none" && <span style={{ color: "#404850" }}> ({score})</span>}
+                <span style={{ textTransform: "capitalize", color: "#1f4e79" }}>{level}</span>
+                {level !== "none" && <span style={{ color: "#595c63" }}> ({score})</span>}
               </div>
             );
           }}
@@ -331,15 +378,56 @@ export function ContributionHeatmap() {
           animate
         />
       </div>
+
+      <HeatmapLegend authors={authors} colorMode={heatmapColorMode} />
     </div>
   );
 }
 
-function scoreToColor(score: number): string {
-  if (score === 0) return "#d1e4ff";
-  if (score <= 33) return "#94ccff";
-  if (score <= 66) return "#0077b6";
-  return "#005d90";
+const LEVEL_KEY: { label: string; score: number }[] = [
+  { label: "Lead", score: 100 },
+  { label: "Secondary", score: 66 },
+  { label: "Tertiary", score: 33 },
+  { label: "None", score: 0 },
+];
+
+/**
+ * Two keys: how intensity maps to contribution level (always), and — in
+ * by-author mode — which hue belongs to which contributor.
+ */
+function HeatmapLegend({ authors, colorMode }: { authors: Author[]; colorMode: HeatmapColorMode }) {
+  return (
+    <div className="mt-4 flex flex-col gap-2 text-[11px] text-on-surface-variant">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-mono uppercase tracking-wider text-[10px]">Level</span>
+        {LEVEL_KEY.map(({ label, score }) => (
+          <span key={label} className="inline-flex items-center gap-1.5">
+            <span
+              className="h-3 w-3 rounded-sm border border-outline-variant"
+              style={{ backgroundColor: heatCellColor(colorMode, 0, score) }}
+            />
+            {label}
+          </span>
+        ))}
+      </div>
+      {colorMode === "by-author" && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="font-mono uppercase tracking-wider text-[10px]">Hue = contributor</span>
+          {authors.map((author, index) => (
+            <span key={author.id} className="inline-flex items-center gap-1.5">
+              <span
+                className="font-mono text-[10px] px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: contributorColor(index), color: contributorTextColor(index) }}
+              >
+                {author.initials}
+              </span>
+              {author.name}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 type ExportFormat = "svg" | "png";
@@ -379,7 +467,19 @@ function svgToPngBlob(svg: string, scale = 2): Promise<Blob> {
   });
 }
 
-function HeatmapExportButtons({ authors }: { authors: Author[] }) {
+function HeatmapExportButtons({
+  authors,
+  transpose,
+  onTransposeChange,
+  colorMode,
+  onColorModeChange,
+}: {
+  authors: Author[];
+  transpose: boolean;
+  onTransposeChange: (transpose: boolean) => void;
+  colorMode: HeatmapColorMode;
+  onColorModeChange: (mode: HeatmapColorMode) => void;
+}) {
   const [loading, setLoading] = useState<ExportFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -387,7 +487,7 @@ function HeatmapExportButtons({ authors }: { authors: Author[] }) {
     setLoading(format);
     setError(null);
     try {
-      const svg = buildHeatmapSvg(authors);
+      const svg = buildHeatmapSvg(authors, { transpose, colorMode });
       if (format === "svg") {
         downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), "credit-heatmap.svg");
       } else {
@@ -412,6 +512,31 @@ function HeatmapExportButtons({ authors }: { authors: Author[] }) {
           {error}
         </span>
       )}
+      <Select value={colorMode} onValueChange={(value) => onColorModeChange(value as HeatmapColorMode)}>
+        <SelectTrigger className="h-[26px] w-[7.5rem] py-0 text-[10px]" aria-label="Heatmap color mode">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(COLOR_MODE_LABELS) as HeatmapColorMode[]).map((mode) => (
+            <SelectItem key={mode} value={mode} className="text-xs">
+              {COLOR_MODE_LABELS[mode]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <button
+        type="button"
+        aria-pressed={transpose}
+        onClick={() => onTransposeChange(!transpose)}
+        title="Swap axes: authors down the left, roles across the top"
+        className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded border transition-colors ${
+          transpose
+            ? "border-primary text-primary"
+            : "border-outline-variant/40 text-on-surface-variant hover:text-primary hover:border-primary"
+        }`}
+      >
+        Transpose
+      </button>
       {formats.map(({ format, label }) => (
         <button
           key={format}

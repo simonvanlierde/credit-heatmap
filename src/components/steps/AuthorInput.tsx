@@ -1,8 +1,10 @@
 "use client";
 
 import { ORCID_REGEX } from "@credit-generator/core";
+import { ChevronDown, ChevronUp, Fingerprint, Plus, PlusCircle, Sparkles, Trash2, UserPlus, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { StepBadge } from "@/components/ui/step-badge";
+import { contributorColor, contributorTextColor } from "@/lib/contributor-color";
 import { useContributionStore } from "@/store/contribution-store";
 
 const ORCID_EXTRACT_REGEX = /(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/i;
@@ -172,7 +174,7 @@ export function AuthorList() {
 
       {authors.length === 0 && (
         <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
-          <span className="material-symbols-outlined text-3xl text-outline-variant mb-2 block">group_add</span>
+          <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
           <p className="text-sm text-on-surface-variant">
             No contributors yet. Add a name or ORCID below, use <strong>Import</strong> in the header, or
           </p>
@@ -181,7 +183,7 @@ export function AuthorList() {
             onClick={loadSample}
             className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary hover:text-on-primary hover:border-primary transition-colors"
           >
-            <span className="material-symbols-outlined text-lg">auto_awesome</span>
+            <Sparkles className="h-4 w-4" />
             Load sample data
           </button>
         </div>
@@ -245,7 +247,7 @@ export function AuthorList() {
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-mono text-on-surface-variant hover:text-primary transition-colors"
                     >
-                      <span className="material-symbols-outlined text-[12px]">fingerprint</span>
+                      <Fingerprint className="h-3 w-3" />
                       {orcidValue}
                       {!orcidValid && <span className="text-error">✗</span>}
                     </a>
@@ -265,7 +267,7 @@ export function AuthorList() {
                       aria-label="Remove ORCID iD"
                       className="text-on-surface-variant hover:text-error transition-colors"
                     >
-                      <span className="material-symbols-outlined text-[14px] leading-none">close</span>
+                      <X className="h-3.5 w-3.5" />
                     </button>
                     {rowState.error !== null && (
                       <span className="text-[10px] text-error leading-tight">{rowState.error}</span>
@@ -308,7 +310,7 @@ export function AuthorList() {
                     onClick={() => setOrcidEditing((prev) => ({ ...prev, [author.id]: true }))}
                     className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[12px]">add</span>
+                    <Plus className="h-3 w-3" />
                     ORCID iD
                   </button>
                 )}
@@ -328,7 +330,7 @@ export function AuthorList() {
                     aria-label={`Move ${author.name} up`}
                     className="flex items-center justify-center w-6 h-6 text-outline-variant hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    <span className="material-symbols-outlined text-base leading-none">keyboard_arrow_up</span>
+                    <ChevronUp className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
@@ -337,10 +339,14 @@ export function AuthorList() {
                     aria-label={`Move ${author.name} down`}
                     className="flex items-center justify-center w-6 h-6 text-outline-variant hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    <span className="material-symbols-outlined text-base leading-none">keyboard_arrow_down</span>
+                    <ChevronDown className="h-4 w-4" />
                   </button>
                 </div>
-                <span className="text-xs font-mono text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">
+                <span
+                  className="text-xs font-mono font-medium px-2 py-0.5 rounded"
+                  style={{ backgroundColor: contributorColor(index), color: contributorTextColor(index) }}
+                  title={`${author.name}'s color`}
+                >
                   {author.initials}
                 </span>
               </div>
@@ -351,7 +357,7 @@ export function AuthorList() {
                 className="shrink-0 text-outline-variant hover:text-error transition-colors"
                 aria-label={`Remove ${author.name}`}
               >
-                <span className="material-symbols-outlined text-lg">delete</span>
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           );
@@ -379,7 +385,7 @@ export function AuthorList() {
           disabled={!newName.trim()}
           className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-primary hover:text-on-primary hover:bg-primary border border-primary/30 hover:border-primary rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <span className="material-symbols-outlined text-lg">add_circle</span>
+          <PlusCircle className="h-4 w-4" />
           Add
         </button>
       </div>

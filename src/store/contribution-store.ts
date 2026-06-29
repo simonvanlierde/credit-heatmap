@@ -9,6 +9,7 @@ import {
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import type { HeatmapColorMode } from "@/lib/contributor-color";
 
 export type InputMode = "toggle" | "levels";
 export type RolePreset = "equal-contribution" | "senior-author" | "data-only-contributor";
@@ -17,6 +18,7 @@ interface ContributionState {
   authors: Author[];
   selectedAuthorId: string | null;
   inputMode: InputMode;
+  heatmapColorMode: HeatmapColorMode;
   loadAuthors: (authors: Author[]) => void;
   loadSample: () => void;
   setAuthorsFromText: (text: string) => void;
@@ -30,6 +32,7 @@ interface ContributionState {
   toggleContribution: (authorId: string, roleIndex: number) => void;
   applyPreset: (authorId: string, preset: RolePreset) => void;
   setInputMode: (mode: InputMode) => void;
+  setHeatmapColorMode: (mode: HeatmapColorMode) => void;
   reset: () => void;
 }
 
@@ -122,6 +125,7 @@ export const useContributionStore = create<ContributionState>()(
       authors: [],
       selectedAuthorId: null,
       inputMode: "toggle",
+      heatmapColorMode: "by-author",
 
       loadAuthors: (authors) =>
         set((state) => {
@@ -247,11 +251,17 @@ export const useContributionStore = create<ContributionState>()(
           state.inputMode = mode;
         }),
 
+      setHeatmapColorMode: (mode) =>
+        set((state) => {
+          state.heatmapColorMode = mode;
+        }),
+
       reset: () =>
         set((state) => {
           state.authors = [];
           state.selectedAuthorId = null;
           state.inputMode = "toggle";
+          state.heatmapColorMode = "by-author";
         }),
     })),
     {
@@ -269,6 +279,7 @@ export const useContributionStore = create<ContributionState>()(
       partialize: (state) => ({
         authors: state.authors,
         inputMode: state.inputMode,
+        heatmapColorMode: state.heatmapColorMode,
         selectedAuthorId: state.selectedAuthorId,
       }),
     },
