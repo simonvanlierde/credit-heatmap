@@ -4,13 +4,8 @@
   "rangeStrategy": "bump",
   "packageRules": [
     {
-      "matchManagers": ["dockerfile", "docker-compose"],
-      "rangeStrategy": "bump"
-    },
-    {
       "matchManagers": ["npm", "pnpm"],
       "groupName": "all npm & pnpm dependencies",
-      "rangeStrategy": "bump",
       "automerge": true,
       "automergeType": "pr",
       "matchUpdateTypes": ["patch"],
@@ -19,7 +14,6 @@
     {
       "matchManagers": ["npm", "pnpm"],
       "groupName": "all npm & pnpm minor/major",
-      "rangeStrategy": "bump",
       "automerge": false,
       "matchUpdateTypes": ["minor", "major"],
       "schedule": ["every weekend"]
