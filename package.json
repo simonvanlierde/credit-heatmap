@@ -17,7 +17,7 @@
     "test:coverage": "pnpm --filter @credit-generator/core test:coverage",
     "test:e2e": "playwright test",
     "clean": "rm -rf .next packages/core/dist",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install || true"
   },
   "dependencies": {
     "@credit-generator/core": "workspace:*",
