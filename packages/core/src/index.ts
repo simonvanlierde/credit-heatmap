@@ -1,15 +1,25 @@
-export type { Author, Contribution, ContributionLevel } from "./author.js";
+export type { Author, Contribution, ContributionLevel, ContributorType } from "./author.js";
 export {
   AuthorSchema,
   activeContributions,
   ContributionSchema,
   hasContributions,
+  isAllBinary,
   ORCID_INPUT_REGEX,
   ORCID_REGEX,
+  rolesWithContributions,
   scoreToLevel,
 } from "./author.js";
-export type { HeatmapColorMode } from "./contributor-color.js";
-export { contributorColor, heatCellColor, luminance, mixHex, OKABE_ITO } from "./contributor-color.js";
+export { DEFAULT_MONO_COLOR, heatCellColor, luminance, mixHex, OKABE_ITO } from "./contributor-color.js";
+export type { LocaleInfo, RoleCatalog, RoleTranslation, RoleTranslator } from "./credit-i18n/index.js";
+export {
+  AVAILABLE_LOCALES,
+  DEFAULT_ROLE_TRANSLATOR,
+  loadRoleCatalog,
+  makeRoleTranslator,
+} from "./credit-i18n/index.js";
+export type { UiCatalog, UiKey, UiTranslator } from "./credit-i18n/ui-strings.js";
+export { DEFAULT_UI_TRANSLATOR, loadUiCatalog, makeUiTranslator } from "./credit-i18n/ui-strings.js";
 export type { CreditRoleName } from "./credit-roles.js";
 export { CREDIT_ROLES, getRoleByName } from "./credit-roles.js";
 export { fromCsv, toCsv } from "./export/csv.js";
