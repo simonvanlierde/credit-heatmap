@@ -5,8 +5,7 @@ library for modelling author contributions and producing [CRediT (Contributor
 Roles Taxonomy)](https://credit.niso.org/) statements and exports.
 
 It has a single runtime dependency (`zod`) and no DOM, React, or Node-only APIs at
-import time. The web app consumes it directly in the browser; the same package
-could back a CLI, a serverless API, or a Word/Docs/LaTeX plugin without change.
+import time. The web app consumes it directly in the browser.
 
 ## Domain model
 

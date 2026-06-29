@@ -15,7 +15,7 @@ heatmap and exports (JATS4R XML, CSV, JSON, Markdown) for journal submission sys
 This is a TypeScript rewrite of the original
 [Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator).
 
-**Try it now:** [credit.duinlab.nl](https://credit.duinlab.nl) — no install, runs entirely in your browser.
+**Try it now:** [credit.duinlab.nl](https://credit.duinlab.nl) — no install required.
 
 ![The CRediT Generator workspace: a contributors list and contribution matrix on the left, a live heatmap and exportable statement on the right](docs/screenshots/hero.png)
 
@@ -52,16 +52,13 @@ Browser
 ```
 
 Almost everything is a pure function in [`packages/core`](packages/core/README.md), so it runs
-client-side: statement generation, XML/CSV/JSON/Markdown, the heatmap SVG (converted to PNG via
-`<canvas>`), and XML import (native `DOMParser`). The **only** thing that genuinely needs a server
-is the ORCID lookup, because the ORCID public API has no permissive CORS headers — so it's a single
-Next.js route handler.
+client-side: statements, XML/CSV/JSON/Markdown, the heatmap SVG (PNG via `<canvas>`), and XML import
+(native `DOMParser`). The one server call is the ORCID lookup — the ORCID public API sends no CORS
+headers — so it's a single Next.js route handler.
 
-An earlier version had a separate Hono REST API (with OpenAPI docs, server-side Sharp/Satori PNG/PDF
-rendering, and an nginx-fronted two-container deploy). That was collapsed on purpose: it was more
-surface area than the tool needs. Keeping `packages/core` framework-agnostic (its only runtime
-dependency is `zod`) preserves the option to wrap it in a CLI, serverless API, or document plugin
-later — without carrying that machinery now.
+An earlier version had a separate Hono REST API (OpenAPI docs, server-side Sharp/Satori rendering, an
+nginx-fronted two-container deploy). It was collapsed on purpose — more surface area than the tool
+needs. `packages/core` stays framework-agnostic (only runtime dependency: `zod`).
 
 ---
 
@@ -110,16 +107,9 @@ credit-generator/                The Next.js app lives at the repo root
 ### Contribution score model
 
 Contributions are stored as a 0–100 integer (`score`) rather than a boolean, so the UI can offer a
-binary toggle or granular levels without changing the data model. Boundaries:
-
-| Score | Level |
-|---|---|
-| 0 | None |
-| 1–33 | Tertiary |
-| 34–66 | Secondary |
-| 67–100 | Lead |
-
-See [`packages/core/README.md`](packages/core/README.md) for the full domain model.
+binary toggle or granular levels without changing the data model. See
+[`packages/core/README.md`](packages/core/README.md) for the score→level boundaries and full domain
+model.
 
 ### Server endpoints
 
