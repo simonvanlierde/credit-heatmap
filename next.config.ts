@@ -5,6 +5,13 @@ const nextConfig: NextConfig = {
   // @credit-generator/core, and the only server endpoint (ORCID proxy) is a
   // route handler under src/app/api. No external API to proxy to.
   output: "standalone",
+  // core ships its TS source (just-in-time internal package); Next transpiles it.
+  transpilePackages: ["@credit-generator/core"],
+  // core uses NodeNext ".js" specifiers on .ts files; map them to source on resolve.
+  webpack: (config) => {
+    config.resolve.extensionAlias = { ".js": [".ts", ".tsx", ".js"] };
+    return config;
+  },
 };
 
 export default nextConfig;

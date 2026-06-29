@@ -5,14 +5,14 @@
   "license": "MIT",
   "packageManager": "pnpm@9.15.4",
   "scripts": {
-    "dev": "pnpm --filter @credit-generator/core build && next dev --port 3000",
-    "build": "pnpm --filter @credit-generator/core build && next build",
+    "dev": "next dev --port 3000",
+    "build": "next build",
     "start": "next start",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "typecheck": "pnpm --filter @credit-generator/core build && tsc --noEmit",
+    "typecheck": "pnpm --filter @credit-generator/core typecheck && tsc --noEmit",
     "test": "pnpm --filter @credit-generator/core test",
     "test:coverage": "pnpm --filter @credit-generator/core test:coverage",
     "test:e2e": "playwright test",
@@ -50,13 +50,8 @@
     "@types/react-dom": "^19.0.0",
     "cspell": "^10.0.1",
     "lefthook": "^2.1.9",
-    "lint-staged": "^17.0.8",
     "tailwindcss": "^4.0.6",
     "typescript": "^6.0.3",
     "wrangler": "^4.105.0"
-  },
-  "lint-staged": {
-    "*.{js,ts,tsx,jsx,json,md,css,scss,html}": "biome check --write --no-errors-on-unmatched",
-    "*.{md,txt}": "cspell --no-progress"
   }
 }
