@@ -5,9 +5,6 @@ pre-commit:
             glob: "*.{js,ts,tsx,jsx,json,md,css,scss,html}"
             run: pnpm biome check --write --no-errors-on-unmatched {staged_files}
             stage_fixed: true
-        cspell:
-            glob: "*.{md,txt}"
-            run: pnpm cspell --no-progress {staged_files}
 commit-msg:
     commands:
         commitlint:

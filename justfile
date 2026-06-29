@@ -10,10 +10,6 @@ default:
 test-watch:
     pnpm --filter @credit-generator/core exec vitest
 
-# Run cspell across the repository (respects cspell.json)
-cspell:
-    pnpm exec cspell --no-progress "**/*"
-
 # Lint and auto-fix
 lint-fix:
     pnpm biome check --write .
