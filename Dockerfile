@@ -6,7 +6,8 @@ FROM base AS deps
 WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/core/package.json ./packages/core/
-RUN pnpm install --frozen-lockfile
+# LEFTHOOK=0 skips the `prepare` git-hook install (no git in the image).
+RUN LEFTHOOK=0 pnpm install --frozen-lockfile
 
 # ---- build ----
 FROM base AS builder
