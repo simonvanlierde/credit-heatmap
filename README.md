@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/simonvanlierde/credit-heatmap/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/credit-heatmap)
-[![Demo](https://img.shields.io/website?url=https%3A%2F%2Fcredit.duinlab.nl&label=demo)](https://credit.duinlab.nl)
+[![Website](https://img.shields.io/website?url=https%3A%2F%2Fcredit.duinlab.nl)](https://credit.duinlab.nl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A web tool for building [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) author
