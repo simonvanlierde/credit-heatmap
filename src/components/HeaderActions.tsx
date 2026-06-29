@@ -1,6 +1,7 @@
 "use client";
 
 import type { Author } from "@credit-generator/core";
+import { Check, CircleAlert, Link2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ImportModal } from "@/components/ImportModal";
 import { buildShareUrl, decodeShareHash } from "@/lib/share";
@@ -45,9 +46,13 @@ export function HeaderActions() {
           disabled={authors.length === 0}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary border border-primary/30 hover:bg-primary hover:text-on-primary hover:border-primary transition-colors rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <span className="material-symbols-outlined text-lg">
-            {shareStatus === "copied" ? "check" : shareStatus === "error" ? "error" : "link"}
-          </span>
+          {shareStatus === "copied" ? (
+            <Check className="h-4 w-4" />
+          ) : shareStatus === "error" ? (
+            <CircleAlert className="h-4 w-4" />
+          ) : (
+            <Link2 className="h-4 w-4" />
+          )}
           {shareStatus === "copied" ? "Link copied" : shareStatus === "error" ? "Copy failed" : "Share"}
         </button>
         <button
@@ -55,7 +60,7 @@ export function HeaderActions() {
           onClick={() => setImportOpen(true)}
           className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-primary text-on-primary hover:bg-primary-container transition-colors rounded-lg shadow-sm"
         >
-          <span className="material-symbols-outlined text-lg">upload_file</span>
+          <Upload className="h-4 w-4" />
           Import
         </button>
       </div>

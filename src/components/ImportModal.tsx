@@ -2,6 +2,7 @@
 
 import type { Author } from "@credit-generator/core";
 import { fromCsv, fromJats4rXml, fromJson, parseAuthorText } from "@credit-generator/core";
+import { FileUp } from "lucide-react";
 import { useRef, useState } from "react";
 import {
   Dialog,
@@ -143,7 +144,7 @@ export function ImportModal({ open, onImport, onClose }: Props) {
               }`}
             >
               <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                <span className="material-symbols-outlined text-primary text-3xl">upload_file</span>
+                <FileUp className="h-7 w-7 text-primary" />
               </div>
               <p className="text-sm font-medium text-on-surface">Drag and drop a file here</p>
               <p className="text-xs text-on-surface-variant mt-1 mb-4">Accepts .csv, .json, or .xml</p>
