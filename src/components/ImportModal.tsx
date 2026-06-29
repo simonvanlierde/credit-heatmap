@@ -46,6 +46,17 @@ const FORMAT_LABEL: Record<DetectedFormat, string> = {
   unknown: "",
 };
 
+/** Parser + "nothing found" message for each detectable format. */
+const IMPORTERS: Record<
+  Exclude<DetectedFormat, "unknown">,
+  { parse: (text: string) => Author[]; emptyMessage: string }
+> = {
+  json: { parse: fromJson, emptyMessage: "That JSON export contains no contributors." },
+  csv: { parse: fromCsv, emptyMessage: "No contributor rows found in the CSV." },
+  xml: { parse: fromJats4rXml, emptyMessage: "No <contrib> elements found in the XML." },
+  names: { parse: parseAuthorText, emptyMessage: "No author names found. Enter one name per line." },
+};
+
 export function ImportModal({ open, onImport, onClose }: Props) {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -82,32 +93,13 @@ export function ImportModal({ open, onImport, onClose }: Props) {
 
   async function handleImport() {
     setError(null);
+    if (format === "unknown") return;
     try {
-      let authors: Author[];
-      if (format === "json") {
-        authors = fromJson(text.trim());
-        if (authors.length === 0) {
-          setError("That JSON export contains no contributors.");
-          return;
-        }
-      } else if (format === "csv") {
-        authors = fromCsv(text.trim());
-        if (authors.length === 0) {
-          setError("No contributor rows found in the CSV.");
-          return;
-        }
-      } else if (format === "xml") {
-        authors = fromJats4rXml(text.trim());
-        if (authors.length === 0) {
-          setError("No <contrib> elements found in the XML.");
-          return;
-        }
-      } else {
-        authors = parseAuthorText(text);
-        if (authors.length === 0) {
-          setError("No author names found. Enter one name per line.");
-          return;
-        }
+      const { parse, emptyMessage } = IMPORTERS[format];
+      const authors = parse(text.trim());
+      if (authors.length === 0) {
+        setError(emptyMessage);
+        return;
       }
       onImport(authors);
       handleClose();
