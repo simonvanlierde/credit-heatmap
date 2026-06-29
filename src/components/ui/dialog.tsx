@@ -31,7 +31,7 @@ export function DialogContent({ className, children, ...props }: React.Component
           // Cap height to the viewport and scroll when content overflows, so the
           // header and footer stay reachable on short screens.
           "max-h-[90vh] overflow-y-auto overflow-x-hidden",
-          "bg-white rounded-lg shadow-2xl ring-1 ring-outline-variant/20",
+          "bg-surface-bright rounded-lg shadow-2xl ring-1 ring-outline-variant/20",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
