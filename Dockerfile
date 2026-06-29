@@ -28,4 +28,7 @@ COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3000
 ENV PORT=3000
+# Docker sets HOSTNAME to the container ID, and Next standalone binds to it —
+# so 127.0.0.1 healthchecks can't reach the server. Bind all interfaces.
+ENV HOSTNAME=0.0.0.0
 CMD ["node", "server.js"]
