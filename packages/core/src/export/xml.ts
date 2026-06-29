@@ -1,6 +1,9 @@
+// spell-checker: ignore archivearticle, mathml
+
 import type { Author } from "../author.js";
 import { activeContributions } from "../author.js";
 import { getRoleByName } from "../credit-roles.js";
+import { escapeXml } from "./escape-xml.js";
 
 const DOCTYPE =
   '<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD with MathML3 v1.2 20190208//EN" "JATS-archivearticle1-mathml3.dtd">';
@@ -10,7 +13,7 @@ const DOCTYPE =
  * Output mirrors the format produced by the original Python app.
  */
 export function toJats4rXml(authors: Author[]): string {
-  const contribs = authors.map(authorToXml).join("\n    ");
+  const contributions = authors.map(authorToXml).join("\n    ");
 
   return `<?xml version='1.0' encoding='UTF-8'?>
 ${DOCTYPE}
@@ -21,7 +24,7 @@ ${DOCTYPE}
   <front>
     <article-meta>
       <contrib-group>
-    ${contribs}
+    ${contributions}
       </contrib-group>
       <permissions>
         <copyright-statement>© 2019 JATS4R</copyright-statement>
@@ -39,14 +42,14 @@ ${DOCTYPE}
 }
 
 function authorToXml(author: Author): string {
-  const givenNames = author.middleName
-    ? `${author.firstName} ${author.middleName}`
-    : author.firstName;
+  const givenNames = author.middleName ? `${author.firstName} ${author.middleName}` : author.firstName;
 
   const orcidEl = author.orcid
     ? `\n      <contrib-id contrib-id-type="orcid">${escapeXml(author.orcid)}</contrib-id>`
     : "";
 
+  // JATS4R encodes role presence only — the 0–100 score is not representable,
+  // so an export→import round-trip is lossy (see fromXmlDocument).
   const roles = activeContributions(author)
     .map((c) => {
       const role = getRoleByName(c.role);
@@ -54,20 +57,16 @@ function authorToXml(author: Author): string {
     })
     .join("\n");
 
-  return `<contrib contrib-type="author">${orcidEl}
+  // Named authors use contrib-type="author"; people credited only in an
+  // Acknowledgements section use the generic "contributor" (JATS contrib-type
+  // is an open vocabulary).
+  const contribType = author.contributorType === "non-author" ? "contributor" : "author";
+
+  return `<contrib contrib-type="${contribType}">${orcidEl}
       <string-name>
         <given-names>${escapeXml(givenNames)}</given-names>
         <surname>${escapeXml(author.surname)}</surname>
       </string-name>
 ${roles}
     </contrib>`;
-}
-
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
 }

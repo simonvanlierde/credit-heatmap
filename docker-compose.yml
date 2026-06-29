@@ -1,23 +1,23 @@
 services:
-  api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    ports:
-      - "3001:3001"
-    environment:
-      PORT: "3001"
-    restart: unless-stopped
-
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
-    ports:
-      - "3000:3000"
+      dockerfile: Dockerfile
     environment:
       PORT: "3000"
-      API_PORT: "3001"
-    depends_on:
-      - api
+    ports:
+      - "${PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "--input-type=module",
+          "-e",
+          "const res = await fetch('http://127.0.0.1:3000/health'); if (!res.ok) process.exit(1);",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped

@@ -1,0 +1,21 @@
+pre-commit:
+    parallel: true
+    commands:
+        biome:
+            glob: "*.{js,ts,tsx,jsx,json,md,css,scss,html}"
+            run: pnpm biome check --write --no-errors-on-unmatched {staged_files}
+            stage_fixed: true
+commit-msg:
+    commands:
+        commitlint:
+            run: npx --no-install commitlint --edit $1
+            root: .
+
+pre-push:
+    commands:
+        lint:
+            run: pnpm lint
+            root: .
+        test:
+            run: pnpm test
+            root: .

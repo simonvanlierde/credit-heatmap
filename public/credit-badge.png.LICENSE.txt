@@ -1,0 +1,3 @@
+credit-badge.png is the CRediT (Contributor Roles Taxonomy) mark by NISO,
+sourced from https://credit.niso.org/ and reused under CC-BY 4.0
+(https://creativecommons.org/licenses/by/4.0/).

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "matchManagers": ["npm", "pnpm"],
+      "groupName": "all npm & pnpm dependencies",
+      "automerge": true,
+      "automergeType": "pr",
+      "matchUpdateTypes": ["patch"],
+      "schedule": ["every weekend"]
+    },
+    {
+      "matchManagers": ["npm", "pnpm"],
+      "groupName": "all npm & pnpm minor/major",
+      "automerge": false,
+      "matchUpdateTypes": ["minor", "major"],
+      "schedule": ["every weekend"]
+    }
+  ]
+}

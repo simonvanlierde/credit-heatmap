@@ -1,9 +1,14 @@
+# Node
 node_modules
-.turbo
 dist
 .next
 coverage
 *.tsbuildinfo
+**/test-results/
+
+# Cloudflare / OpenNext build output
+.open-next
+.wrangler
 
 # env files
 .env
@@ -13,3 +18,7 @@ coverage
 # OS
 .DS_Store
 Thumbs.db
+
+# Local config
+.vscode
+.claude
