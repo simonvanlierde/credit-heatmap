@@ -25,6 +25,16 @@ describe("CSV import/export", () => {
     expect(parsed[1]?.contributions[4]?.score).toBe(66);
   });
 
+  it("round-trips the author / non-author contributor type", () => {
+    const [jane, bob] = parseAuthorText("Jane Smith\nBob White");
+    if (!jane || !bob) throw new Error("expected 2 authors");
+    bob.contributorType = "non-author";
+
+    const parsed = fromCsv(toCsv([jane, bob]));
+    expect(parsed[0]?.contributorType).toBe("author");
+    expect(parsed[1]?.contributorType).toBe("non-author");
+  });
+
   it('requires a "Name" column', () => {
     expect(() => fromCsv("ORCID\n0000-0000-0000-0001")).toThrow('CSV must include a "Name" column.');
   });

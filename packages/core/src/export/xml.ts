@@ -57,7 +57,12 @@ function authorToXml(author: Author): string {
     })
     .join("\n");
 
-  return `<contrib contrib-type="author">${orcidEl}
+  // Named authors use contrib-type="author"; people credited only in an
+  // Acknowledgements section use the generic "contributor" (JATS contrib-type
+  // is an open vocabulary).
+  const contribType = author.contributorType === "non-author" ? "contributor" : "author";
+
+  return `<contrib contrib-type="${contribType}">${orcidEl}
       <string-name>
         <given-names>${escapeXml(givenNames)}</given-names>
         <surname>${escapeXml(author.surname)}</surname>

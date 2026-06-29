@@ -4,8 +4,9 @@ import { createAuthor, deduplicateAuthorInitials } from "../parse-authors.js";
 
 const NAME_HEADER = "Name";
 const ORCID_HEADER = "ORCID";
+const TYPE_HEADER = "Type";
 
-const CSV_HEADERS = [NAME_HEADER, ORCID_HEADER, ...CREDIT_ROLES.map((role) => role.name)];
+const CSV_HEADERS = [NAME_HEADER, ORCID_HEADER, TYPE_HEADER, ...CREDIT_ROLES.map((role) => role.name)];
 
 /** Leading characters a spreadsheet may interpret as the start of a formula. */
 const FORMULA_PREFIX = /^[=+\-@\t\r]/;
@@ -66,6 +67,7 @@ export function toCsv(authors: Author[]): string {
       return [
         author.name,
         author.orcid ?? "",
+        author.contributorType,
         ...CREDIT_ROLES.map((role) => String(contributionByRole.get(role.name) ?? 0)),
       ]
         .map(escapeCsvValue)
@@ -91,6 +93,7 @@ export function fromCsv(csv: string): Author[] {
   }
 
   const orcidIndex = headers.indexOf(ORCID_HEADER);
+  const typeIndex = headers.indexOf(TYPE_HEADER);
   const roleIndexByHeader = new Map(headers.map((header, index) => [header, index]));
 
   const authors = lines.slice(1).map((line) => {
@@ -107,8 +110,11 @@ export function fromCsv(csv: string): Author[] {
       return { role: role.name, score };
     });
 
+    const contributorType = cells[typeIndex]?.trim() === "non-author" ? "non-author" : "author";
+
     return createAuthor(name, {
       orcid: cells[orcidIndex]?.trim() || undefined,
+      contributorType,
       contributions,
     });
   });

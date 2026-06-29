@@ -1,4 +1,4 @@
-import type { Author, Contribution } from "./author.js";
+import type { Author, Contribution, ContributorType } from "./author.js";
 import { ORCID_INPUT_REGEX } from "./author.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
 
@@ -55,6 +55,7 @@ export function createAuthor(
   overrides?: {
     id?: string;
     orcid?: string;
+    contributorType?: ContributorType;
     contributions?: Contribution[];
   },
 ): Author {
@@ -76,6 +77,7 @@ export function createAuthor(
     surname,
     initials: buildInitials(firstName, middleName, surname),
     ...(overrides?.orcid ? { orcid: overrides.orcid } : {}),
+    contributorType: overrides?.contributorType ?? "author",
     contributions: normalizeContributions(overrides?.contributions),
   };
 }

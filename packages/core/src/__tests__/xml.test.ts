@@ -60,4 +60,14 @@ describe("toJats4rXml", () => {
     expect(roleCount).toBe(1);
     expect(xml).toContain('vocab-term="Conceptualization"');
   });
+
+  it('tags non-author contributors with contrib-type="contributor"', () => {
+    const [jane, bob] = parseAuthorText("Jane Smith\nBob White");
+    if (!jane || !bob) throw new Error("expected 2 authors");
+    bob.contributorType = "non-author";
+
+    const xml = toJats4rXml([jane, bob]);
+    expect(xml).toContain('<contrib contrib-type="author">');
+    expect(xml).toContain('<contrib contrib-type="contributor">');
+  });
 });

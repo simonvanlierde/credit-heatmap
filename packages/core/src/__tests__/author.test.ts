@@ -13,10 +13,10 @@ import { parseAuthorText } from "../parse-authors.js";
 describe("scoreToLevel", () => {
   it("maps scores to levels at the tier boundaries", () => {
     expect(scoreToLevel(0)).toBe("none");
-    expect(scoreToLevel(1)).toBe("tertiary");
-    expect(scoreToLevel(33)).toBe("tertiary");
-    expect(scoreToLevel(34)).toBe("secondary");
-    expect(scoreToLevel(66)).toBe("secondary");
+    expect(scoreToLevel(1)).toBe("supporting");
+    expect(scoreToLevel(33)).toBe("supporting");
+    expect(scoreToLevel(34)).toBe("equal");
+    expect(scoreToLevel(66)).toBe("equal");
     expect(scoreToLevel(67)).toBe("lead");
     expect(scoreToLevel(100)).toBe("lead");
   });
