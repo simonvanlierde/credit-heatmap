@@ -1,3 +1,5 @@
+import { ExternalLink } from "lucide-react";
+
 import type { Metadata } from "next";
 import { Inter, Newsreader } from "next/font/google";
 import { HeaderActions } from "@/components/HeaderActions";
@@ -46,20 +48,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </span>
               <nav className="hidden md:flex gap-6 items-center">
                 <a
-                  href="https://credit.niso.org/"
+                  href="https://credit.niso.org/implementing-credit/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-on-surface-variant hover:text-primary transition-colors"
+                  className="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary transition-colors"
                 >
                   Taxonomy
+                  <ExternalLink className="size-3" aria-hidden="true" />
+                  <span className="sr-only">(opens in new tab)</span>
                 </a>
                 <a
-                  href="https://credit.niso.org/implementing-credit/guidelines/"
+                  href="https://github.com/IPHYS-Bioinformatics/CRediT-Generator"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-on-surface-variant hover:text-primary transition-colors"
+                  className="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary transition-colors"
                 >
-                  Guidelines
+                  Source
+                  <ExternalLink className="size-3" aria-hidden="true" />
+                  <span className="sr-only">(opens in new tab)</span>
                 </a>
               </nav>
             </div>
