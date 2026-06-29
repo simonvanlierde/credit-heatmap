@@ -8,6 +8,8 @@ export {
   ORCID_REGEX,
   scoreToLevel,
 } from "./author.js";
+export type { HeatmapColorMode } from "./contributor-color.js";
+export { contributorColor, heatCellColor, luminance, mixHex, OKABE_ITO } from "./contributor-color.js";
 export type { CreditRoleName } from "./credit-roles.js";
 export { CREDIT_ROLES, getRoleByName } from "./credit-roles.js";
 export { fromCsv, toCsv } from "./export/csv.js";

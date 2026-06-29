@@ -1,4 +1,5 @@
 import type { Author } from "../author.js";
+import { contributorColor, type HeatmapColorMode, heatCellColor } from "../contributor-color.js";
 import { CREDIT_ROLES } from "../credit-roles.js";
 import { escapeXml } from "./escape-xml.js";
 
@@ -8,21 +9,17 @@ const AUTHOR_LABEL_H = 110;
 const CELL = 22;
 const GAP = 2;
 const PAD = 24;
-const FONT = "'Inter', 'Helvetica Neue', Arial, sans-serif";
+const FONT = "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif";
 
-// Brand colours (matching the UI)
-const COLOR_EMPTY = "#d1e4ff";
-const COLOR_TERTIARY = "#94ccff";
-const COLOR_SECONDARY = "#0077b6";
-const COLOR_LEAD = "#005d90";
-const COLOR_TEXT = "#001d36";
-const COLOR_TEXT_DIM = "#404850";
-const COLOR_BG = "#f8f9ff";
-const COLOR_BORDER = "#bfc7d1";
+// Ink-on-paper neutrals (matching the UI identity)
+const COLOR_TEXT = "#16181c";
+const COLOR_TEXT_DIM = "#595c63";
+const COLOR_BG = "#fafaf9";
+const COLOR_BORDER = "#e4e4e1";
 
 export interface HeatmapSvgOptions {
-  /** Override the lead accent colour (hex); secondary/tertiary shades are derived from it. */
-  colorScheme?: string;
+  /** Heatmap color mode; defaults to by-author. */
+  colorMode?: HeatmapColorMode;
   /** Swap axes: authors down the left, roles across the top. */
   transpose?: boolean;
   /** Scale all layout dimensions (min 0.1). */
@@ -45,22 +42,9 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
   const roles = CREDIT_ROLES;
   const transpose = !!opts?.transpose;
   const scale = typeof opts?.scale === "number" ? Math.max(0.1, opts.scale) : 1;
+  const colorMode: HeatmapColorMode = opts?.colorMode ?? "by-author";
+  const byAuthor = colorMode === "by-author";
 
-  // Allow overriding the accent colour; derive secondary/tertiary shades
-  let LEAD = COLOR_LEAD;
-  let SECONDARY = COLOR_SECONDARY;
-  let TERTIARY = COLOR_TERTIARY;
-  if (opts?.colorScheme) {
-    LEAD = normalizeHex(opts.colorScheme);
-    SECONDARY = lightenHex(LEAD, -0.18);
-    TERTIARY = lightenHex(LEAD, -0.36);
-  }
-  function scoreToFill(score: number): string {
-    if (score === 0) return COLOR_EMPTY;
-    if (score <= 33) return TERTIARY;
-    if (score <= 66) return SECONDARY;
-    return LEAD;
-  }
   const nAuthors = authors.length;
   const nRoles = roles.length;
 
@@ -75,7 +59,8 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
   const CELL_S = CELL * scale;
   const GAP_S = GAP * scale;
   const PAD_S = PAD * scale;
-  const LEGEND_EXTRA = 40 * scale;
+  // By-author mode adds a second legend row mapping each hue to a contributor.
+  const LEGEND_EXTRA = (byAuthor ? 70 : 40) * scale;
 
   const gridW = (transpose ? nRoles : nAuthors) * (CELL_S + GAP_S) - GAP_S;
   const gridH = (transpose ? nAuthors : nRoles) * (CELL_S + GAP_S) - GAP_S;
@@ -141,7 +126,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
       for (let ai = 0; ai < nAuthors; ai++) {
         const cx = gridX + ai * (CELL_S + GAP_S);
         const score = scoreFor(authors[ai], roles[ri]?.name ?? "");
-        const fill = scoreToFill(score);
+        const fill = heatCellColor(colorMode, ai, score);
         const rx = 3 * scale;
         lines.push(
           `<rect x="${cx}" y="${cy}" width="${CELL_S}" height="${CELL_S}" rx="${rx}" ry="${rx}" fill="${fill}"/>`,
@@ -163,7 +148,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
       for (let ri = 0; ri < nRoles; ri++) {
         const cx = gridX + ri * (CELL_S + GAP_S);
         const score = scoreFor(authors[ai], roles[ri]?.name ?? "");
-        const fill = scoreToFill(score);
+        const fill = heatCellColor(colorMode, ai, score);
         const rx = 3 * scale;
         lines.push(
           `<rect x="${cx}" y="${cy}" width="${CELL_S}" height="${CELL_S}" rx="${rx}" ry="${rx}" fill="${fill}"/>`,
@@ -177,68 +162,42 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
     `<rect x="${gridX - 1}" y="${gridY - 1}" width="${gridW + 2}" height="${gridH + 2}" rx="${3 * scale}" ry="${3 * scale}" fill="none" stroke="${COLOR_BORDER}" stroke-width="${0.5 * scale}"/>`,
   );
 
-  // Legend
-  const legendY = totalH - PAD_S - 10 * scale;
-  const legend: { label: string; color: string }[] = [
-    { label: "Lead (67–100)", color: COLOR_LEAD },
-    { label: "Secondary (34–66)", color: COLOR_SECONDARY },
-    { label: "Tertiary (1–33)", color: COLOR_TERTIARY },
-    { label: "None", color: COLOR_EMPTY },
+  // Legend. Level row (intensity → contribution level) always; in by-author
+  // mode a second row maps each hue to a contributor.
+  const authorRowY = totalH - PAD_S - 10 * scale;
+  const levelRowY = byAuthor ? authorRowY - 26 * scale : authorRowY;
+
+  const levelKey: { label: string; score: number }[] = [
+    { label: "Lead (67–100)", score: 100 },
+    { label: "Secondary (34–66)", score: 66 },
+    { label: "Tertiary (1–33)", score: 33 },
+    { label: "None", score: 0 },
   ];
   let lx = gridX;
-  for (const { label, color } of legend) {
+  for (const { label, score } of levelKey) {
     lines.push(
-      `<rect x="${lx}" y="${legendY - 10 * scale}" width="${14 * scale}" height="${14 * scale}" rx="${2 * scale}" ry="${2 * scale}" fill="${color}"/>`,
+      `<rect x="${lx}" y="${levelRowY - 10 * scale}" width="${14 * scale}" height="${14 * scale}" rx="${2 * scale}" ry="${2 * scale}" fill="${heatCellColor(colorMode, 0, score)}"/>`,
     );
     lines.push(
-      `<text x="${lx + 18 * scale}" y="${legendY + 2 * scale}" font-family="${FONT}" font-size="${10 * scale}" fill="${COLOR_TEXT_DIM}">${label}</text>`,
+      `<text x="${lx + 18 * scale}" y="${levelRowY + 2 * scale}" font-family="${FONT}" font-size="${10 * scale}" fill="${COLOR_TEXT_DIM}">${label}</text>`,
     );
     lx += 130 * scale;
   }
 
+  if (byAuthor) {
+    let ax = gridX;
+    for (let ai = 0; ai < nAuthors; ai++) {
+      const initials = authors[ai]?.initials ?? "";
+      lines.push(
+        `<rect x="${ax}" y="${authorRowY - 10 * scale}" width="${14 * scale}" height="${14 * scale}" rx="${2 * scale}" ry="${2 * scale}" fill="${contributorColor(ai)}"/>`,
+      );
+      lines.push(
+        `<text x="${ax + 18 * scale}" y="${authorRowY + 2 * scale}" font-family="${FONT}" font-size="${10 * scale}" fill="${COLOR_TEXT_DIM}">${escapeXml(initials)}</text>`,
+      );
+      ax += 70 * scale;
+    }
+  }
+
   lines.push("</svg>");
   return lines.join("\n");
-}
-
-function normalizeHex(h: string): string {
-  if (!h) return "#000000";
-  if (h.startsWith("#") && (h.length === 7 || h.length === 4)) return h;
-  // simple fallback: try to parse named colours or return as-is
-  return h;
-}
-
-function lightenHex(hex: string, amt: number): string {
-  // amt in [-1,1]; negative -> darker
-  const rgb = hexToRgb(hex);
-  if (!rgb) return hex;
-  const r = Math.min(255, Math.max(0, Math.round(rgb.r * (1 + amt))));
-  const g = Math.min(255, Math.max(0, Math.round(rgb.g * (1 + amt))));
-  const b = Math.min(255, Math.max(0, Math.round(rgb.b * (1 + amt))));
-  return rgbToHex({ r, g, b });
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
-  const h = hex.replace("#", "");
-  if (h.length === 3) {
-    const r = h.slice(0, 1);
-    const g = h.slice(1, 2);
-    const b = h.slice(2, 3);
-    return {
-      r: Number.parseInt(r + r, 16),
-      g: Number.parseInt(g + g, 16),
-      b: Number.parseInt(b + b, 16),
-    };
-  }
-  if (h.length === 6) {
-    return {
-      r: Number.parseInt(h.slice(0, 2), 16),
-      g: Number.parseInt(h.slice(2, 4), 16),
-      b: Number.parseInt(h.slice(4, 6), 16),
-    };
-  }
-  return null;
-}
-
-function rgbToHex({ r, g, b }: { r: number; g: number; b: number }): string {
-  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }

@@ -39,9 +39,22 @@ describe("buildHeatmapSvg", () => {
     expect(svg).not.toMatch(/review & editing/);
   });
 
-  it("applies an overridden accent colour to lead cells", () => {
-    const svg = buildHeatmapSvg(authorsWithScores(), { colorScheme: "#ff0000" });
-    expect(svg).toContain('fill="#ff0000"');
+  it("colors lead cells by contributor hue in by-author mode (the default)", () => {
+    const svg = buildHeatmapSvg(authorsWithScores());
+    // First author's lead cell uses Okabe–Ito #1 and a hue legend row is added.
+    expect(svg).toContain('fill="#0072b2"');
+    expect(svg).toContain(">JS<");
+  });
+
+  it("ramps a single accent in monochrome mode", () => {
+    const svg = buildHeatmapSvg(authorsWithScores(), { colorMode: "monochrome" });
+    expect(svg).toContain('fill="#1f4e79"'); // accent lead
+    expect(svg).not.toContain('fill="#0072b2"'); // no per-author hue
+  });
+
+  it("ramps black in grayscale mode", () => {
+    const svg = buildHeatmapSvg(authorsWithScores(), { colorMode: "grayscale" });
+    expect(svg).toContain('fill="#000000"'); // black lead
   });
 
   it("scales layout dimensions", () => {
