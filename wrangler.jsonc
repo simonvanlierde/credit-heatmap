@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "credit-generator",
+  "name": "credit-heatmap",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-03-25",
   // nodejs_compat lets the Next.js server bundle use Node built-ins on Workers.
