@@ -15,6 +15,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.7",
+    "@vitest/coverage-v8": "^2.1.8",
     "vitest": "^2.1.8",
     "linkedom": "^0.18.12"
   }

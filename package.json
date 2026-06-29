@@ -1,7 +1,8 @@
 {
-  "name": "credit-generator",
+  "name": "credit-heatmap",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "pnpm --filter @credit-generator/core build && next dev --port 3000",
@@ -13,6 +14,7 @@
     "lint:fix": "biome check --write .",
     "typecheck": "pnpm --filter @credit-generator/core build && tsc --noEmit",
     "test": "pnpm --filter @credit-generator/core test",
+    "test:coverage": "pnpm --filter @credit-generator/core test:coverage",
     "test:e2e": "playwright test",
     "clean": "rm -rf .next packages/core/dist",
     "prepare": "lefthook install"
