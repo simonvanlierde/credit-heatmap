@@ -8,7 +8,8 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
 
     await expect(page.getByText("3 authors")).toBeVisible();
-    await expect(page.getByText("Jane A. Smith", { exact: true })).toBeVisible();
+    // The name now also appears (colored) in the statement, so match the first.
+    await expect(page.getByText("Jane A. Smith", { exact: true }).first()).toBeVisible();
 
     // Heatmap renders for the loaded authors.
     await expect(page.locator("svg").first()).toBeVisible();
@@ -52,7 +53,7 @@ test.describe("Happy path UI flows", () => {
     await fresh.addInitScript(() => window.localStorage.clear());
     await fresh.goto(shareUrl);
     await expect(fresh.getByText("3 authors")).toBeVisible();
-    await expect(fresh.getByText("Jane A. Smith", { exact: true })).toBeVisible();
+    await expect(fresh.getByText("Jane A. Smith", { exact: true }).first()).toBeVisible();
     // The share hash is cleared after loading.
     expect(new URL(fresh.url()).hash).toBe("");
   });
