@@ -3,9 +3,9 @@ import { activeContributions, scoreToLevel } from "../author.js";
 import { DEFAULT_ROLE_TRANSLATOR, type RoleTranslator } from "../credit-i18n/index.js";
 import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "../credit-i18n/ui-strings.js";
 
-/** Escape the pipe character so role/name text can't break the Markdown table. */
+/** Escape backslash and pipe so role/name text can't break the Markdown table. */
 function escapeCell(s: string): string {
-  return s.replace(/\|/g, "\\|");
+  return s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 }
 
 /**
