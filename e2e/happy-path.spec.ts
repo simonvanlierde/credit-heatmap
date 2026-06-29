@@ -7,8 +7,8 @@ test.describe("Happy path UI flows", () => {
     // First-run empty state offers a sample dataset.
     await page.getByRole("button", { name: "Load sample data" }).click();
 
-    await expect(page.getByText("3 authors")).toBeVisible();
-    // The name now also appears (colored) in the statement, so match the first.
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+    // The name also appears in the generated statement, so match the first.
     await expect(page.getByText("Jane A. Smith", { exact: true }).first()).toBeVisible();
 
     // Heatmap renders for the loaded authors.
@@ -31,7 +31,7 @@ test.describe("Happy path UI flows", () => {
 
     // The contributor name is rendered in an editable input.
     await expect(page.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Jane Smith");
-    await expect(page.getByText("2 authors")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(2);
     await expect(page.locator("svg").first()).toBeVisible();
 
     // Imported names have no roles yet → a validation notice appears.
@@ -42,7 +42,7 @@ test.describe("Happy path UI flows", () => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
-    await expect(page.getByText("3 authors")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
     await page.getByRole("button", { name: "Share" }).click();
     const shareUrl = await page.evaluate(() => navigator.clipboard.readText());
@@ -52,7 +52,7 @@ test.describe("Happy path UI flows", () => {
     const fresh = await context.newPage();
     await fresh.addInitScript(() => window.localStorage.clear());
     await fresh.goto(shareUrl);
-    await expect(fresh.getByText("3 authors")).toBeVisible();
+    await expect(fresh.getByRole("button", { name: /^Remove / })).toHaveCount(3);
     await expect(fresh.getByText("Jane A. Smith", { exact: true }).first()).toBeVisible();
     // The share hash is cleared after loading.
     expect(new URL(fresh.url()).hash).toBe("");
@@ -61,7 +61,7 @@ test.describe("Happy path UI flows", () => {
   test("XML export downloads client-side (no API round-trip)", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
-    await expect(page.getByText("3 authors")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
     // XML (JATS4R) is the default export format; downloading generates it in the
     // browser and saves it directly (no API round-trip).

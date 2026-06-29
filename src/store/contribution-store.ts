@@ -2,6 +2,7 @@ import type { Author, CreditRoleName } from "@credit-generator/core";
 import {
   CREDIT_ROLES,
   createAuthor,
+  DEFAULT_MONO_COLOR,
   deduplicateAuthorInitials,
   ORCID_INPUT_REGEX,
   parseAuthorText,
@@ -9,16 +10,16 @@ import {
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import type { HeatmapColorMode } from "@/lib/contributor-color";
 
 export type InputMode = "toggle" | "levels";
-export type RolePreset = "equal-contribution" | "senior-author" | "data-only-contributor";
 
 interface ContributionState {
   authors: Author[];
   selectedAuthorId: string | null;
   inputMode: InputMode;
-  heatmapColorMode: HeatmapColorMode;
+  heatmapMonoColor: string;
+  /** Language for the generated statement + human-facing exports (role names only). */
+  outputLocale: string;
   loadAuthors: (authors: Author[]) => void;
   loadSample: () => void;
   setAuthorsFromText: (text: string) => void;
@@ -27,36 +28,17 @@ interface ContributionState {
   moveAuthor: (fromIndex: number, toIndex: number) => void;
   updateAuthorName: (authorId: string, name: string) => void;
   updateAuthorOrcid: (authorId: string, orcid: string) => void;
+  setAuthorType: (authorId: string, contributorType: Author["contributorType"]) => void;
   setSelectedAuthor: (authorId: string | null) => void;
   setAuthorScore: (authorId: string, roleIndex: number, score: number) => void;
   toggleContribution: (authorId: string, roleIndex: number) => void;
-  applyPreset: (authorId: string, preset: RolePreset) => void;
   setInputMode: (mode: InputMode) => void;
-  setHeatmapColorMode: (mode: HeatmapColorMode) => void;
+  setHeatmapMonoColor: (color: string) => void;
+  setOutputLocale: (locale: string) => void;
   reset: () => void;
 }
 
 export const ROLE_NAMES = CREDIT_ROLES.map((role) => role.name);
-
-export const ROLE_PRESETS: Record<RolePreset, Partial<Record<(typeof ROLE_NAMES)[number], number>>> = {
-  "equal-contribution": Object.fromEntries(ROLE_NAMES.map((role) => [role, 100])),
-  "senior-author": {
-    Conceptualization: 100,
-    "Funding acquisition": 100,
-    Methodology: 66,
-    "Project administration": 100,
-    Resources: 66,
-    Supervision: 100,
-    "Writing – review & editing": 100,
-  },
-  "data-only-contributor": {
-    "Data curation": 100,
-    "Formal Analysis": 100,
-    Investigation: 100,
-    Validation: 66,
-    Visualization: 66,
-  },
-};
 
 function clampScore(score: number): number {
   return Math.max(0, Math.min(100, score));
@@ -75,7 +57,7 @@ function buildSampleAuthors(): Author[] {
       Investigation: 100,
       "Data curation": 100,
       Software: 66,
-      "Formal Analysis": 66,
+      "Formal analysis": 66,
     },
     "Carol Davis": {
       "Funding acquisition": 100,
@@ -105,6 +87,7 @@ function normalizeAuthors(authors: Author[]): Author[] {
       createAuthor(author.name, {
         id: author.id,
         orcid: author.orcid,
+        contributorType: author.contributorType,
         contributions: author.contributions,
       }),
     ),
@@ -125,7 +108,8 @@ export const useContributionStore = create<ContributionState>()(
       authors: [],
       selectedAuthorId: null,
       inputMode: "toggle",
-      heatmapColorMode: "by-author",
+      heatmapMonoColor: DEFAULT_MONO_COLOR,
+      outputLocale: "en",
 
       loadAuthors: (authors) =>
         set((state) => {
@@ -195,6 +179,7 @@ export const useContributionStore = create<ContributionState>()(
           state.authors[index] = createAuthor(trimmed, {
             id: currentAuthor.id,
             orcid: currentAuthor.orcid,
+            contributorType: currentAuthor.contributorType,
             contributions: currentAuthor.contributions,
           });
           state.authors = normalizeAuthors(state.authors);
@@ -210,6 +195,13 @@ export const useContributionStore = create<ContributionState>()(
           // normalizeAuthors() -> createAuthor() throw inside this reducer.
           if (trimmed && !ORCID_INPUT_REGEX.test(trimmed)) return;
           author.orcid = trimmed || undefined;
+        }),
+
+      setAuthorType: (authorId, contributorType) =>
+        set((state) => {
+          const author = state.authors[findAuthorIndex(state.authors, authorId)];
+          if (!author) return;
+          author.contributorType = contributorType;
         }),
 
       setSelectedAuthor: (authorId) =>
@@ -235,25 +227,19 @@ export const useContributionStore = create<ContributionState>()(
           }
         }),
 
-      applyPreset: (authorId, preset) =>
-        set((state) => {
-          const index = findAuthorIndex(state.authors, authorId);
-          const author = state.authors[index];
-          if (!author) return;
-          const presetScores = ROLE_PRESETS[preset];
-          for (const contribution of author.contributions) {
-            contribution.score = presetScores[contribution.role as CreditRoleName] ?? 0;
-          }
-        }),
-
       setInputMode: (mode) =>
         set((state) => {
           state.inputMode = mode;
         }),
 
-      setHeatmapColorMode: (mode) =>
+      setHeatmapMonoColor: (color) =>
         set((state) => {
-          state.heatmapColorMode = mode;
+          state.heatmapMonoColor = color;
+        }),
+
+      setOutputLocale: (locale) =>
+        set((state) => {
+          state.outputLocale = locale;
         }),
 
       reset: () =>
@@ -261,13 +247,15 @@ export const useContributionStore = create<ContributionState>()(
           state.authors = [];
           state.selectedAuthorId = null;
           state.inputMode = "toggle";
-          state.heatmapColorMode = "by-author";
+          state.heatmapMonoColor = DEFAULT_MONO_COLOR;
+          state.outputLocale = "en";
         }),
     })),
     {
       name: "credit-generator-state",
-      version: 1,
+      version: 2,
       // v0 persisted a now-removed "slider" input mode; fold it into "levels".
+      // (The now-removed heatmapColorMode is simply ignored if present.)
       migrate: (persisted) => {
         const state = persisted as Partial<ContributionState> | undefined;
         if (state && (state.inputMode as string) === "slider") {
@@ -279,7 +267,8 @@ export const useContributionStore = create<ContributionState>()(
       partialize: (state) => ({
         authors: state.authors,
         inputMode: state.inputMode,
-        heatmapColorMode: state.heatmapColorMode,
+        heatmapMonoColor: state.heatmapMonoColor,
+        outputLocale: state.outputLocale,
         selectedAuthorId: state.selectedAuthorId,
       }),
     },
