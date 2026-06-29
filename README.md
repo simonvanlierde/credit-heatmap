@@ -1,5 +1,10 @@
 # CRediT Generator
 
+[![CI](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/simonvanlierde/credit-heatmap/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/credit-heatmap)
+[![Demo](https://img.shields.io/website?url=https%3A%2F%2Fcredit.duinlab.nl&label=demo)](https://credit.duinlab.nl)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A web tool for building [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) author
 contribution statements for scholarly publications.
 
@@ -10,7 +15,7 @@ heatmap and exports (JATS4R XML, CSV, JSON, Markdown) for journal submission sys
 This is a TypeScript rewrite of the original
 [Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator).
 
-<!-- Live demo: add your deployment URL here -->
+**Try it now:** [credit.duinlab.nl](https://credit.duinlab.nl) — no install, runs entirely in your browser.
 
 ![The CRediT Generator workspace: a contributors list and contribution matrix on the left, a live heatmap and exportable statement on the right](docs/screenshots/hero.png)
 
