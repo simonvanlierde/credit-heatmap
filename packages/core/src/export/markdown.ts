@@ -1,5 +1,7 @@
 import type { Author } from "../author.js";
 import { activeContributions, scoreToLevel } from "../author.js";
+import { DEFAULT_ROLE_TRANSLATOR, type RoleTranslator } from "../credit-i18n/index.js";
+import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "../credit-i18n/ui-strings.js";
 
 /** Escape the pipe character so role/name text can't break the Markdown table. */
 function escapeCell(s: string): string {
@@ -10,10 +12,14 @@ function escapeCell(s: string): string {
  * Render the contributions as a Markdown table (Contributor → CRediT roles),
  * suitable for pasting into a README, GitHub issue, or manuscript draft.
  *
- * Lead-level roles are listed plainly; secondary/tertiary roles are annotated
+ * Lead-level roles are listed plainly; equal/supporting roles are annotated
  * with their level, matching the statement's `showLevels` behaviour.
  */
-export function toMarkdown(authors: Author[]): string {
+export function toMarkdown(
+  authors: Author[],
+  translateRole: RoleTranslator = DEFAULT_ROLE_TRANSLATOR,
+  translateUi: UiTranslator = DEFAULT_UI_TRANSLATOR,
+): string {
   const header = "| Contributor | CRediT roles |\n| --- | --- |";
 
   const rows = authors.map((author) => {
@@ -23,8 +29,11 @@ export function toMarkdown(authors: Author[]): string {
         ? "—"
         : active
             .map((c) => {
+              const role = translateRole(c.role);
               const level = scoreToLevel(c.score);
-              return level === "lead" ? c.role : `${c.role} (${level})`;
+              if (level === "lead") return role;
+              const levelLabel = level === "equal" ? translateUi("equal") : translateUi("supporting");
+              return `${role} (${levelLabel})`;
             })
             .join(", ");
     return `| ${escapeCell(author.name)} | ${escapeCell(roles)} |`;

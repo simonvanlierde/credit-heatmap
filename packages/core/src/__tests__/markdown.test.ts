@@ -11,15 +11,33 @@ describe("toMarkdown", () => {
     const meth = jane.contributions.find((c) => c.role === "Methodology");
     if (!conc || !meth) throw new Error("expected contributions");
     conc.score = 100; // lead → no annotation
-    meth.score = 50; // secondary → annotated
+    meth.score = 50; // equal → annotated
 
     const md = toMarkdown(authors);
     const lines = md.split("\n");
     expect(lines[0]).toBe("| Contributor | CRediT roles |");
     expect(lines[1]).toBe("| --- | --- |");
-    expect(md).toContain("| Jane Smith | Conceptualization, Methodology (secondary) |");
+    // Level label uses the canonical English UI string (capitalized), matching
+    // the statement and heatmap output.
+    expect(md).toContain("| Jane Smith | Conceptualization, Methodology (Equal) |");
     // Bob has no roles → em dash placeholder
     expect(md).toContain("| Bob White | — |");
+  });
+
+  it("localizes role names and level labels via the translators", () => {
+    const authors = parseAuthorText("Jane Smith");
+    const [jane] = authors;
+    if (!jane) throw new Error("expected author");
+    const meth = jane.contributions.find((c) => c.role === "Methodology");
+    if (!meth) throw new Error("expected contribution");
+    meth.score = 50; // equal → annotated
+
+    const md = toMarkdown(
+      authors,
+      (name) => `«${name}»`,
+      (key) => (key === "equal" ? "Égal" : key),
+    );
+    expect(md).toContain("«Methodology» (Égal)");
   });
 
   it("escapes pipe characters that would break the table", () => {
