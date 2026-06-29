@@ -18,16 +18,17 @@ continuous score keeps the data model independent of how the UI happens to colle
 it (a toggle, a 4-level picker, or a slider are all presentation concerns). The
 score maps to a level on demand:
 
-| Score    | Level       |
-| -------- | ----------- |
-| `0`      | `none`      |
-| `1–33`   | `tertiary`  |
-| `34–66`  | `secondary` |
-| `67–100` | `lead`      |
+| Score    | Level        |
+| -------- | ------------ |
+| `0`      | `none`       |
+| `1–33`   | `supporting` |
+| `34–66`  | `equal`      |
+| `67–100` | `lead`       |
 
-See `scoreToLevel()`. The 14 roles are defined once in `credit-roles.ts` with their
-official NISO descriptions and URLs, and exposed as a `const` tuple so role names
-narrow to the `CreditRoleName` union.
+The non-zero tiers use NISO's optional degree-of-contribution vocabulary
+(lead / equal / supporting). See `scoreToLevel()`. The 14 roles are defined once in
+`credit-roles.ts` with their official NISO `id` (role UUID), descriptions, and URLs,
+and exposed as a `const` tuple so role names narrow to the `CreditRoleName` union.
 
 ## Statements
 
@@ -37,7 +38,7 @@ narrow to the `CreditRoleName` union.
 - **`by-author`** — `CRediT: Jane Smith: Conceptualization, Software; …`
 - **`by-author-short`** — uses initials instead of full names
 
-With `showLevels`, non-lead roles are annotated, e.g. `Software (Secondary)`.
+With `showLevels`, non-lead roles are annotated, e.g. `Software (Equal)`.
 Only non-zero contributions appear.
 
 ## Import / export

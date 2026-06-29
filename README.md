@@ -26,6 +26,7 @@ This is a TypeScript rewrite of the original
 - **Contributor management** — add/rename/reorder authors; paste an ORCID iD (or URL) into any field to auto-fill the name
 - **Contribution matrix** — assign roles per author as a binary toggle or a granular level, with presets (equal contribution, senior author, data-only) guarded by a confirmation before they overwrite existing work
 - **Live statement** — three formats (by role, by author, short) with optional level annotations
+- **Multilingual output** — pick a language to localize the role names in the statement, Markdown table, and heatmap (translations from the community [credit-translation](https://github.com/contributorshipcollaboration/credit-translation) project, keyed by NISO role URL). Machine formats (XML/CSV/JSON) stay canonical English.
 - **Contribution heatmap** — interactive preview plus SVG and PNG download (rendered in the browser)
 - **Exports** — JATS4R XML, CSV, JSON, and a Markdown table; copy or download
 - **Validation** — journal-style checks (authors with no roles, missing key roles)
@@ -35,6 +36,13 @@ This is a TypeScript rewrite of the original
 | First run | Statement & export |
 |---|---|
 | ![Empty first-run state inviting you to add a contributor, import, or load sample data](docs/screenshots/empty-state.png) | ![The contribution statement with format options, a copy-statement button, and a format picker offering copy or download](docs/screenshots/statement-export.png) |
+
+---
+
+## Roadmap
+
+- **UI localization** — the generated *output* can be localized today; the app **chrome** (buttons, labels, help text — ~116 strings) is still English-only. A full UI translation would mean adding `next-intl`, per-locale message catalogs, locale routing, and RTL support.
+- **More output languages** — the [credit-translation](https://github.com/contributorshipcollaboration/credit-translation) repo offers ~47 locales; a curated subset is vendored under [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations). Run `node packages/core/scripts/fetch-credit-translations.mjs` to refresh/extend the set.
 
 ---
 
