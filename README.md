@@ -133,23 +133,23 @@ Everything else — statements, exports, heatmap — happens in the browser.
 ```bash
 git clone https://github.com/simonvanlierde/credit-heatmap
 cd credit-heatmap
-just install        # or: pnpm install
-just dev            # or: pnpm dev  → http://localhost:3000
+pnpm install
+pnpm dev            # → http://localhost:3000
 ```
 
 ### Useful commands
 
 ```bash
-just dev            # Next.js dev server (watch)
-just build          # production build
-just test           # unit tests
-just typecheck      # TypeScript across all packages
-just lint           # Biome lint (add -fix to auto-fix)
-just ci             # full local CI pass
-just docker-up      # build + run the dev Docker stack
+pnpm dev            # Next.js dev server (watch)
+pnpm build          # production build
+pnpm test           # unit tests
+pnpm typecheck      # TypeScript across all packages
+pnpm lint           # Biome lint (append :fix to auto-fix)
+pnpm test:e2e       # Playwright end-to-end tests
+just docker-up      # build + run the Docker stack
 ```
 
-Without `just`: `pnpm install`, then `pnpm dev | test | build` and `pnpm biome check .`.
+The `just` recipes wrap a few Docker/watch tasks on top of the pnpm scripts — run `just` to list them.
 
 ---
 
