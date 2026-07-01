@@ -6,12 +6,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export function AboutPopover() {
   return (
     <Popover>
-      <PopoverTrigger
-        className="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary transition-colors"
-        aria-label="About this app"
-      >
-        <Info className="size-3.5" aria-hidden="true" />
-        About
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary transition-colors"
+          aria-label="About this app"
+        >
+          <Info className="size-3.5" aria-hidden="true" />
+          About
+        </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="max-w-xs text-sm text-on-surface-variant">
         <p>
