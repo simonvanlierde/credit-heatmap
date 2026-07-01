@@ -1,6 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
+import { AboutPopover } from "@/components/AboutPopover";
 import { HeaderActions } from "@/components/HeaderActions";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -62,20 +63,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary transition-colors"
                   >
-                    Taxonomy
+                    Taxonomy guide
                     <ExternalLink className="size-3" aria-hidden="true" />
                     <span className="sr-only">(opens in new tab)</span>
                   </a>
                   <a
-                    href="https://github.com/IPHYS-Bioinformatics/CRediT-Generator"
+                    href="https://github.com/simonvanlierde/credit-heatmap"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary transition-colors"
                   >
-                    Source
+                    Source code
                     <ExternalLink className="size-3" aria-hidden="true" />
                     <span className="sr-only">(opens in new tab)</span>
                   </a>
+                  <AboutPopover />
                 </nav>
               </div>
 
