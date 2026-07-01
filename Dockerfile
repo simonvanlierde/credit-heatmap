@@ -1,5 +1,7 @@
-FROM node:22-alpine AS base
-RUN corepack enable pnpm
+FROM node:26-alpine AS base
+# node 26 no longer bundles corepack; install it, then let it honor the
+# packageManager pin in package.json.
+RUN npm install -g corepack@latest && corepack enable pnpm
 
 # ---- deps ----
 FROM base AS deps
@@ -18,7 +20,7 @@ COPY . .
 RUN pnpm build
 
 # ---- runtime ----
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
