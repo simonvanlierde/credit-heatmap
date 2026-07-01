@@ -44,6 +44,7 @@ Inspired by the original
 
 ## Roadmap
 
+- **UI** improvements: add onboarding, better mobile layout, and clearer guidance on how to edit an authors roles
 - **UI localization** — output can be localized today, but the app chrome (~116 strings) is still
   English-only. Full UI translation would mean `next-intl`, per-locale catalogs, locale routing, and RTL.
 - **More output languages** — [credit-translation](https://github.com/contributorshipcollaboration/credit-translation)
