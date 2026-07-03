@@ -1,10 +1,13 @@
 "use client";
 
-import { OKABE_ITO } from "@credit-generator/core";
+import { luminance, OKABE_ITO } from "@credit-generator/core";
 import { Check, RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
-import { textColorOn } from "@/lib/contributor-color";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
+
+function textColorOn(hex: string): string {
+  return luminance(hex) > 0.6 ? "#16181c" : "#ffffff";
+}
 
 /**
  * A small color picker in a popover: the Okabe–Ito swatches, a native custom
