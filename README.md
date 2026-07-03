@@ -84,14 +84,14 @@ so the UI can offer a binary toggle or granular levels without changing the data
 |---|---|---|
 | Workspace | pnpm workspaces | App at the root + a reusable `packages/core` library |
 | Language | TypeScript 6 (strict) | `noUncheckedIndexedAccess` on |
-| Frontend | Next.js 16 (App Router) | Deploys self-hosted or serverless |
+| Frontend | Next.js 16 (App Router) | Deploys to Cloudflare Workers |
 | Styling | Tailwind CSS v4 | Design tokens via `@theme`; no runtime CSS |
 | State | Zustand + immer + persist | Mutation-friendly store; survives refresh |
 | Validation | Zod | Runtime-safe schemas at trust boundaries |
 | Heatmap | @nivo/heatmap + hand-crafted SVG (`core`) | Interactive preview; one SVG source for download + canvas PNG |
 | Testing | Vitest (unit) + Playwright (e2e) | Fast ESM unit tests; browser happy-path coverage |
 | Linting | Biome | One tool for format + lint |
-| Deploy | Docker **or** Cloudflare Workers (OpenNext) | A portable container, or zero-ops serverless edge |
+| Deploy | Cloudflare Workers (OpenNext) | Zero-ops serverless edge |
 
 ---
 
@@ -111,9 +111,7 @@ credit-generator/               Next.js app at the repo root
 │       ├── generate-statement.ts  3 statement formats
 │       ├── validate.ts            Journal-style contribution checks
 │       └── export/                JATS4R XML, CSV, JSON, Markdown, heatmap SVG
-├── justfile                    Dev commands (requires just)
-├── Dockerfile                  Multi-stage standalone build
-└── docker-compose.yml          Single-container run
+└── justfile                    Dev commands (requires just)
 ```
 
 ### Server endpoints
@@ -121,7 +119,7 @@ credit-generator/               Next.js app at the repo root
 | Method | Path | Description |
 |---|---|---|
 | GET | `/api/orcid?id=…` | Proxy an ORCID public lookup (CORS workaround) |
-| GET | `/health` | Liveness check for Docker / load balancers |
+| GET | `/health` | Liveness check for uptime monitors |
 
 Everything else — statements, exports, heatmap — happens in the browser.
 
@@ -147,10 +145,9 @@ pnpm test           # unit tests
 pnpm typecheck      # TypeScript across all packages
 pnpm lint           # Biome lint (append :fix to auto-fix)
 pnpm test:e2e       # Playwright end-to-end tests
-just docker-up      # build + run the Docker stack
 ```
 
-The `just` recipes wrap a few Docker/watch tasks on top of the pnpm scripts — run `just` to list them.
+The `just` recipes wrap a few watch/fix tasks on top of the pnpm scripts — run `just` to list them.
 
 ---
 
@@ -169,21 +166,6 @@ build in parallel on every push and PR.
 ---
 
 ## Deployment
-
-Two targets, sharing the framework-agnostic `packages/core`.
-
-### Self-host — Docker
-
-A multi-stage build packages the Next.js `output: "standalone"` server into a single container that
-serves everything, including the `/api/*` route handlers. No reverse proxy required.
-
-```bash
-docker compose up --build      # build + run on http://localhost:3000
-```
-
-Override the port with `PORT` (see [.env.example](.env.example)).
-
-### Serverless — Cloudflare Workers (OpenNext)
 
 [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare) adapts the Next.js build to run on
 Cloudflare Workers — how the live demo is hosted.
