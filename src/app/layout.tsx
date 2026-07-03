@@ -44,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-screen bg-surface text-on-surface">
         <ThemeProvider>
-          {/* pr compensates the scrollbar width Radix removes on open; the fixed
+          {/* pr compensates the scrollbar width modal primitives remove on open; the fixed
               header escapes the body padding that keeps <main> from reflowing. */}
           <header className="fixed top-0 w-full z-50 bg-surface-bright/80 backdrop-blur-md border-b border-outline-variant/20 pr-[var(--removed-body-scroll-bar-size,0px)]">
             <div className="flex justify-between items-center h-16 px-8 max-w-screen-xl mx-auto">

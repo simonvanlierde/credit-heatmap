@@ -2,16 +2,8 @@
 
 import type { Author } from "@credit-generator/core";
 import { fromCsv, fromJats4rXml, fromJson, parseAuthorText } from "@credit-generator/core";
-import { FileUp } from "lucide-react";
-import { useRef, useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { FileUp, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   open: boolean;
@@ -62,9 +54,20 @@ export function ImportModal({ open, onImport, onClose }: Props) {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const format: DetectedFormat = detect(text);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) {
+      dialog.showModal();
+    } else if (!open && dialog.open) {
+      dialog.close();
+    }
+  }, [open]);
 
   async function handleFileRead(file: File) {
     try {
@@ -103,7 +106,7 @@ export function ImportModal({ open, onImport, onClose }: Props) {
         return;
       }
       onImport(authors);
-      handleClose();
+      dialogRef.current?.close();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not parse the input. Check the format.");
     }
@@ -116,19 +119,37 @@ export function ImportModal({ open, onImport, onClose }: Props) {
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) handleClose();
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="import-title"
+      aria-describedby="import-description"
+      onClose={handleClose}
+      onMouseDown={(event) => {
+        if (event.target === dialogRef.current) dialogRef.current?.close();
       }}
+      className="relative m-auto w-full max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-lg bg-surface-bright p-0 text-on-surface shadow-2xl ring-1 ring-outline-variant/20 backdrop:bg-on-surface/30 backdrop:backdrop-blur-sm"
     >
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Import Contributors</DialogTitle>
-          <DialogDescription>
+      <div>
+        <div className="px-8 py-6 border-b border-outline-variant/10 bg-surface-container-low">
+          <h2
+            id="import-title"
+            className="text-2xl italic font-semibold text-primary"
+            style={{ fontFamily: "var(--font-headline)" }}
+          >
+            Import Contributors
+          </h2>
+          <p id="import-description" className="text-sm text-on-surface-variant mt-1">
             Paste author names, or upload a JSON export / JATS4R XML file from a previous session.
-          </DialogDescription>
-        </DialogHeader>
+          </p>
+          <button
+            type="button"
+            onClick={() => dialogRef.current?.close()}
+            className="absolute right-5 top-5 text-on-surface-variant hover:text-on-surface transition-colors"
+          >
+            <X className="h-5 w-5" />
+            <span className="sr-only">Close</span>
+          </button>
+        </div>
 
         <div className="px-8 py-8 space-y-6">
           {/* Drop zone */}
@@ -200,10 +221,10 @@ export function ImportModal({ open, onImport, onClose }: Props) {
           {error && <p className="text-sm text-error bg-error-container/30 rounded px-4 py-2">{error}</p>}
         </div>
 
-        <DialogFooter>
+        <div className="px-8 py-5 border-t border-outline-variant/10 bg-surface-container-low flex justify-end gap-3">
           <button
             type="button"
-            onClick={handleClose}
+            onClick={() => dialogRef.current?.close()}
             className="px-5 py-2 text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
           >
             Cancel
@@ -216,8 +237,8 @@ export function ImportModal({ open, onImport, onClose }: Props) {
           >
             Import Data
           </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </dialog>
   );
 }
