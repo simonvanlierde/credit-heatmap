@@ -74,7 +74,8 @@ export function makeRoleTranslator(catalog: RoleCatalog | null | undefined): Rol
   if (!catalog) return (name) => name;
   return (name) => {
     try {
-      return catalog[getRoleByName(name).url]?.name ?? name;
+      // `||` (not `??`) so an empty localized name falls back to English.
+      return catalog[getRoleByName(name).url]?.name || name;
     } catch {
       return name;
     }

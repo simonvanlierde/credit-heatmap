@@ -57,5 +57,9 @@ export function luminance(hex: string): number {
 
 function rgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  // Expand shorthand (#abc → #aabbcc) and reject anything else so a malformed
+  // color can't poison mixHex/luminance with NaN channels.
+  const full = h.length === 3 ? h.replace(/./g, "$&$&") : h;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return [0, 0, 0];
+  return [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16)];
 }

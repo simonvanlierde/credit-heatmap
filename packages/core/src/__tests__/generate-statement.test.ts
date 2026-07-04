@@ -98,6 +98,23 @@ describe("generateStatement", () => {
     expect(stmt).toContain("Bob White:");
   });
 
+  it("emits by-role in canonical CRediT order, not author-encounter order", () => {
+    // First author contributes only a late-order role (Investigation); the
+    // second contributes an early-order role (Conceptualization). The output
+    // must still list Conceptualization first.
+    const authors = parseAuthorText("Alan Adams\nBeth Brooks");
+    const [alan, beth] = authors;
+    if (!alan || !beth) throw new Error("expected 2 authors");
+    const alanInv = alan.contributions[4];
+    const bethConc = beth.contributions[0];
+    if (!alanInv || !bethConc) throw new Error("expected contributions");
+    alanInv.score = 100; // Investigation
+    bethConc.score = 100; // Conceptualization
+
+    const stmt = generateStatement(authors, { format: "by-role" });
+    expect(stmt).toBe("CRediT: Conceptualization: Beth Brooks; Investigation: Alan Adams");
+  });
+
   it("omits the CRediT line when every contributor is a non-author", () => {
     const authors = makeAuthors();
     for (const a of authors) a.contributorType = "non-author";

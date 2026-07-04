@@ -29,6 +29,21 @@ export const ORCID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
 /** ORCID iD accepted on input: bare form or the canonical orcid.org URL. */
 export const ORCID_INPUT_REGEX = /^(https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
 
+/**
+ * Validate an ORCID iD fully: correct shape *and* a valid ISO 7064 MOD 11-2
+ * check digit. The shape regexes alone accept checksum-invalid iDs (e.g. a
+ * mistyped digit), which would then be exported as if verified.
+ * Accepts the bare form or the orcid.org URL.
+ */
+export function isValidOrcid(id: string): boolean {
+  if (!ORCID_INPUT_REGEX.test(id)) return false;
+  const digits = id.replace(/^https?:\/\/orcid\.org\//, "").replace(/-/g, "");
+  let total = 0;
+  for (let i = 0; i < 15; i += 1) total = (total + Number(digits[i])) * 2;
+  const check = (12 - (total % 11)) % 11;
+  return digits[15] === (check === 10 ? "X" : String(check));
+}
+
 export const AuthorSchema = z.object({
   /** Stable unique identifier for UI state and persistence */
   id: z
@@ -52,7 +67,7 @@ export const AuthorSchema = z.object({
    * ORCID iD in URL form (e.g. "https://orcid.org/0000-0002-1825-0097")
    * or bare 16-digit format ("0000-0002-1825-0097"). Optional.
    */
-  orcid: z.string().regex(ORCID_INPUT_REGEX, "Invalid ORCID iD.").optional(),
+  orcid: z.string().refine(isValidOrcid, "Invalid ORCID iD.").optional(),
   /**
    * Whether this person is a named author or a non-author contributor credited
    * in an Acknowledgements section. CRediT applies to both (see NISO guidance);

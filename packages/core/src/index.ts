@@ -5,6 +5,7 @@ export {
   ContributionSchema,
   hasContributions,
   isAllBinary,
+  isValidOrcid,
   ORCID_INPUT_REGEX,
   ORCID_REGEX,
   rolesWithContributions,

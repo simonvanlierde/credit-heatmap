@@ -52,4 +52,22 @@ describe("CSV import/export", () => {
     expect(parsed[0]?.name).toBe("=HYPERLINK Evil");
     expect(parsed[1]?.name).toBe("@SUM Attack");
   });
+
+  it("round-trips a quoted field containing a newline", () => {
+    // A name with an embedded newline must survive quoting on export and the
+    // quote-aware record parser on import (a naive line-split would tear it).
+    const [author] = parseAuthorText("Jane Smith");
+    if (!author) throw new Error("expected author");
+    author.name = "Jane\nSmith";
+
+    const parsed = fromCsv(toCsv([author]));
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.name).toBe("Jane\nSmith");
+  });
+
+  it("rounds a fractional score cell to an integer", () => {
+    const csv = `Name,Conceptualization\nJane Smith,50.5`;
+    const parsed = fromCsv(csv);
+    expect(parsed[0]?.contributions[0]?.score).toBe(51);
+  });
 });
