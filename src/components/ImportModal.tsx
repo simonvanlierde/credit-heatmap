@@ -93,6 +93,8 @@ export function ImportModal({ open, onImport, onClose }: Props) {
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) handleFileRead(file);
+    // Reset so re-selecting the same file still fires a change event.
+    e.target.value = "";
   }
 
   async function handleImport() {

@@ -1,4 +1,4 @@
-import { ORCID_REGEX } from "@credit-generator/core";
+import { isValidOrcid, ORCID_REGEX } from "@credit-generator/core";
 import { type NextRequest, NextResponse } from "next/server";
 
 /**
@@ -12,7 +12,8 @@ import { type NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id") ?? "";
 
-  if (!ORCID_REGEX.test(id)) {
+  // Require bare format (so the upstream URL is well-formed) and a valid checksum.
+  if (!ORCID_REGEX.test(id) || !isValidOrcid(id)) {
     return NextResponse.json({ error: "Invalid ORCID iD format" }, { status: 400 });
   }
 

@@ -210,6 +210,14 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
   // blur doesn't re-apply the iD.
   const [editingOrcid, setEditingOrcid] = useState(false);
   const committedRef = useRef(false);
+  // Guard against setState after the row unmounts mid-lookup (delete/reorder).
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
 
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: author?.id ?? index,
@@ -238,6 +246,7 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
     setLookupError(null);
     setLookedUp(null);
     const result = await fetchOrcidName(orcid);
+    if (!mounted.current) return;
     setLoading(false);
     if ("error" in result) setLookupError(result.error);
     else {

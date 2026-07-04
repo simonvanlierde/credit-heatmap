@@ -18,6 +18,13 @@ export function HeaderActions() {
   const authors = useContributionStore((s) => s.authors);
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
 
+  // Rehydrate persisted state on the client (the store skips hydration at
+  // creation to avoid an SSR mismatch). Runs before the share-hash effect below
+  // so a `#s=…` link still wins over whatever was restored from localStorage.
+  useEffect(() => {
+    void useContributionStore.persist.rehydrate();
+  }, []);
+
   // On first load, a `#s=…` share link overrides the persisted/local state.
   // The hash is then cleared so later edits and reloads aren't reverted.
   useEffect(() => {
