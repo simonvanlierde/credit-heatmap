@@ -57,5 +57,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Build the actual artifact that ships (Cloudflare Workers bundle via
+      # OpenNext), not just `next build`, so worker-bundling failures surface in CI.
       - name: Build
-        run: pnpm build
+        run: pnpm exec opennextjs-cloudflare build
