@@ -17,29 +17,22 @@ export function LanguageSelector() {
 
   return (
     <Select value={outputLocale} onValueChange={setOutputLocale}>
+      {/* Only SelectItems may live inside the listbox — the explanatory note moved
+          to this tooltip and the translation credit to the About popover, so the
+          dropdown stays a valid listbox (no interactive/non-option children). */}
       <SelectTrigger
         aria-label="Output language"
+        title="Sets the language of the generated statement & exports. UI translations are on the roadmap."
         className="size-9 justify-center rounded-lg border-0 bg-transparent p-0 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary [&>svg:last-child]:hidden"
       >
         <Languages className="size-4" />
       </SelectTrigger>
       <SelectContent className="max-w-[17rem]">
-        <p className="px-2 py-1.5 text-[11px] leading-snug text-on-surface-variant">
-          Sets the language of the generated statement &amp; exports. UI translations are on the roadmap.
-        </p>
         {AVAILABLE_LOCALES.map((locale) => (
           <SelectItem key={locale.code} value={locale.code}>
             {locale.name}
           </SelectItem>
         ))}
-        <a
-          href="https://github.com/contributorshipcollaboration/credit-translation"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-1 block whitespace-nowrap border-t border-outline-variant/30 px-2 py-1.5 text-[10px] leading-snug text-on-surface-variant hover:text-primary"
-        >
-          Translations: credit-translation contributors, CC BY 4.0
-        </a>
       </SelectContent>
     </Select>
   );
