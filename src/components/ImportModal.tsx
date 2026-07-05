@@ -4,6 +4,7 @@ import type { Author } from "@credit-generator/core";
 import { fromCsv, fromJats4rXml, fromJson, parseAuthorText } from "@credit-generator/core";
 import { FileUp, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { announce } from "@/lib/announce";
 
 interface Props {
   open: boolean;
@@ -59,6 +60,12 @@ export function ImportModal({ open, onImport, onClose }: Props) {
 
   const format: DetectedFormat = detect(text);
 
+  /** Show an import error and announce it (errors interrupt via role="alert"). */
+  function showError(message: string) {
+    setError(message);
+    announce(message, { assertive: true });
+  }
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -74,7 +81,7 @@ export function ImportModal({ open, onImport, onClose }: Props) {
       setText(await file.text());
       setError(null);
     } catch {
-      setError("Could not read that file.");
+      showError("Could not read that file.");
     }
   }
 
@@ -104,13 +111,13 @@ export function ImportModal({ open, onImport, onClose }: Props) {
       const { parse, emptyMessage } = IMPORTERS[format];
       const authors = parse(text.trim());
       if (authors.length === 0) {
-        setError(emptyMessage);
+        showError(emptyMessage);
         return;
       }
       onImport(authors);
       dialogRef.current?.close();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not parse the input. Check the format.");
+      showError(err instanceof Error ? err.message : "Could not parse the input. Check the format.");
     }
   }
 
@@ -156,7 +163,9 @@ export function ImportModal({ open, onImport, onClose }: Props) {
         <div className="px-8 py-8 space-y-6">
           {/* Drop zone */}
           <div>
-            <p className="text-xs uppercase tracking-widest font-bold text-outline mb-3">Structured File Upload</p>
+            <p className="text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-3">
+              Structured File Upload
+            </p>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop is a mouse-only progressive enhancement; the Browse button + file input below provide the accessible path. */}
             <div
               onDragOver={handleFileDragOver}
@@ -192,7 +201,10 @@ export function ImportModal({ open, onImport, onClose }: Props) {
           {/* Text area */}
           <div>
             <div className="flex justify-between items-end mb-2">
-              <label htmlFor="import-text" className="block text-xs uppercase tracking-widest font-bold text-outline">
+              <label
+                htmlFor="import-text"
+                className="block text-xs uppercase tracking-widest font-bold text-on-surface-variant"
+              >
                 Paste Raw Data
               </label>
               {format !== "unknown" && (

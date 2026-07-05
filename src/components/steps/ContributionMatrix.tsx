@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { announce } from "@/lib/announce";
 import { useOutputTranslators } from "@/lib/use-output-translators";
 import { download as downloadBlob } from "@/lib/utils";
 import { type InputMode, useContributionStore } from "@/store/contribution-store";
@@ -517,12 +518,20 @@ function HeatmapControls({
         {transpose ? <Columns3 className="h-3.5 w-3.5" /> : <Rows3 className="h-3.5 w-3.5" />}
       </button>
       <span className="flex items-center gap-1.5 text-[11px] text-on-surface-variant">
-        <Switch checked={acronyms} onCheckedChange={onAcronymsChange} aria-label="Label axis with initials" />
+        <Switch
+          checked={acronyms}
+          onCheckedChange={onAcronymsChange}
+          aria-label="Acronyms — label axes with initials"
+        />
         Acronyms
       </span>
       {canShowLevels && (
         <span className="flex items-center gap-1.5 text-[11px] text-on-surface-variant">
-          <Switch checked={showLevels} onCheckedChange={onShowLevelsChange} aria-label="Show contribution levels" />
+          <Switch
+            checked={showLevels}
+            onCheckedChange={onShowLevelsChange}
+            aria-label="Show levels — show contribution levels"
+          />
           Show levels
         </span>
       )}
@@ -566,7 +575,9 @@ function HeatmapExports({
         downloadBlob(await svgToPngBlob(svg), "credit-heatmap.png");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Export failed");
+      const message = err instanceof Error ? err.message : "Export failed";
+      setError(message);
+      announce(`Heatmap export failed: ${message}`, { assertive: true });
     } finally {
       setLoading(null);
     }

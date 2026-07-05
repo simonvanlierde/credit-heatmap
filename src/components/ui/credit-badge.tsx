@@ -3,6 +3,7 @@
 import { BadgeCheck, Check, Copy, Download, ImageDown } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
+import { announce } from "@/lib/announce";
 import { type CopyStatus, useCopyStatus } from "@/lib/use-copy-status";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
@@ -27,7 +28,7 @@ function htmlSnippet() {
  * `className` overrides the trigger's styling (e.g. a lighter secondary look).
  */
 export function CreditBadge({ className }: { className?: string }) {
-  const [htmlStatus, copyHtml] = useCopyStatus();
+  const [htmlStatus, copyHtml] = useCopyStatus({ copied: "Badge HTML copied to clipboard", error: "Copy failed" });
   const [pngStatus, setPngStatus] = useState<CopyStatus>("idle");
 
   // Copy the image bytes (not a URL) so it pastes straight into a doc/editor.
@@ -36,8 +37,10 @@ export function CreditBadge({ className }: { className?: string }) {
       const blob = await (await fetch(BADGE_SRC)).blob();
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
       setPngStatus("copied");
+      announce("Badge PNG copied to clipboard");
     } catch {
       setPngStatus("error");
+      announce("Copy failed", { assertive: true });
     }
     setTimeout(() => setPngStatus("idle"), 2000);
   }
@@ -68,6 +71,7 @@ export function CreditBadge({ className }: { className?: string }) {
         >
           <Image src={BADGE_SRC} alt={ALT} width={88} height={88} />
           <span className="text-[11px] text-on-surface-variant">credit.niso.org</span>
+          <span className="sr-only">(opens in new tab)</span>
         </a>
 
         <p className="mb-3 text-xs leading-relaxed text-on-surface-variant">
