@@ -14,7 +14,10 @@ import { useContributionStore } from "@/store/contribution-store";
  */
 export function HeaderActions() {
   const [importOpen, setImportOpen] = useState(false);
-  const [shareStatus, copyShareUrl] = useCopyStatus();
+  const [shareStatus, copyShareUrl] = useCopyStatus({
+    copied: "Share link copied to clipboard",
+    error: "Could not copy share link",
+  });
   const authors = useContributionStore((s) => s.authors);
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
 
