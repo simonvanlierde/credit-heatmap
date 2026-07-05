@@ -155,13 +155,27 @@ The `just` recipes wrap a few watch/fix tasks on top of the pnpm scripts — run
 
 ```bash
 pnpm --filter @credit-generator/core test     # unit tests (Vitest)
-pnpm test:e2e                                  # browser happy paths (Playwright)
+pnpm test:e2e                                  # browser happy paths + axe a11y scans (Playwright)
 ```
 
 Unit tests cover the domain layer (parsing, statements, all exports, the heatmap SVG, validation).
 Playwright covers sample data, name import, the client-side XML download, and the share-link
 round-trip; it runs on manual dispatch or PRs labelled `e2e`. CI runs lint, typecheck, test, and
 build in parallel on every push and PR.
+
+### Accessibility
+
+Two automated checks run against the UI. Both catch only a slice of WCAG, so this is a guardrail —
+not a conformance claim.
+
+| Check | Command | Scope |
+|---|---|---|
+| Biome [`a11y`](https://biomejs.dev/linter/rules/#accessibility) lint | `pnpm lint` | alt text, ARIA validity, button `type`, keyboard handlers — on every push/PR |
+| [axe-core](https://github.com/dequelabs/axe-core-npm) scan ([`e2e/a11y.spec.ts`](e2e/a11y.spec.ts)) | `pnpm test:e2e` | WCAG 2 A/AA rules over the main screens — in the `e2e` CI job |
+
+The UI itself has a skip link, an `<h1>` with landmark regions, keyboard-accessible drag-to-reorder
+with screen-reader announcements, radiogroup segmented controls, and a live region that announces
+copy, ORCID-lookup, and import status.
 
 ---
 
