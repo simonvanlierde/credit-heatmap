@@ -10,11 +10,13 @@ export function PopoverContent({
   className,
   align = "start",
   sideOffset = 6,
+  ref,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentPropsWithRef<typeof PopoverPrimitive.Content>) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
+        ref={ref}
         align={align}
         sideOffset={sideOffset}
         className={cn(

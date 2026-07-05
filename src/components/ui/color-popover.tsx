@@ -42,6 +42,7 @@ export function ColorPopover({
                 onClick={() => onChange(hex)}
                 title={hex}
                 aria-label={`Set color ${hex}`}
+                aria-pressed={selected}
                 className="flex h-5 w-5 items-center justify-center rounded-full ring-offset-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 style={{ backgroundColor: hex }}
               >

@@ -7,9 +7,15 @@ import { cn } from "@/lib/utils";
 export const Select = SelectPrimitive.Root;
 export const SelectValue = SelectPrimitive.Value;
 
-export function SelectTrigger({ className, children, ...props }: React.ComponentProps<typeof SelectPrimitive.Trigger>) {
+export function SelectTrigger({
+  className,
+  children,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof SelectPrimitive.Trigger>) {
   return (
     <SelectPrimitive.Trigger
+      ref={ref}
       className={cn(
         "flex items-center justify-between gap-1 rounded border border-outline-variant bg-surface-bright",
         "px-2 py-1 text-xs text-on-surface",
@@ -26,10 +32,16 @@ export function SelectTrigger({ className, children, ...props }: React.Component
   );
 }
 
-export function SelectContent({ className, children, ...props }: React.ComponentProps<typeof SelectPrimitive.Content>) {
+export function SelectContent({
+  className,
+  children,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof SelectPrimitive.Content>) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
+        ref={ref}
         position="popper"
         sideOffset={4}
         className={cn(
@@ -47,9 +59,15 @@ export function SelectContent({ className, children, ...props }: React.Component
   );
 }
 
-export function SelectItem({ className, children, ...props }: React.ComponentProps<typeof SelectPrimitive.Item>) {
+export function SelectItem({
+  className,
+  children,
+  ref,
+  ...props
+}: React.ComponentPropsWithRef<typeof SelectPrimitive.Item>) {
   return (
     <SelectPrimitive.Item
+      ref={ref}
       className={cn(
         "relative flex w-full cursor-pointer select-none items-center rounded py-1.5 pl-8 pr-2 text-xs text-on-surface",
         "outline-none focus:bg-surface-container-low",
