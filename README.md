@@ -4,37 +4,39 @@
 [![codecov](https://codecov.io/gh/simonvanlierde/credit-heatmap/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/credit-heatmap)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcredit.duinlab.nl)](https://credit.duinlab.nl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
+<!-- TODO: add a DOI badge once a Zenodo release DOI is minted (see "Citing this software"). -->
+<!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX) -->
 
-A web tool for building [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) author
+A web app for drafting [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/)
 contribution statements for scholarly publications.
 
-Add contributors, assign their 14 CRediT roles in an interactive matrix, and get a formatted
-statement ready to paste into a manuscript — plus a contribution heatmap and exports (JATS4R XML,
-CSV, JSON, Markdown) for journal submission systems.
+Add contributors, assign the 14 CRediT roles, and copy a manuscript-ready statement. The app also
+produces a contribution heatmap and exports for journal submission systems: JATS4R XML, CSV, JSON,
+and Markdown.
 
 Inspired by the original
 [Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator).
 
-**Try it now:** [credit.duinlab.nl](https://credit.duinlab.nl) — no install required.
+**Try it:** [credit.duinlab.nl](https://credit.duinlab.nl)
 
 ![The CRediT Generator workspace: a contributors list and contribution matrix on the left, a live heatmap and exportable statement on the right](docs/screenshots/hero.png)
 
 ---
 
-## Features
+## What it does
 
-- **Contributors** — add, rename, reorder; paste an ORCID iD (or URL) to auto-fill the name
-- **Contribution matrix** — assign roles as a binary toggle or a granular level, with presets
-  (equal contribution, senior author, data-only), guarded by a confirmation before they overwrite
-- **Live statement** — three formats (by role, by author, short), with optional level annotations
-- **Multilingual output** — localize role names in the statement, Markdown table, and heatmap
+- **Contributors:** add, rename, reorder, and paste an ORCID iD or URL to look up the name
+- **Contribution matrix:** assign each role as a binary yes/no value or as a contribution level
+- **Presets:** apply common patterns such as equal contribution, senior author, and data-only
+- **Statements:** render by role or by author, with full names or initials, and optional level labels
+- **Localized output:** translate role names in statements, Markdown tables, and heatmaps
   (translations from [credit-translation](https://github.com/contributorshipcollaboration/credit-translation)).
-  Machine formats (XML/CSV/JSON) stay canonical English.
-- **Heatmap** — interactive preview plus SVG and PNG download, rendered in the browser
-- **Exports** — JATS4R XML, CSV, JSON, Markdown; copy or download
-- **Validation** — journal-style checks (authors with no roles, missing key roles)
-- **Shareable links** — encode the whole draft into a URL for a co-author
-- **Import** — paste names, or drop a JSON / CSV / JATS4R XML file to restore a session
+  Machine-readable exports keep canonical English CRediT terms.
+- **Heatmap:** preview in the browser and download as SVG or PNG
+- **Exports:** copy or download JATS4R XML, CSV, JSON, and Markdown
+- **Validation:** flag contributors with no roles and missing key roles
+- **Sharing/import:** encode a draft in a URL, paste names, or import JSON, CSV, or JATS4R XML
 
 | First run | Statement & export |
 |---|---|
@@ -44,19 +46,23 @@ Inspired by the original
 
 ## Roadmap
 
-- **UI** improvements: add onboarding, better mobile layout, and clearer guidance on how to edit an authors roles
-- **UI localization** — output can be localized today, but the app chrome (~116 strings) is still
-  English-only. Full UI translation would mean `next-intl`, per-locale catalogs, locale routing, and RTL.
-- **More output languages** — [credit-translation](https://github.com/contributorshipcollaboration/credit-translation)
-  offers ~47 locales; a curated subset is vendored under
-  [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations). Refresh with
-  `node packages/core/scripts/fetch-credit-translations.mjs`.
+- **Localize the app UI.** Today the UI is English-only; only the output (statements, Markdown
+  tables, heatmaps) can use the bundled role translations. Extending localization to the interface
+  itself is the main open item.
+- **Widen locale coverage.** Only a curated subset of
+  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation) locales is
+  vendored under [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations);
+  refresh or extend them with `node packages/core/scripts/fetch-credit-translations.mjs`.
+- **Smooth the onboarding UX.** Make the first-run experience clearer for new users — better empty
+  states, guidance on where to start, and a gentler path from a blank workspace to a finished
+  statement.
 
 ---
 
 ## Architecture
 
-A single **Next.js** app plus one **pure domain package** ([`packages/core`](packages/core/README.md)).
+The repo contains one **Next.js** app and one framework-agnostic domain package
+([`packages/core`](packages/core/README.md)).
 
 ```text
 Browser
@@ -67,14 +73,17 @@ Browser
        └─ /api/orcid  (route handler) ──→ pub.orcid.org    ← the only server-side call
 ```
 
-Nearly everything is a pure function in `packages/core`, so it runs client-side: statements, exports,
-the heatmap SVG (PNG via `<canvas>`), and XML import (native `DOMParser`). The one server call is the
-ORCID lookup — the ORCID public API sends no CORS headers — so it's a single Next.js route handler.
-`packages/core` stays framework-agnostic (only runtime dependency: `zod`).
+Most behavior is pure TypeScript in `packages/core`: statements, exports, validation, XML import
+(native `DOMParser`), and the heatmap SVG. The PNG download is produced from that SVG in a browser
+`<canvas>`.
 
-**Contribution score model:** contributions are stored as a 0–100 integer (`score`), not a boolean,
-so the UI can offer a binary toggle or granular levels without changing the data model. See
-[`packages/core/README.md`](packages/core/README.md) for the score→level boundaries and full model.
+The ORCID lookup is the only server-side call. The ORCID public API does not send browser-friendly
+CORS headers, so the app proxies that request through a small Next.js route handler. `packages/core`
+has no framework dependency and only one runtime dependency, `zod`.
+
+Contributions are stored as a 0-100 integer (`score`), not a boolean. That lets the UI switch between
+binary and level-based editing without changing the persisted model. See
+[`packages/core/README.md`](packages/core/README.md) for the score-to-level boundaries.
 
 ---
 
@@ -86,10 +95,10 @@ so the UI can offer a binary toggle or granular levels without changing the data
 | Language | TypeScript 6 (strict) | `noUncheckedIndexedAccess` on |
 | Frontend | Next.js 16 (App Router) | Deploys to Cloudflare Workers |
 | Styling | Tailwind CSS v4 | Design tokens via `@theme`; no runtime CSS |
-| State | Zustand + immer + persist | Mutation-friendly store; survives refresh |
+| State | Zustand + immer + persist | Local app state, persisted to `localStorage` |
 | Validation | Zod | Runtime-safe schemas at trust boundaries |
 | Heatmap | @nivo/heatmap + hand-crafted SVG (`core`) | Interactive preview; one SVG source for download + canvas PNG |
-| Testing | Vitest (unit) + Playwright (e2e) | Fast ESM unit tests; browser happy-path coverage |
+| Testing | Vitest (unit) + Playwright (e2e) | Domain tests plus browser happy paths |
 | Linting | Biome | One tool for format + lint |
 | Deploy | Cloudflare Workers (OpenNext) | Zero-ops serverless edge |
 
@@ -108,7 +117,7 @@ credit-generator/               Next.js app at the repo root
 │       ├── credit-roles.ts        14 CRediT roles as a typed const
 │       ├── author.ts              Zod schemas; score → level helpers
 │       ├── parse-authors.ts       Name parsing + unique-initials logic
-│       ├── generate-statement.ts  3 statement formats
+│       ├── generate-statement.ts  4 statement formats
 │       ├── validate.ts            Journal-style contribution checks
 │       └── export/                JATS4R XML, CSV, JSON, Markdown, heatmap SVG
 └── justfile                    Dev commands (requires just)
@@ -147,7 +156,7 @@ pnpm lint           # Biome lint (append :fix to auto-fix)
 pnpm test:e2e       # Playwright end-to-end tests
 ```
 
-The `just` recipes wrap a few watch/fix tasks on top of the pnpm scripts — run `just` to list them.
+The `just` recipes wrap watch/fix tasks on top of the pnpm scripts. Run `just` to list them.
 
 ---
 
@@ -193,3 +202,22 @@ pnpm deploy         # build + deploy to Cloudflare
 ```
 
 Configured in [open-next.config.ts](open-next.config.ts) and [wrangler.jsonc](wrangler.jsonc).
+
+---
+
+## Contributing
+
+Bug reports and small features are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup and the
+lint/typecheck/test checklist. Design decisions are recorded as [ADRs](docs/adr/).
+
+---
+
+## Citing this software
+
+If you use the CRediT Generator in your work, please cite it. Metadata lives in
+[CITATION.cff](CITATION.cff), and GitHub's "Cite this repository" button generates APA and BibTeX from
+it.
+
+> van Lierde, S. *CRediT Generator* [Computer software]. <https://github.com/simonvanlierde/credit-heatmap>
+
+<!-- TODO: mint a release DOI via Zenodo, then add it here and to CITATION.cff for a citable, versioned archive. -->
