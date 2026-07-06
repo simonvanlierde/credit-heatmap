@@ -13,7 +13,7 @@
     "binding": "ASSETS",
     "directory": ".open-next/assets"
   },
-  "compatibility_date": "2025-03-25",
+  "compatibility_date": "2026-07-06",
   // nodejs_compat lets the Next.js server bundle use Node built-ins on Workers.
   "compatibility_flags": ["nodejs_compat"],
   "main": ".open-next/worker.js",
@@ -27,9 +27,12 @@
       "invocation_logs": true
     }
   },
-  "route": {
-    "pattern": "credit.duinlab.nl/*",
-    "zone_name": "credit.duinlab.nl"
-  },
+  // Bound to a Custom Domain
+  "routes": [
+    {
+      "pattern": "credit.duinlab.nl",
+      "custom_domain": true
+    }
+  ],
   "workers_dev": false
 }
