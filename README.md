@@ -158,24 +158,27 @@ pnpm --filter @credit-generator/core test     # unit tests (Vitest)
 pnpm test:e2e                                  # browser happy paths + axe a11y scans (Playwright)
 ```
 
-Unit tests cover the domain layer (parsing, statements, all exports, the heatmap SVG, validation).
-Playwright covers sample data, name import, the client-side XML download, and the share-link
-round-trip; it runs on manual dispatch or PRs labelled `e2e`. CI runs lint, typecheck, test, and
-build in parallel on every push and PR.
+Unit tests cover the domain layer: parsing, statements, exports, imports, heatmap SVG generation,
+and validation. Playwright covers sample data, name import, the client-side XML download, share-link
+round trips, and axe accessibility scans. The full E2E suite runs on manual dispatch or on PRs
+labelled `e2e`; the axe accessibility scans also run on every push and PR (see below).
+
+Regular CI runs Biome, typecheck, coverage, the axe accessibility scans, and the Cloudflare Worker
+build on every push and PR.
 
 ### Accessibility
 
-Two automated checks run against the UI. Both catch only a slice of WCAG, so this is a guardrail —
-not a conformance claim.
+Two automated checks run against the UI. They are guardrails, not a WCAG conformance claim.
 
-| Check | Command | Scope |
-|---|---|---|
-| Biome [`a11y`](https://biomejs.dev/linter/rules/#accessibility) lint | `pnpm lint` | alt text, ARIA validity, button `type`, keyboard handlers — on every push/PR |
-| [axe-core](https://github.com/dequelabs/axe-core-npm) scan ([`e2e/a11y.spec.ts`](e2e/a11y.spec.ts)) | `pnpm test:e2e` | WCAG 2 A/AA rules over the main screens — in the `e2e` CI job |
+| Check | Command | Scope | In CI |
+|---|---|---|---|
+| Biome [`a11y`](https://biomejs.dev/linter/rules/#accessibility) lint | `pnpm lint` | alt text, ARIA validity, button `type`, keyboard handlers | Every push and PR |
+| [axe-core](https://github.com/dequelabs/axe-core-npm) scan ([`e2e/a11y.spec.ts`](e2e/a11y.spec.ts)) | `pnpm test:e2e` | WCAG 2.0/2.1 A/AA rules over the main screens, light + dark | Every push and PR |
 
-The UI itself has a skip link, an `<h1>` with landmark regions, keyboard-accessible drag-to-reorder
-with screen-reader announcements, radiogroup segmented controls, and a live region that announces
-copy, ORCID-lookup, and import status.
+The UI includes a skip link, landmark regions, keyboard-accessible drag-to-reorder with
+screen-reader announcements, radiogroup segmented controls, a live region for copy, ORCID-lookup,
+and import status, and a `prefers-reduced-motion` fallback that neutralizes transitions and
+animations.
 
 ---
 
