@@ -5,7 +5,7 @@
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcredit.duinlab.nl)](https://credit.duinlab.nl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21212954.svg)](https://doi.org/10.5281/zenodo.21212954)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21213659.svg)](https://doi.org/10.5281/zenodo.21213659)
 
 A web app for drafting [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/)
 contribution statements for scholarly publications.
@@ -126,9 +126,9 @@ testing, and the accessibility checks. Design decisions are recorded as [ADRs](d
 
 If you use the CRediT Generator in your work, please cite it. Metadata lives in
 [CITATION.cff](CITATION.cff), and GitHub's "Cite this repository" button generates APA and BibTeX from
-it. The archived, versioned release is on Zenodo: [doi:10.5281/zenodo.21212954](https://doi.org/10.5281/zenodo.21212954).
+it. The archived, versioned release is on Zenodo: [doi:10.5281/zenodo.21213659](https://doi.org/10.5281/zenodo.21213659).
 
-> van Lierde, S. *CRediT Generator* [Computer software]. Zenodo. <https://doi.org/10.5281/zenodo.21212954>
+> van Lierde, S. *CRediT Generator* [Computer software]. Zenodo. <https://doi.org/10.5281/zenodo.21213659>
 
 ## Acknowledgements
 
