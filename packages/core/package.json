@@ -23,8 +23,8 @@
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
-    "@vitest/coverage-v8": "^4.1.9",
-    "vitest": "^4.1.9",
+    "@vitest/coverage-v8": "^4.1.10",
+    "vitest": "^4.1.10",
     "linkedom": "^0.18.12"
   }
 }
