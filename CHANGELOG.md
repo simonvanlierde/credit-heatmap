@@ -23,7 +23,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Pinned `@types/node` to the Node 22 runtime and declared an `engines` field.
+- Pinned `@types/node` to the Node 26 runtime and declared an `engines` field.
 - Dropped unused dependencies, dead exports, and speculative code.
 
 ## [0.1.0] - 2026-06-29
