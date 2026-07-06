@@ -65,6 +65,15 @@ describe("CSV import/export", () => {
     expect(parsed[0]?.name).toBe("Jane\nSmith");
   });
 
+  it("parses escaped quotes and commas inside a quoted field", () => {
+    // RFC-4180: `""` is a literal quote and a comma inside quotes is data, not a
+    // column break. The score column must still land at 100.
+    const parsed = fromCsv(`Name,Conceptualization\n"Jane ""JS"", Smith",100`);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.name).toBe('Jane "JS", Smith'); // field reassembled verbatim, comma not treated as a column break
+    expect(parsed[0]?.contributions[0]?.score).toBe(100);
+  });
+
   it("rounds a fractional score cell to an integer", () => {
     const csv = `Name,Conceptualization\nJane Smith,50.5`;
     const parsed = fromCsv(csv);
