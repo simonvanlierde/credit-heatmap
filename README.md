@@ -5,8 +5,7 @@
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcredit.duinlab.nl)](https://credit.duinlab.nl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
-<!-- TODO: add a DOI badge once a Zenodo release DOI is minted (see "Citing this software"). -->
-<!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX) -->
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21212954.svg)](https://doi.org/10.5281/zenodo.21212954)
 
 A web app for drafting [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/)
 contribution statements for scholarly publications.
@@ -16,7 +15,8 @@ produces a contribution heatmap and exports for journal submission systems: JATS
 and Markdown.
 
 Inspired by the original
-[Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator).
+[Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator) and the
+contributorship tools and scholarship credited under [Acknowledgements](#acknowledgements).
 
 **Try it:** [credit.duinlab.nl](https://credit.duinlab.nl)
 
@@ -126,8 +126,30 @@ testing, and the accessibility checks. Design decisions are recorded as [ADRs](d
 
 If you use the CRediT Generator in your work, please cite it. Metadata lives in
 [CITATION.cff](CITATION.cff), and GitHub's "Cite this repository" button generates APA and BibTeX from
-it.
+it. The archived, versioned release is on Zenodo: [doi:10.5281/zenodo.21212954](https://doi.org/10.5281/zenodo.21212954).
 
-> van Lierde, S. *CRediT Generator* [Computer software]. <https://github.com/simonvanlierde/credit-heatmap>
+> van Lierde, S. *CRediT Generator* [Computer software]. Zenodo. <https://doi.org/10.5281/zenodo.21212954>
 
-<!-- TODO: mint a release DOI via Zenodo, then add it here and to CITATION.cff for a citable, versioned archive. -->
+## Acknowledgements
+
+The CRediT Generator builds on prior tools and scholarship on contributorship:
+
+- The original [Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator),
+  which inspired this app.
+- Role translations from
+  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation).
+- The **contribution matrix** proposed by Nick Steinmetz (2019), the visual form this app's heatmap
+  descends from — as surveyed in *Nature Index*,
+  ["Researchers are embracing visual tools to give fair credit…"](https://www.nature.com/nature-index/news/researchers-embracing-visual-tools-contribution-matrix-give-fair-credit-authors-scientific-papers).
+
+### Related work
+
+- Brand, A., Allen, L., Altman, M., Hlava, M., & Scott, J. (2015). Beyond authorship: attribution,
+  contribution, collaboration, and credit. *Learned Publishing, 28*(2), 151–155.
+  <https://doi.org/10.1002/leap.1210>
+- Holcombe, A. O., Kovács, M., Aust, F., & Aczel, B. (2020). Documenting contributions to scholarly
+  articles using CRediT and tenzing. *PLOS ONE, 15*(12), e0244611.
+  <https://doi.org/10.1371/journal.pone.0244611>
+- Nakagawa, S., Ivimey-Cook, E. R., Grainger, M. J., O'Dea, R. E., et al. (2023). Method Reporting
+  with Initials for Transparency (MeRIT) promotes more granularity and accountability for author
+  contributions. *Nature Communications, 14*, 1788. <https://doi.org/10.1038/s41467-023-37039-1>
