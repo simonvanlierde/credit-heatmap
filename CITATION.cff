@@ -2,15 +2,12 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it using these metadata."
 title: "CRediT Generator"
 abstract: >-
-  A client-side web app and TypeScript library for drafting CRediT
-  (Contributor Roles Taxonomy) contribution statements for scholarly
-  publications, with a contribution heatmap and JATS4R XML, CSV, JSON,
-  and Markdown exports for journal submission systems.
+  A client-side web app and TypeScript library for drafting CRediT (Contributor Roles Taxonomy) contribution statements for scholarly publications, with a contribution heatmap and JATS4R XML, CSV, JSON, and Markdown exports for journal submission systems.
 type: software
 authors:
   - given-names: Simon
     family-names: van Lierde
-    # TODO: add ORCID iD, e.g. orcid: "https://orcid.org/0000-0000-0000-0000"
+    orcid: "https://orcid.org/0009-0006-6953-909X"
 license: MIT
 repository-code: "https://github.com/simonvanlierde/credit-heatmap"
 url: "https://credit.duinlab.nl"
@@ -20,6 +17,7 @@ keywords:
   - authorship
   - research software
   - JATS4R
-version: "0.1.0"
+version: "0.1.1"
+
 # TODO: mint a release DOI (e.g. via Zenodo) and add it here:
 # doi: "10.5281/zenodo.XXXXXXX"
