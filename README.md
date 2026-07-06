@@ -99,12 +99,20 @@ lint/typecheck/test checklist. Run `just` to list the watch/fix recipes layered 
 The live demo runs on Cloudflare Workers via
 [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), which adapts the Next.js build.
 
+**Pipeline:** push to `main` → Cloudflare
+[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) builds and deploys to
+[credit.duinlab.nl](https://credit.duinlab.nl). The trigger is configured in the Cloudflare
+dashboard (settings mirrored in [wrangler.jsonc](wrangler.jsonc)); non-`main` branches and PR
+previews are disabled. [CI](.github/workflows/ci.yml) only lints, tests, and build-checks.
+
+**Manual deploy** (needs Cloudflare credentials):
+
 ```bash
 pnpm preview        # build + run the Worker locally
 pnpm deploy         # build + deploy to Cloudflare
 ```
 
-Configured in [open-next.config.ts](open-next.config.ts) and [wrangler.jsonc](wrangler.jsonc).
+Config lives in [wrangler.jsonc](wrangler.jsonc) and [open-next.config.ts](open-next.config.ts).
 
 ## Roadmap
 

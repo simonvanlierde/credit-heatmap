@@ -1,12 +1,35 @@
 {
+  // Deploys via Cloudflare Workers Builds (Git integration) on push to `main`.
+  // The following settings live in the Cloudflare dashboard, not here:
+  // Build configuration:
+  //   Build:   pnpm exec opennextjs-cloudflare build
+  //   Deploy:  pnpm exec opennextjs-cloudflare deploy
+  //   Root:    /
+  // Branch control:
+  //   Production branch: main
+  //   Non-production builds: disabled
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "credit-heatmap",
-  "main": ".open-next/worker.js",
-  "compatibility_date": "2025-03-25",
-  // nodejs_compat lets the Next.js server bundle use Node built-ins on Workers.
-  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "binding": "ASSETS",
     "directory": ".open-next/assets"
-  }
+  },
+  "compatibility_date": "2025-03-25",
+  // nodejs_compat lets the Next.js server bundle use Node built-ins on Workers.
+  "compatibility_flags": ["nodejs_compat"],
+  "main": ".open-next/worker.js",
+  "name": "credit-heatmap",
+  "observability": {
+    "enabled": true,
+    // log 10% of requests
+    "head_sampling_rate": 0.1,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    }
+  },
+  "route": {
+    "pattern": "credit.duinlab.nl/*",
+    "zone_name": "credit.duinlab.nl"
+  },
+  "workers_dev": false
 }
