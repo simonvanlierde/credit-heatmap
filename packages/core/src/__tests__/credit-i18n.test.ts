@@ -6,10 +6,10 @@ import { parseAuthorText } from "../parse-authors.js";
 function makeAuthors() {
   const authors = parseAuthorText("Jane Smith\nBob White");
   const [jane, bob] = authors;
-  if (!jane || !bob) throw new Error("expected 2 authors");
+  if (!(jane && bob)) throw new Error("expected 2 authors");
   const janeConc = jane.contributions[0]; // Conceptualization
   const bobInv = bob.contributions[4]; // Investigation
-  if (!janeConc || !bobInv) throw new Error("expected contributions");
+  if (!(janeConc && bobInv)) throw new Error("expected contributions");
   janeConc.score = 100;
   bobInv.score = 100;
   return authors;

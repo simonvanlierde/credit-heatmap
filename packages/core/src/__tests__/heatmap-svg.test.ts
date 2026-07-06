@@ -15,7 +15,7 @@ function setScore(author: Author, role: string, score: number): void {
 function authorsWithScores(): Author[] {
   const authors = parseAuthorText("Jane Smith\nBob White");
   const [jane, bob] = authors;
-  if (!jane || !bob) throw new Error("expected 2 authors");
+  if (!(jane && bob)) throw new Error("expected 2 authors");
   setScore(jane, "Conceptualization", 100); // lead
   setScore(jane, "Writing – review & editing", 100); // exercises XML escaping
   setScore(bob, "Software", 100);

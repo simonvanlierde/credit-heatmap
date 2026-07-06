@@ -1,5 +1,5 @@
 # CRediT Generator — development commands
-# Requires: just (https://github.com/casey/just), pnpm, Node ≥ 22
+# Requires: just (https://github.com/casey/just), pnpm ≥ 11, Node ≥ 26
 # Most tasks are pnpm scripts (see package.json); these recipes add value on top.
 
 # List available recipes
@@ -13,15 +13,3 @@ test-watch:
 # Lint and auto-fix
 lint-fix:
     pnpm biome check --write .
-
-# Build and start the app container
-docker-up:
-    docker compose up --build
-
-# Tear down the app container
-docker-down:
-    docker compose down
-
-# Validate the Docker Compose file
-docker-config:
-    docker compose config >/dev/null

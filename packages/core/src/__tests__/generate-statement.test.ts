@@ -6,13 +6,13 @@ import { parseAuthorText } from "../parse-authors.js";
 function makeAuthors() {
   const authors = parseAuthorText("Jane Smith\nBob White");
   const [jane, bob] = authors;
-  if (!jane || !bob) throw new Error("expected 2 authors");
+  if (!(jane && bob)) throw new Error("expected 2 authors");
 
   const janeConc = jane.contributions[0];
   const janeSoft = jane.contributions[8];
   const bobConc = bob.contributions[0];
   const bobInv = bob.contributions[4];
-  if (!janeConc || !janeSoft || !bobConc || !bobInv) throw new Error("expected contributions");
+  if (!(janeConc && janeSoft && bobConc && bobInv)) throw new Error("expected contributions");
 
   janeConc.score = 100; // Conceptualization lead
   janeSoft.score = 50; // Software equal
@@ -96,6 +96,23 @@ describe("generateStatement", () => {
     expect(stmt).not.toContain("Acknowledgements:");
     expect(stmt).toContain("Jane Smith:");
     expect(stmt).toContain("Bob White:");
+  });
+
+  it("emits by-role in canonical CRediT order, not author-encounter order", () => {
+    // First author contributes only a late-order role (Investigation); the
+    // second contributes an early-order role (Conceptualization). The output
+    // must still list Conceptualization first.
+    const authors = parseAuthorText("Alan Adams\nBeth Brooks");
+    const [alan, beth] = authors;
+    if (!(alan && beth)) throw new Error("expected 2 authors");
+    const alanInv = alan.contributions[4];
+    const bethConc = beth.contributions[0];
+    if (!(alanInv && bethConc)) throw new Error("expected contributions");
+    alanInv.score = 100; // Investigation
+    bethConc.score = 100; // Conceptualization
+
+    const stmt = generateStatement(authors, { format: "by-role" });
+    expect(stmt).toBe("CRediT: Conceptualization: Beth Brooks; Investigation: Alan Adams");
   });
 
   it("omits the CRediT line when every contributor is a non-author", () => {

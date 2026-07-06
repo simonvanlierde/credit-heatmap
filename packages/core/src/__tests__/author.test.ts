@@ -4,11 +4,32 @@ import {
   activeContributions,
   ContributionSchema,
   hasContributions,
+  isValidOrcid,
   ORCID_INPUT_REGEX,
   ORCID_REGEX,
   scoreToLevel,
 } from "../author.js";
 import { parseAuthorText } from "../parse-authors.js";
+
+describe("isValidOrcid", () => {
+  it("accepts iDs with a correct MOD 11-2 check digit (bare and URL form)", () => {
+    expect(isValidOrcid("0000-0002-1825-0097")).toBe(true); // Josiah Carberry
+    expect(isValidOrcid("https://orcid.org/0000-0002-1825-0097")).toBe(true);
+    expect(isValidOrcid("0000-0000-0000-0001")).toBe(true);
+  });
+
+  it("rejects a well-formed iD with a wrong check digit", () => {
+    // Correct check digit for 0000-0002-1825-009 is 7, not 6.
+    expect(isValidOrcid("0000-0002-1825-0096")).toBe(false);
+    // The regex example digits check to 9, so the "X" variant is invalid.
+    expect(isValidOrcid("0000-0001-2345-678X")).toBe(false);
+  });
+
+  it("rejects malformed strings", () => {
+    expect(isValidOrcid("not-an-orcid")).toBe(false);
+    expect(isValidOrcid("0000-0002-1825-009")).toBe(false);
+  });
+});
 
 describe("scoreToLevel", () => {
   it("maps scores to levels at the tier boundaries", () => {
@@ -35,7 +56,7 @@ describe("hasContributions / activeContributions", () => {
     if (!author) throw new Error("expected author");
     const first = author.contributions[0];
     const third = author.contributions[2];
-    if (!first || !third) throw new Error("expected contributions");
+    if (!(first && third)) throw new Error("expected contributions");
     first.score = 100;
     third.score = 40;
 

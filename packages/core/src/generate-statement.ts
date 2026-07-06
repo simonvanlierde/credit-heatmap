@@ -2,6 +2,7 @@ import type { Author } from "./author.js";
 import { activeContributions, scoreToLevel } from "./author.js";
 import { DEFAULT_ROLE_TRANSLATOR, type RoleTranslator } from "./credit-i18n/index.js";
 import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "./credit-i18n/ui-strings.js";
+import { CREDIT_ROLES } from "./credit-roles.js";
 
 export type StatementFormat = "by-role" | "by-role-short" | "by-author" | "by-author-short";
 
@@ -104,7 +105,11 @@ function generateByRole(authors: Author[], useInitials: boolean, translateRole: 
 
   if (roleMap.size === 0) return "";
 
-  const parts = Array.from(roleMap.entries()).map(([role, labels]) => `${translateRole(role)}: ${labels.join(", ")}`);
+  // Emit in canonical CRediT order, not first-author-encounter order, so the
+  // statement matches the documented role sequence regardless of who contributed.
+  const parts = CREDIT_ROLES.filter((r) => roleMap.has(r.name)).map(
+    (r) => `${translateRole(r.name)}: ${(roleMap.get(r.name) ?? []).join(", ")}`,
+  );
 
   return parts.join("; ");
 }

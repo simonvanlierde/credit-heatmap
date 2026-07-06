@@ -32,11 +32,19 @@ export function useOutputTranslators(): { translateRole: RoleTranslator; transla
     let active = true;
     // Keep the previous language rendered until the new catalogs resolve, rather
     // than flashing English between two non-English locales.
-    Promise.all([loadRoleCatalog(locale), loadUiCatalog(locale)]).then(([role, ui]) => {
-      if (active) {
-        setTranslators({ translateRole: makeRoleTranslator(role), translateUi: makeUiTranslator(ui) });
-      }
-    });
+    Promise.all([loadRoleCatalog(locale), loadUiCatalog(locale)])
+      .then(([role, ui]) => {
+        if (active) {
+          setTranslators({ translateRole: makeRoleTranslator(role), translateUi: makeUiTranslator(ui) });
+        }
+      })
+      .catch(() => {
+        // A locale chunk failed to load (e.g. stale deploy) — fall back to
+        // English rather than leaving an unhandled rejection and a stuck UI.
+        if (active) {
+          setTranslators({ translateRole: DEFAULT_ROLE_TRANSLATOR, translateUi: DEFAULT_UI_TRANSLATOR });
+        }
+      });
     return () => {
       active = false;
     };

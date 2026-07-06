@@ -1,5 +1,5 @@
 import type { Author, Contribution, ContributorType } from "./author.js";
-import { ORCID_INPUT_REGEX } from "./author.js";
+import { isValidOrcid } from "./author.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
 
 /**
@@ -22,7 +22,9 @@ export function parseNameParts(name: string): {
   middleName: string;
   surname: string;
 } {
-  const cleaned = name.replace(/[^\p{L}\p{M}'\-\s]/gu, "").trim();
+  // Keep the straight apostrophe plus the typographic (U+2019) and modifier
+  // (U+02BC) variants that iOS/Word autocorrect emit, so "O'Brien" survives.
+  const cleaned = name.replace(/[^\p{L}\p{M}'’ʼ\-\s]/gu, "").trim();
   const parts = cleaned.split(/\s+/).filter(Boolean);
 
   const firstName = parts[0] ?? "";
@@ -37,10 +39,14 @@ export function parseNameParts(name: string): {
  * Only uses first letter of each non-empty part.
  */
 function buildInitials(firstName: string, middleName: string, surname: string): string {
-  return [firstName, middleName, surname]
-    .filter(Boolean)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
+  return (
+    [firstName, middleName, surname]
+      .filter(Boolean)
+      // Iterate by code point so an astral first letter isn't split into a
+      // lone surrogate half.
+      .map((p) => [...p][0]?.toUpperCase() ?? "")
+      .join("")
+  );
 }
 
 /**
@@ -61,11 +67,11 @@ export function createAuthor(
 ): Author {
   const { firstName, middleName, surname } = parseNameParts(name);
 
-  if (!firstName && !middleName && !surname) {
+  if (!(firstName || middleName || surname)) {
     throw new Error("Author name must contain at least one letter.");
   }
 
-  if (overrides?.orcid && !ORCID_INPUT_REGEX.test(overrides.orcid)) {
+  if (overrides?.orcid && !isValidOrcid(overrides.orcid)) {
     throw new Error(`Invalid ORCID iD: "${overrides.orcid}"`);
   }
 
@@ -89,7 +95,12 @@ export function createAuthor(
  * heatmap index contributions positionally, so they must be canonicalized here.
  */
 function normalizeContributions(contributions?: Contribution[]): Contribution[] {
-  const scoreByRole = new Map(contributions?.map((c) => [c.role, c.score]));
+  // Merge duplicate role entries (legal in an imported array) by keeping the
+  // highest score, rather than letting a trailing 0 silently erase a real score.
+  const scoreByRole = new Map<string, number>();
+  for (const c of contributions ?? []) {
+    scoreByRole.set(c.role, Math.max(scoreByRole.get(c.role) ?? 0, c.score));
+  }
   return CREDIT_ROLES.map((r) => ({ role: r.name, score: scoreByRole.get(r.name) ?? 0 }));
 }
 

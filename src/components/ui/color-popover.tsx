@@ -1,10 +1,13 @@
 "use client";
 
-import { OKABE_ITO } from "@credit-generator/core";
+import { luminance, OKABE_ITO } from "@credit-generator/core";
 import { Check, RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
-import { textColorOn } from "@/lib/contributor-color";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
+
+function textColorOn(hex: string): string {
+  return luminance(hex) > 0.6 ? "#16181c" : "#ffffff";
+}
 
 /**
  * A small color picker in a popover: the Okabe–Ito swatches, a native custom
@@ -39,6 +42,7 @@ export function ColorPopover({
                 onClick={() => onChange(hex)}
                 title={hex}
                 aria-label={`Set color ${hex}`}
+                aria-pressed={selected}
                 className="flex h-5 w-5 items-center justify-center rounded-full ring-offset-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 style={{ backgroundColor: hex }}
               >

@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 26
           cache: pnpm
 
       - name: Install dependencies
@@ -40,6 +40,33 @@ jobs:
           files: packages/core/coverage/lcov.info
           fail_ci_if_error: false
 
+  a11y:
+    name: Accessibility (axe)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Only Chromium is needed for the axe scans; skip the other browsers.
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Just the axe accessibility spec on every push/PR (the full E2E suite
+      # stays behind the `e2e` label in e2e.yml). Fast: one browser, one file.
+      - name: Run axe accessibility scans
+        env:
+          CI: true
+        run: pnpm exec playwright test a11y.spec.ts --workers=1
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -51,11 +78,13 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 26
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Build the actual artifact that ships (Cloudflare Workers bundle via
+      # OpenNext), not just `next build`, so worker-bundling failures surface in CI.
       - name: Build
-        run: pnpm build
+        run: pnpm exec opennextjs-cloudflare build

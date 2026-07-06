@@ -4,59 +4,45 @@
 [![codecov](https://codecov.io/gh/simonvanlierde/credit-heatmap/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/credit-heatmap)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcredit.duinlab.nl)](https://credit.duinlab.nl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21212954.svg)](https://doi.org/10.5281/zenodo.21212954)
 
-A web tool for building [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) author
+A web app for drafting [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/)
 contribution statements for scholarly publications.
 
-Add contributors, assign their 14 CRediT roles in an interactive matrix, and get a formatted
-statement ready to paste into a manuscript — plus a contribution heatmap and exports (JATS4R XML,
-CSV, JSON, Markdown) for journal submission systems.
+Add contributors, assign the 14 CRediT roles, and copy a manuscript-ready statement. It also
+produces a contribution heatmap and exports for journal submission systems: JATS4R XML, CSV, JSON,
+and Markdown.
 
 Inspired by the original
-[Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator).
+[Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator) and the
+contributorship tools and scholarship credited under [Acknowledgements](#acknowledgements).
 
-**Try it now:** [credit.duinlab.nl](https://credit.duinlab.nl) — no install required.
+**Try it:** [credit.duinlab.nl](https://credit.duinlab.nl)
 
 ![The CRediT Generator workspace: a contributors list and contribution matrix on the left, a live heatmap and exportable statement on the right](docs/screenshots/hero.png)
 
----
+## What it does
 
-## Features
-
-- **Contributors** — add, rename, reorder; paste an ORCID iD (or URL) to auto-fill the name
-- **Contribution matrix** — assign roles as a binary toggle or a granular level, with presets
-  (equal contribution, senior author, data-only), guarded by a confirmation before they overwrite
-- **Live statement** — three formats (by role, by author, short), with optional level annotations
-- **Multilingual output** — localize role names in the statement, Markdown table, and heatmap
-  (translations from [credit-translation](https://github.com/contributorshipcollaboration/credit-translation)).
-  Machine formats (XML/CSV/JSON) stay canonical English.
-- **Heatmap** — interactive preview plus SVG and PNG download, rendered in the browser
-- **Exports** — JATS4R XML, CSV, JSON, Markdown; copy or download
-- **Validation** — journal-style checks (authors with no roles, missing key roles)
-- **Shareable links** — encode the whole draft into a URL for a co-author
-- **Import** — paste names, or drop a JSON / CSV / JATS4R XML file to restore a session
+- **Contributors**: add, rename, reorder, and paste an ORCID iD or URL to look up the name
+- **Contribution matrix**: assign each role as a yes/no value or as a contribution level
+- **Presets**: apply common patterns like equal contribution, senior author, and data-only
+- **Statements**: render by role or by author, with full names or initials and optional level labels
+- **Localized output**: translate role names in statements, Markdown tables, and heatmaps (via
+  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation));
+  machine-readable exports keep canonical English CRediT terms
+- **Heatmap**: preview in the browser, download as SVG or PNG
+- **Exports**: copy or download JATS4R XML, CSV, JSON, and Markdown
+- **Validation**: flag contributors with no roles or missing key roles
+- **Sharing & import**: encode a draft in a URL, paste names, or import JSON, CSV, or JATS4R XML
+- **Accessible**: skip link, landmark regions, keyboard drag-to-reorder with screen-reader
+  announcements, and a reduced-motion fallback
 
 | First run | Statement & export |
 |---|---|
 | ![Empty first-run state inviting you to add a contributor, import, or load sample data](docs/screenshots/empty-state.png) | ![The contribution statement with format options, a copy-statement button, and a format picker offering copy or download](docs/screenshots/statement-export.png) |
 
----
-
-## Roadmap
-
-- **UI** improvements: add onboarding, better mobile layout, and clearer guidance on how to edit an authors roles
-- **UI localization** — output can be localized today, but the app chrome (~116 strings) is still
-  English-only. Full UI translation would mean `next-intl`, per-locale catalogs, locale routing, and RTL.
-- **More output languages** — [credit-translation](https://github.com/contributorshipcollaboration/credit-translation)
-  offers ~47 locales; a curated subset is vendored under
-  [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations). Refresh with
-  `node packages/core/scripts/fetch-credit-translations.mjs`.
-
----
-
 ## Architecture
-
-A single **Next.js** app plus one **pure domain package** ([`packages/core`](packages/core/README.md)).
 
 ```text
 Browser
@@ -67,16 +53,17 @@ Browser
        └─ /api/orcid  (route handler) ──→ pub.orcid.org    ← the only server-side call
 ```
 
-Nearly everything is a pure function in `packages/core`, so it runs client-side: statements, exports,
-the heatmap SVG (PNG via `<canvas>`), and XML import (native `DOMParser`). The one server call is the
-ORCID lookup — the ORCID public API sends no CORS headers — so it's a single Next.js route handler.
-`packages/core` stays framework-agnostic (only runtime dependency: `zod`).
+Nearly everything runs in the browser. [`packages/core`](packages/core/README.md) holds the domain
+logic: statements, exports, validation, XML import (native `DOMParser`), and the heatmap SVG, as
+pure TypeScript with one runtime dependency, `zod`. The PNG download is drawn from that same SVG on a
+`<canvas>`.
 
-**Contribution score model:** contributions are stored as a 0–100 integer (`score`), not a boolean,
-so the UI can offer a binary toggle or granular levels without changing the data model. See
-[`packages/core/README.md`](packages/core/README.md) for the score→level boundaries and full model.
+The one server-side call is the ORCID lookup. The ORCID public API sends no CORS headers, so
+`/api/orcid` proxies it through a small Next.js route handler. (`/health` backs uptime monitors.)
 
----
+Contributions persist as a 0-100 integer `score`, not a boolean, so the UI can switch between binary
+and level-based editing without changing the stored model — see
+[`packages/core/README.md`](packages/core/README.md#domain-model) for the score-to-level boundaries.
 
 ## Stack
 
@@ -84,48 +71,14 @@ so the UI can offer a binary toggle or granular levels without changing the data
 |---|---|---|
 | Workspace | pnpm workspaces | App at the root + a reusable `packages/core` library |
 | Language | TypeScript 6 (strict) | `noUncheckedIndexedAccess` on |
-| Frontend | Next.js 16 (App Router) | Deploys self-hosted or serverless |
+| Frontend | Next.js 16 (App Router) | Deploys to Cloudflare Workers |
 | Styling | Tailwind CSS v4 | Design tokens via `@theme`; no runtime CSS |
-| State | Zustand + immer + persist | Mutation-friendly store; survives refresh |
+| State | Zustand + immer + persist | Local app state, persisted to `localStorage` |
 | Validation | Zod | Runtime-safe schemas at trust boundaries |
 | Heatmap | @nivo/heatmap + hand-crafted SVG (`core`) | Interactive preview; one SVG source for download + canvas PNG |
-| Testing | Vitest (unit) + Playwright (e2e) | Fast ESM unit tests; browser happy-path coverage |
+| Testing | Vitest (unit) + Playwright (e2e) | Domain tests plus browser happy paths |
 | Linting | Biome | One tool for format + lint |
-| Deploy | Docker **or** Cloudflare Workers (OpenNext) | A portable container, or zero-ops serverless edge |
-
----
-
-## Repository structure
-
-```text
-credit-generator/               Next.js app at the repo root
-├── src/                        UI (components, store, /api/orcid route handler)
-├── e2e/                        Playwright happy-path tests
-├── open-next.config.ts         Cloudflare/OpenNext serverless adapter
-├── wrangler.jsonc              Cloudflare Worker config
-├── packages/core/              Pure, framework-agnostic domain logic (see its README)
-│   └── src/
-│       ├── credit-roles.ts        14 CRediT roles as a typed const
-│       ├── author.ts              Zod schemas; score → level helpers
-│       ├── parse-authors.ts       Name parsing + unique-initials logic
-│       ├── generate-statement.ts  3 statement formats
-│       ├── validate.ts            Journal-style contribution checks
-│       └── export/                JATS4R XML, CSV, JSON, Markdown, heatmap SVG
-├── justfile                    Dev commands (requires just)
-├── Dockerfile                  Multi-stage standalone build
-└── docker-compose.yml          Single-container run
-```
-
-### Server endpoints
-
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/orcid?id=…` | Proxy an ORCID public lookup (CORS workaround) |
-| GET | `/health` | Liveness check for Docker / load balancers |
-
-Everything else — statements, exports, heatmap — happens in the browser.
-
----
+| Deploy | Cloudflare Workers (OpenNext) | Zero-ops serverless edge |
 
 ## Quick start
 
@@ -138,55 +91,13 @@ pnpm install
 pnpm dev            # → http://localhost:3000
 ```
 
-### Useful commands
-
-```bash
-pnpm dev            # Next.js dev server (watch)
-pnpm build          # production build
-pnpm test           # unit tests
-pnpm typecheck      # TypeScript across all packages
-pnpm lint           # Biome lint (append :fix to auto-fix)
-pnpm test:e2e       # Playwright end-to-end tests
-just docker-up      # build + run the Docker stack
-```
-
-The `just` recipes wrap a few Docker/watch tasks on top of the pnpm scripts — run `just` to list them.
-
----
-
-## Testing
-
-```bash
-pnpm --filter @credit-generator/core test     # unit tests (Vitest)
-pnpm test:e2e                                  # browser happy paths (Playwright)
-```
-
-Unit tests cover the domain layer (parsing, statements, all exports, the heatmap SVG, validation).
-Playwright covers sample data, name import, the client-side XML download, and the share-link
-round-trip; it runs on manual dispatch or PRs labelled `e2e`. CI runs lint, typecheck, test, and
-build in parallel on every push and PR.
-
----
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full command list, dev workflow, and the
+lint/typecheck/test checklist. Run `just` to list the watch/fix recipes layered on the pnpm scripts.
 
 ## Deployment
 
-Two targets, sharing the framework-agnostic `packages/core`.
-
-### Self-host — Docker
-
-A multi-stage build packages the Next.js `output: "standalone"` server into a single container that
-serves everything, including the `/api/*` route handlers. No reverse proxy required.
-
-```bash
-docker compose up --build      # build + run on http://localhost:3000
-```
-
-Override the port with `PORT` (see [.env.example](.env.example)).
-
-### Serverless — Cloudflare Workers (OpenNext)
-
-[`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare) adapts the Next.js build to run on
-Cloudflare Workers — how the live demo is hosted.
+The live demo runs on Cloudflare Workers via
+[`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), which adapts the Next.js build.
 
 ```bash
 pnpm preview        # build + run the Worker locally
@@ -194,3 +105,51 @@ pnpm deploy         # build + deploy to Cloudflare
 ```
 
 Configured in [open-next.config.ts](open-next.config.ts) and [wrangler.jsonc](wrangler.jsonc).
+
+## Roadmap
+
+- **Localize the app UI.** Today only the output (statements, Markdown tables, heatmaps) uses the
+  bundled role translations; the interface itself is English-only.
+- **Widen locale coverage.** Only a curated subset of
+  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation) locales is
+  vendored under [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations);
+  refresh them with `node packages/core/scripts/fetch-credit-translations.mjs`.
+- **Smooth onboarding.** Better empty states and a gentler path from a blank workspace to a finished
+  statement.
+
+## Contributing
+
+Bug reports and small features are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
+testing, and the accessibility checks. Design decisions are recorded as [ADRs](docs/adr/).
+
+## Citing this software
+
+If you use the CRediT Generator in your work, please cite it. Metadata lives in
+[CITATION.cff](CITATION.cff), and GitHub's "Cite this repository" button generates APA and BibTeX from
+it. The archived, versioned release is on Zenodo: [doi:10.5281/zenodo.21212954](https://doi.org/10.5281/zenodo.21212954).
+
+> van Lierde, S. *CRediT Generator* [Computer software]. Zenodo. <https://doi.org/10.5281/zenodo.21212954>
+
+## Acknowledgements
+
+The CRediT Generator builds on prior tools and scholarship on contributorship:
+
+- The original [Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator),
+  which inspired this app.
+- Role translations from
+  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation).
+- The **contribution matrix** proposed by Nick Steinmetz (2019), the visual form this app's heatmap
+  descends from — as surveyed in *Nature Index*,
+  ["Researchers are embracing visual tools to give fair credit…"](https://www.nature.com/nature-index/news/researchers-embracing-visual-tools-contribution-matrix-give-fair-credit-authors-scientific-papers).
+
+### Related work
+
+- Brand, A., Allen, L., Altman, M., Hlava, M., & Scott, J. (2015). Beyond authorship: attribution,
+  contribution, collaboration, and credit. *Learned Publishing, 28*(2), 151–155.
+  <https://doi.org/10.1002/leap.1210>
+- Holcombe, A. O., Kovács, M., Aust, F., & Aczel, B. (2020). Documenting contributions to scholarly
+  articles using CRediT and tenzing. *PLOS ONE, 15*(12), e0244611.
+  <https://doi.org/10.1371/journal.pone.0244611>
+- Nakagawa, S., Ivimey-Cook, E. R., Grainger, M. J., O'Dea, R. E., et al. (2023). Method Reporting
+  with Initials for Transparency (MeRIT) promotes more granularity and accountability for author
+  contributions. *Nature Communications, 14*, 1788. <https://doi.org/10.1038/s41467-023-37039-1>

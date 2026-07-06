@@ -2,11 +2,13 @@
 
 import { ORCID_REGEX } from "@credit-generator/core";
 import {
+  type Announcements,
   closestCenter,
   DndContext,
   type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
+  type UniqueIdentifier,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -31,6 +33,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { announce } from "@/lib/announce";
 import { useContributionStore } from "@/store/contribution-store";
 
 const ORCID_EXTRACT_REGEX = /(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/i;
@@ -98,6 +101,20 @@ export function AuthorList() {
     if (from !== -1 && to !== -1) moveAuthor(from, to);
   }
 
+  // Announce reorder by contributor name; @dnd-kit's default announcements key
+  // off the opaque author id, which reads as meaningless to a screen reader.
+  const nameForId = (id: UniqueIdentifier) => authors.find((a) => a.id === id)?.name || "contributor";
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => `Picked up contributor ${nameForId(active.id)}.`,
+    onDragOver: ({ active, over }) =>
+      over ? `Contributor ${nameForId(active.id)} is over ${nameForId(over.id)}.` : undefined,
+    onDragEnd: ({ active, over }) =>
+      over
+        ? `Contributor ${nameForId(active.id)} was dropped onto ${nameForId(over.id)}.`
+        : `Reorder of ${nameForId(active.id)} was cancelled.`,
+    onDragCancel: ({ active }) => `Reorder of ${nameForId(active.id)} was cancelled.`,
+  };
+
   /** Add from the input: a bare ORCID seeds the row then fills its name from ORCID. */
   async function handleAdd() {
     const trimmed = newName.trim();
@@ -114,6 +131,7 @@ export function AuthorList() {
         // No junk author named after the iD survives a failed lookup.
         removeAuthor(newId);
         setAddError(result.error);
+        announce(result.error, { assertive: true });
         setNewName(orcid);
       } else {
         updateAuthorName(newId, result.displayName);
@@ -154,7 +172,12 @@ export function AuthorList() {
         </div>
       )}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+        accessibility={{ announcements }}
+      >
         <SortableContext items={authors.map((a) => a.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
             {authors.map((author, index) => (
@@ -210,6 +233,14 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
   // blur doesn't re-apply the iD.
   const [editingOrcid, setEditingOrcid] = useState(false);
   const committedRef = useRef(false);
+  // Guard against setState after the row unmounts mid-lookup (delete/reorder).
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
 
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: author?.id ?? index,
@@ -238,11 +269,15 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
     setLookupError(null);
     setLookedUp(null);
     const result = await fetchOrcidName(orcid);
+    if (!mounted.current) return;
     setLoading(false);
-    if ("error" in result) setLookupError(result.error);
-    else {
+    if ("error" in result) {
+      setLookupError(result.error);
+      announce(`ORCID lookup failed: ${result.error}`, { assertive: true });
+    } else {
       updateAuthorName(authorId, result.displayName);
       setLookedUp(orcid);
+      announce(`Name updated from ORCID: ${result.displayName}`);
     }
   }
 
@@ -277,6 +312,7 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: the colored badge below is the keyboard-accessible selector; the row click is a pointer-only convenience.
     // biome-ignore lint/a11y/noStaticElementInteractions: same as above.
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: same as above.
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
@@ -350,7 +386,13 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
               >
                 <Fingerprint className="h-3 w-3" />
                 {orcidValue}
-                {!orcidValid && <span className="text-error">✗</span>}
+                {!orcidValid && (
+                  <span className="text-error">
+                    <span aria-hidden="true">✗</span>
+                    <span className="sr-only">(invalid ORCID iD)</span>
+                  </span>
+                )}
+                <span className="sr-only">(opens in new tab)</span>
               </a>
               {orcidValid && lookedUp !== orcidValue && (
                 <button

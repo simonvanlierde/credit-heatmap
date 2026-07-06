@@ -10,6 +10,9 @@
 // translators (ORCIDs) for attribution. Confirm reuse terms with the
 // maintainers before redistributing.
 
+// biome-ignore-all lint/correctness/noNodejsModules: Node build script, not client code.
+// biome-ignore-all lint/suspicious/noConsole: console is the script's progress output.
+
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

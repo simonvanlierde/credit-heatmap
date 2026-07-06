@@ -10,7 +10,7 @@ describe("round-trip exports", () => {
     const authors = parseAuthorText("Jane Smith\nBob White");
     // set some scores and an ORCID
     const [jane, bob] = authors;
-    if (!jane || !bob) throw new Error("expected 2 authors");
+    if (!(jane && bob)) throw new Error("expected 2 authors");
 
     const jc0 = jane.contributions[0];
     if (!jc0) throw new Error("expected contribution 0 for jane");

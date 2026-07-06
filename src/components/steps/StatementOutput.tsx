@@ -100,12 +100,20 @@ export function StatementOutput() {
           />
           <div className="flex flex-wrap items-center gap-4">
             <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-              <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label="Use initials instead of names" />
+              <Switch
+                checked={acronyms}
+                onCheckedChange={setAcronyms}
+                aria-label="Acronyms — use initials instead of names"
+              />
               Acronyms
             </span>
             {canShowLevels && (
               <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-                <Switch checked={showLevels} onCheckedChange={setShowLevels} aria-label="Show contribution levels" />
+                <Switch
+                  checked={showLevels}
+                  onCheckedChange={setShowLevels}
+                  aria-label="Show levels — annotate roles with contribution levels"
+                />
                 Show levels
               </span>
             )}
@@ -114,7 +122,7 @@ export function StatementOutput() {
                 <Switch
                   checked={separateAck}
                   onCheckedChange={setSeparateAck}
-                  aria-label="Credit non-author contributors on a separate Acknowledgements line"
+                  aria-label="Separate acknowledgements — credit non-author contributors on their own line"
                 />
                 Separate acknowledgements
               </span>
@@ -137,9 +145,9 @@ export function StatementOutput() {
         )}
       </div>
 
-      {/* Validation notices */}
+      {/* Validation notices — a live region so changes are announced as authors edit. */}
       {issues.length > 0 && (
-        <ul className="relative z-10 flex flex-col gap-1.5" aria-label="Statement checks">
+        <ul className="relative z-10 flex flex-col gap-1.5" aria-label="Statement checks" aria-live="polite">
           {issues.map((issue) => (
             <li
               key={issue.message}
@@ -160,11 +168,7 @@ export function StatementOutput() {
         </ul>
       )}
 
-      <span className="sr-only" role="status" aria-live="polite">
-        {copyStatus === "copied" ? "Copied to clipboard" : copyStatus === "error" ? "Copy failed" : ""}
-      </span>
-
-      {/* Primary action: copy the prose statement */}
+      {/* Primary action: copy the prose statement (copy result is announced via the global live region). */}
       <div className="relative z-10 flex flex-col gap-4">
         <button
           type="button"

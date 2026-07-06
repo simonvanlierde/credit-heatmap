@@ -18,11 +18,37 @@
     "lineWidth": 120
   },
   "linter": {
-    "enabled": true
-  },
-  "vcs": {
+    "domains": {
+      "next": "recommended",
+      "playwright": "recommended",
+      "project": "recommended",
+      "react": "recommended",
+      "test": "recommended"
+    },
     "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "a11y": "on",
+      "correctness": "on",
+      "security": "on",
+      "suspicious": "on"
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
+      "linter": {
+        "rules": {
+          "security": {
+            "noSecrets": "off"
+          }
+        }
+      }
+    }
+  ],
+  "vcs": {
     "clientKind": "git",
+    "enabled": true,
     "useIgnoreFile": true
   }
 }

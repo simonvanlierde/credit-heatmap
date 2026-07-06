@@ -1,6 +1,6 @@
 {
   "name": "@credit-generator/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "exports": {
@@ -22,7 +22,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^26.0.1",
+    "@types/node": "^26.0.0",
     "@vitest/coverage-v8": "^4.1.9",
     "vitest": "^4.1.9",
     "linkedom": "^0.18.12"

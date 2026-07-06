@@ -228,7 +228,7 @@ body {
 }
 
 /* Respect users who prefer reduced motion: neutralize transitions/animations
-   (Radix dialog/select zoom-fade, heatmap, hover color shifts). */
+   (Radix select/popover zoom-fade, heatmap, hover color shifts). */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

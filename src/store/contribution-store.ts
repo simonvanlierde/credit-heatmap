@@ -4,7 +4,7 @@ import {
   createAuthor,
   DEFAULT_MONO_COLOR,
   deduplicateAuthorInitials,
-  ORCID_INPUT_REGEX,
+  isValidOrcid,
   parseAuthorText,
 } from "@credit-generator/core";
 import { create } from "zustand";
@@ -175,7 +175,7 @@ export const useContributionStore = create<ContributionState>()(
           const index = findAuthorIndex(state.authors, authorId);
           const currentAuthor = state.authors[index];
           const trimmed = name.trim();
-          if (!currentAuthor || !trimmed) return;
+          if (!(currentAuthor && trimmed)) return;
           state.authors[index] = createAuthor(trimmed, {
             id: currentAuthor.id,
             orcid: currentAuthor.orcid,
@@ -193,7 +193,7 @@ export const useContributionStore = create<ContributionState>()(
           const trimmed = orcid.trim();
           // Reject invalid values: an unvalidated iD here would make the next
           // normalizeAuthors() -> createAuthor() throw inside this reducer.
-          if (trimmed && !ORCID_INPUT_REGEX.test(trimmed)) return;
+          if (trimmed && !isValidOrcid(trimmed)) return;
           author.orcid = trimmed || undefined;
         }),
 
@@ -254,6 +254,11 @@ export const useContributionStore = create<ContributionState>()(
     {
       name: "credit-generator-state",
       version: 2,
+      // Don't read localStorage during store creation: the server renders the
+      // empty initial state, so a synchronous rehydrate here would desync the
+      // first client render (hydration mismatch). A client effect calls
+      // rehydrate() after mount instead — see HeaderActions.
+      skipHydration: true,
       // v0 persisted a now-removed "slider" input mode; fold it into "levels".
       // (The now-removed heatmapColorMode is simply ignored if present.)
       migrate: (persisted) => {

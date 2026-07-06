@@ -16,7 +16,7 @@ export function AboutPopover() {
           About
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="max-w-xs text-sm text-on-surface-variant">
+      <PopoverContent align="start" className="max-w-xs space-y-2 text-sm text-on-surface-variant">
         <p>
           A tool for building CRediT author contribution statements, inspired by the original{" "}
           <a
@@ -27,8 +27,23 @@ export function AboutPopover() {
           >
             Python/Dash CRediT Generator
             <ExternalLink className="size-3" aria-hidden="true" />
+            <span className="sr-only">(opens in new tab)</span>
           </a>
           .
+        </p>
+        <p className="text-xs">
+          Output translations by{" "}
+          <a
+            href="https://github.com/contributorshipcollaboration/credit-translation"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-0.5 text-primary hover:underline"
+          >
+            credit-translation contributors
+            <ExternalLink className="size-3" aria-hidden="true" />
+            <span className="sr-only">(opens in new tab)</span>
+          </a>
+          , CC BY 4.0.
         </p>
       </PopoverContent>
     </Popover>

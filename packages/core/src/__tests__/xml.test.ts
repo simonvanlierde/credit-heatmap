@@ -63,11 +63,22 @@ describe("toJats4rXml", () => {
 
   it('tags non-author contributors with contrib-type="contributor"', () => {
     const [jane, bob] = parseAuthorText("Jane Smith\nBob White");
-    if (!jane || !bob) throw new Error("expected 2 authors");
+    if (!(jane && bob)) throw new Error("expected 2 authors");
     bob.contributorType = "non-author";
 
     const xml = toJats4rXml([jane, bob]);
     expect(xml).toContain('<contrib contrib-type="author">');
     expect(xml).toContain('<contrib contrib-type="contributor">');
+  });
+
+  it("skips a nameless contrib (e.g. a <collab> group) instead of aborting the import", () => {
+    const xml = `<article><contrib-group>
+      <contrib contrib-type="author"><name><surname>Smith</surname><given-names>Jane</given-names></name></contrib>
+      <contrib contrib-type="author"><collab>The Working Group</collab></contrib>
+    </contrib-group></article>`;
+
+    const parsed = fromJats4rXml(xml);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.name).toBe("Jane Smith");
   });
 });

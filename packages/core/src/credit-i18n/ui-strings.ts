@@ -64,7 +64,9 @@ export async function loadUiCatalog(locale: string): Promise<UiCatalog | null> {
  */
 export function makeUiTranslator(catalog: UiCatalog | null | undefined): UiTranslator {
   if (!catalog) return (key) => EN_UI[key];
-  return (key) => catalog[key] ?? EN_UI[key];
+  // `||` (not `??`) so an empty-string override also falls back to English
+  // rather than rendering a blank label.
+  return (key) => catalog[key] || EN_UI[key];
 }
 
 /** Canonical English UI translator (no catalog) — the default for all consumers. */

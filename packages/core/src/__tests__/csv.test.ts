@@ -6,11 +6,11 @@ describe("CSV import/export", () => {
   it("round-trips authors and contribution scores", () => {
     const authors = parseAuthorText("Jane Smith\nBob White");
     const [jane, bob] = authors;
-    if (!jane || !bob) throw new Error("expected 2 authors");
+    if (!(jane && bob)) throw new Error("expected 2 authors");
 
     const janeConceptualization = jane.contributions[0];
     const bobInvestigation = bob.contributions[4];
-    if (!janeConceptualization || !bobInvestigation) throw new Error("expected contributions");
+    if (!(janeConceptualization && bobInvestigation)) throw new Error("expected contributions");
 
     jane.orcid = "0000-0000-0000-0001";
     janeConceptualization.score = 100;
@@ -27,7 +27,7 @@ describe("CSV import/export", () => {
 
   it("round-trips the author / non-author contributor type", () => {
     const [jane, bob] = parseAuthorText("Jane Smith\nBob White");
-    if (!jane || !bob) throw new Error("expected 2 authors");
+    if (!(jane && bob)) throw new Error("expected 2 authors");
     bob.contributorType = "non-author";
 
     const parsed = fromCsv(toCsv([jane, bob]));
@@ -51,5 +51,32 @@ describe("CSV import/export", () => {
     const parsed = fromCsv(csv);
     expect(parsed[0]?.name).toBe("=HYPERLINK Evil");
     expect(parsed[1]?.name).toBe("@SUM Attack");
+  });
+
+  it("round-trips a quoted field containing a newline", () => {
+    // A name with an embedded newline must survive quoting on export and the
+    // quote-aware record parser on import (a naive line-split would tear it).
+    const [author] = parseAuthorText("Jane Smith");
+    if (!author) throw new Error("expected author");
+    author.name = "Jane\nSmith";
+
+    const parsed = fromCsv(toCsv([author]));
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.name).toBe("Jane\nSmith");
+  });
+
+  it("parses escaped quotes and commas inside a quoted field", () => {
+    // RFC-4180: `""` is a literal quote and a comma inside quotes is data, not a
+    // column break. The score column must still land at 100.
+    const parsed = fromCsv(`Name,Conceptualization\n"Jane ""JS"", Smith",100`);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.name).toBe('Jane "JS", Smith'); // field reassembled verbatim, comma not treated as a column break
+    expect(parsed[0]?.contributions[0]?.score).toBe(100);
+  });
+
+  it("rounds a fractional score cell to an integer", () => {
+    const csv = `Name,Conceptualization\nJane Smith,50.5`;
+    const parsed = fromCsv(csv);
+    expect(parsed[0]?.contributions[0]?.score).toBe(51);
   });
 });

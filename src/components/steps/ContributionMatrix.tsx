@@ -4,6 +4,7 @@ import {
   type Author,
   buildHeatmapSvg,
   CREDIT_ROLES,
+  heatCellColor,
   isAllBinary,
   rolesWithContributions,
   scoreToLevel,
@@ -15,11 +16,11 @@ import { CheckCheck, Columns3, Download, Eraser, Info, Rows3, UserSearch } from 
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { ColorPopover } from "@/components/ui/color-popover";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { heatCellColor } from "@/lib/contributor-color";
+import { announce } from "@/lib/announce";
 import { useOutputTranslators } from "@/lib/use-output-translators";
 import { download as downloadBlob } from "@/lib/utils";
 import { type InputMode, useContributionStore } from "@/store/contribution-store";
@@ -128,8 +129,8 @@ export function RoleAssignment() {
             >
               <div className="flex flex-1 items-center gap-1.5 min-w-0">
                 <span className="text-sm font-medium text-on-surface truncate">{role.name}</span>
-                <HoverCard openDelay={120} closeDelay={80}>
-                  <HoverCardTrigger asChild>
+                <Popover>
+                  <PopoverTrigger asChild>
                     <button
                       type="button"
                       aria-label={`About ${role.name}`}
@@ -137,11 +138,11 @@ export function RoleAssignment() {
                     >
                       <Info className="h-3.5 w-3.5" />
                     </button>
-                  </HoverCardTrigger>
-                  <HoverCardContent>
+                  </PopoverTrigger>
+                  <PopoverContent className="max-w-xs text-xs leading-relaxed text-on-surface-variant">
                     <strong className="text-on-surface">{role.name}.</strong> {role.description}
-                  </HoverCardContent>
-                </HoverCard>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Fixed-height slot so rows don't resize when switching Binary ⇄ Levels. */}
@@ -517,12 +518,20 @@ function HeatmapControls({
         {transpose ? <Columns3 className="h-3.5 w-3.5" /> : <Rows3 className="h-3.5 w-3.5" />}
       </button>
       <span className="flex items-center gap-1.5 text-[11px] text-on-surface-variant">
-        <Switch checked={acronyms} onCheckedChange={onAcronymsChange} aria-label="Label axis with initials" />
+        <Switch
+          checked={acronyms}
+          onCheckedChange={onAcronymsChange}
+          aria-label="Acronyms — label axes with initials"
+        />
         Acronyms
       </span>
       {canShowLevels && (
         <span className="flex items-center gap-1.5 text-[11px] text-on-surface-variant">
-          <Switch checked={showLevels} onCheckedChange={onShowLevelsChange} aria-label="Show contribution levels" />
+          <Switch
+            checked={showLevels}
+            onCheckedChange={onShowLevelsChange}
+            aria-label="Show levels — show contribution levels"
+          />
           Show levels
         </span>
       )}
@@ -566,7 +575,9 @@ function HeatmapExports({
         downloadBlob(await svgToPngBlob(svg), "credit-heatmap.png");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Export failed");
+      const message = err instanceof Error ? err.message : "Export failed";
+      setError(message);
+      announce(`Heatmap export failed: ${message}`, { assertive: true });
     } finally {
       setLoading(null);
     }

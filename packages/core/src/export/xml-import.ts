@@ -1,4 +1,5 @@
 import type { Author, Contribution } from "../author.js";
+import { isValidOrcid } from "../author.js";
 import { CREDIT_ROLES } from "../credit-roles.js";
 import { createAuthor, deduplicateAuthorInitials } from "../parse-authors.js";
 
@@ -39,10 +40,10 @@ export function fromJats4rXml(xmlString: string): Author[] {
 export function fromXmlDocument(doc: Document): Author[] {
   const roleNames = new Set<string>(CREDIT_ROLES.map((r) => r.name));
 
-  const contributions = Array.from(doc.querySelectorAll("contrib"));
-  if (contributions.length === 0) return [];
+  const contribEls = Array.from(doc.querySelectorAll("contrib"));
+  if (contribEls.length === 0) return [];
 
-  const authors = contributions.map((contrib) => {
+  const authors = contribEls.flatMap((contrib) => {
     const givenNamesEl = contrib.querySelector("given-names");
     const surnameEl = contrib.querySelector("surname");
 
@@ -50,6 +51,9 @@ export function fromXmlDocument(doc: Document): Author[] {
     const surname = surnameEl?.textContent?.trim() ?? "";
 
     const displayName = [givenNames, surname].filter(Boolean).join(" ");
+    // Skip nameless contribs (e.g. a <collab> group, or a malformed entry)
+    // rather than throwing and discarding every other valid author.
+    if (!displayName) return [];
 
     // Parse role elements — `vocab-term` attribute is authoritative; fall back to text content
     const roleEls = Array.from(contrib.querySelectorAll("role"));
@@ -68,13 +72,17 @@ export function fromXmlDocument(doc: Document): Author[] {
     }));
 
     // Try to read ORCID from an `<contrib-id contrib-id-type="orcid">` element
+    // biome-ignore lint/security/noSecrets: this is a CSS attribute selector, not a credential.
     const orcidEl = contrib.querySelector('contrib-id[contrib-id-type="orcid"]');
     const orcid = orcidEl?.textContent?.trim() ?? "";
 
-    return createAuthor(displayName, {
-      contributions,
-      ...(orcid ? { orcid } : {}),
-    });
+    return [
+      createAuthor(displayName, {
+        contributions,
+        // Drop an unparseable ORCID rather than aborting the whole import.
+        ...(orcid && isValidOrcid(orcid) ? { orcid } : {}),
+      }),
+    ];
   });
 
   return deduplicateAuthorInitials(authors);
