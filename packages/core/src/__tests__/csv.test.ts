@@ -6,11 +6,11 @@ describe("CSV import/export", () => {
   it("round-trips authors and contribution scores", () => {
     const authors = parseAuthorText("Jane Smith\nBob White");
     const [jane, bob] = authors;
-    if (!jane || !bob) throw new Error("expected 2 authors");
+    if (!(jane && bob)) throw new Error("expected 2 authors");
 
     const janeConceptualization = jane.contributions[0];
     const bobInvestigation = bob.contributions[4];
-    if (!janeConceptualization || !bobInvestigation) throw new Error("expected contributions");
+    if (!(janeConceptualization && bobInvestigation)) throw new Error("expected contributions");
 
     jane.orcid = "0000-0000-0000-0001";
     janeConceptualization.score = 100;
@@ -27,7 +27,7 @@ describe("CSV import/export", () => {
 
   it("round-trips the author / non-author contributor type", () => {
     const [jane, bob] = parseAuthorText("Jane Smith\nBob White");
-    if (!jane || !bob) throw new Error("expected 2 authors");
+    if (!(jane && bob)) throw new Error("expected 2 authors");
     bob.contributorType = "non-author";
 
     const parsed = fromCsv(toCsv([jane, bob]));

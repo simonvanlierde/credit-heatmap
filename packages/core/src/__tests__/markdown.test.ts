@@ -6,10 +6,10 @@ describe("toMarkdown", () => {
   it("renders a contributor → roles table with level annotations", () => {
     const authors = parseAuthorText("Jane Smith\nBob White");
     const [jane, bob] = authors;
-    if (!jane || !bob) throw new Error("expected 2 authors");
+    if (!(jane && bob)) throw new Error("expected 2 authors");
     const conc = jane.contributions.find((c) => c.role === "Conceptualization");
     const meth = jane.contributions.find((c) => c.role === "Methodology");
-    if (!conc || !meth) throw new Error("expected contributions");
+    if (!(conc && meth)) throw new Error("expected contributions");
     conc.score = 100; // lead → no annotation
     meth.score = 50; // equal → annotated
 

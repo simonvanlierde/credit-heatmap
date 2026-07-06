@@ -175,7 +175,7 @@ export const useContributionStore = create<ContributionState>()(
           const index = findAuthorIndex(state.authors, authorId);
           const currentAuthor = state.authors[index];
           const trimmed = name.trim();
-          if (!currentAuthor || !trimmed) return;
+          if (!(currentAuthor && trimmed)) return;
           state.authors[index] = createAuthor(trimmed, {
             id: currentAuthor.id,
             orcid: currentAuthor.orcid,

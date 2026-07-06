@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id") ?? "";
 
   // Require bare format (so the upstream URL is well-formed) and a valid checksum.
-  if (!ORCID_REGEX.test(id) || !isValidOrcid(id)) {
+  if (!(ORCID_REGEX.test(id) && isValidOrcid(id))) {
     return NextResponse.json({ error: "Invalid ORCID iD format" }, { status: 400 });
   }
 

@@ -63,7 +63,7 @@ describe("toJats4rXml", () => {
 
   it('tags non-author contributors with contrib-type="contributor"', () => {
     const [jane, bob] = parseAuthorText("Jane Smith\nBob White");
-    if (!jane || !bob) throw new Error("expected 2 authors");
+    if (!(jane && bob)) throw new Error("expected 2 authors");
     bob.contributorType = "non-author";
 
     const xml = toJats4rXml([jane, bob]);

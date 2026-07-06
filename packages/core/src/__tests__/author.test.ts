@@ -56,7 +56,7 @@ describe("hasContributions / activeContributions", () => {
     if (!author) throw new Error("expected author");
     const first = author.contributions[0];
     const third = author.contributions[2];
-    if (!first || !third) throw new Error("expected contributions");
+    if (!(first && third)) throw new Error("expected contributions");
     first.score = 100;
     third.score = 40;
 

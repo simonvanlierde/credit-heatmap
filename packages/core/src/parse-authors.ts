@@ -67,7 +67,7 @@ export function createAuthor(
 ): Author {
   const { firstName, middleName, surname } = parseNameParts(name);
 
-  if (!firstName && !middleName && !surname) {
+  if (!(firstName || middleName || surname)) {
     throw new Error("Author name must contain at least one letter.");
   }
 
