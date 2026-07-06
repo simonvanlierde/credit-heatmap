@@ -84,6 +84,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Persist Next.js' incremental build cache (.next/cache) across runs so
+      # rebuilds are faster. Keyed on lockfile + source; falls back to the last
+      # cache for the same deps when only source changed.
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('**/*.{js,jsx,ts,tsx}') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+
       # Build the actual artifact that ships (Cloudflare Workers bundle via
       # OpenNext), not just `next build`, so worker-bundling failures surface in CI.
       - name: Build
