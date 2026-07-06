@@ -40,10 +40,10 @@ export function fromJats4rXml(xmlString: string): Author[] {
 export function fromXmlDocument(doc: Document): Author[] {
   const roleNames = new Set<string>(CREDIT_ROLES.map((r) => r.name));
 
-  const contributions = Array.from(doc.querySelectorAll("contrib"));
-  if (contributions.length === 0) return [];
+  const contribEls = Array.from(doc.querySelectorAll("contrib"));
+  if (contribEls.length === 0) return [];
 
-  const authors = contributions.flatMap((contrib) => {
+  const authors = contribEls.flatMap((contrib) => {
     const givenNamesEl = contrib.querySelector("given-names");
     const surnameEl = contrib.querySelector("surname");
 
@@ -72,6 +72,7 @@ export function fromXmlDocument(doc: Document): Author[] {
     }));
 
     // Try to read ORCID from an `<contrib-id contrib-id-type="orcid">` element
+    // biome-ignore lint/security/noSecrets: this is a CSS attribute selector, not a credential.
     const orcidEl = contrib.querySelector('contrib-id[contrib-id-type="orcid"]');
     const orcid = orcidEl?.textContent?.trim() ?? "";
 

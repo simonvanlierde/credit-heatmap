@@ -312,6 +312,7 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: the colored badge below is the keyboard-accessible selector; the row click is a pointer-only convenience.
     // biome-ignore lint/a11y/noStaticElementInteractions: same as above.
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: same as above.
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}

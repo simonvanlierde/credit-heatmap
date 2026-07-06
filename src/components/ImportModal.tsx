@@ -104,7 +104,7 @@ export function ImportModal({ open, onImport, onClose }: Props) {
     e.target.value = "";
   }
 
-  async function handleImport() {
+  function handleImport() {
     setError(null);
     if (format === "unknown") return;
     try {
@@ -128,6 +128,7 @@ export function ImportModal({ open, onImport, onClose }: Props) {
   }
 
   return (
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: the onMouseDown closes the dialog on backdrop click; Escape and the Close button provide the accessible paths.
     <dialog
       ref={dialogRef}
       aria-labelledby="import-title"
@@ -167,6 +168,7 @@ export function ImportModal({ open, onImport, onClose }: Props) {
               Structured File Upload
             </p>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop is a mouse-only progressive enhancement; the Browse button + file input below provide the accessible path. */}
+            {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: same as above. */}
             <div
               onDragOver={handleFileDragOver}
               onDragLeave={() => setDragging(false)}

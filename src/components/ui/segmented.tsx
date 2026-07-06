@@ -37,7 +37,7 @@ export function SegmentedControl<T extends string>({
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const forward = event.key === "ArrowRight" || event.key === "ArrowDown";
     const back = event.key === "ArrowLeft" || event.key === "ArrowUp";
-    if (!forward && !back) return;
+    if (!(forward || back)) return;
     event.preventDefault();
     const current = options.findIndex((option) => option.value === value);
     const nextIndex = (current + (forward ? 1 : options.length - 1)) % options.length;
@@ -45,6 +45,7 @@ export function SegmentedControl<T extends string>({
     if (!next) return;
     onChange(next.value);
     // Roving tabindex: move focus to the newly selected radio.
+    // biome-ignore lint/security/noSecrets: this is a CSS attribute selector, not a credential.
     groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[nextIndex]?.focus();
   }
 
