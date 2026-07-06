@@ -14,6 +14,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - axe-core accessibility scans of the main screens in the Playwright suite.
 - `CITATION.cff`, a `CONTRIBUTING.md` guide, and the first architecture decision
   record (`docs/adr`).
+- Zenodo archival with a citable DOI ([10.5281/zenodo.21212954](https://doi.org/10.5281/zenodo.21212954)).
 
 ### Fixed
 
