@@ -5,7 +5,7 @@
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcredit.duinlab.nl)](https://credit.duinlab.nl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21212954.svg)](https://doi.org/10.5281/zenodo.21212954)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21213659.svg)](https://doi.org/10.5281/zenodo.21213659)
 
 A web app for drafting [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/)
 contribution statements for scholarly publications.
@@ -99,12 +99,20 @@ lint/typecheck/test checklist. Run `just` to list the watch/fix recipes layered 
 The live demo runs on Cloudflare Workers via
 [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), which adapts the Next.js build.
 
+**Pipeline:** push to `main` → Cloudflare
+[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) builds and deploys to
+[credit.duinlab.nl](https://credit.duinlab.nl). The trigger is configured in the Cloudflare
+dashboard (settings mirrored in [wrangler.jsonc](wrangler.jsonc)); non-`main` branches and PR
+previews are disabled. [CI](.github/workflows/ci.yml) only lints, tests, and build-checks.
+
+**Manual deploy** (needs Cloudflare credentials):
+
 ```bash
 pnpm preview        # build + run the Worker locally
 pnpm deploy         # build + deploy to Cloudflare
 ```
 
-Configured in [open-next.config.ts](open-next.config.ts) and [wrangler.jsonc](wrangler.jsonc).
+Config lives in [wrangler.jsonc](wrangler.jsonc) and [open-next.config.ts](open-next.config.ts).
 
 ## Roadmap
 
@@ -126,9 +134,9 @@ testing, and the accessibility checks. Design decisions are recorded as [ADRs](d
 
 If you use the CRediT Generator in your work, please cite it. Metadata lives in
 [CITATION.cff](CITATION.cff), and GitHub's "Cite this repository" button generates APA and BibTeX from
-it. The archived, versioned release is on Zenodo: [doi:10.5281/zenodo.21212954](https://doi.org/10.5281/zenodo.21212954).
+it. The archived, versioned release is on Zenodo: [doi:10.5281/zenodo.21213659](https://doi.org/10.5281/zenodo.21213659).
 
-> van Lierde, S. *CRediT Generator* [Computer software]. Zenodo. <https://doi.org/10.5281/zenodo.21212954>
+> van Lierde, S. *CRediT Generator* [Computer software]. Zenodo. <https://doi.org/10.5281/zenodo.21213659>
 
 ## Acknowledgements
 

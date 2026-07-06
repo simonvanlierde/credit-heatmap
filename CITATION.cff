@@ -22,7 +22,7 @@ keywords:
   - research software
   - ORCID
 version: "0.1.1"
-doi: "10.5281/zenodo.21212954"
+doi: "10.5281/zenodo.21213659"
 references:
   - type: software
     title: "CRediT-Generator"
