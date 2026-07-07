@@ -34,10 +34,10 @@ tuple also gives TypeScript the `CreditRoleName` union.
 
 `generateStatement(authors, options)` renders four formats:
 
-- **`by-role`** — `CRediT: Conceptualization: Jane Smith, Bob White; Software: Jane Smith; …`
-- **`by-role-short`** — same grouping as `by-role`, using initials
-- **`by-author`** — `CRediT: Jane Smith: Conceptualization, Software; …`
-- **`by-author-short`** — same grouping as `by-author`, using initials
+- **`by-role`**: `CRediT: Conceptualization: Jane Smith, Bob White; Software: Jane Smith; …`
+- **`by-role-short`**: same grouping as `by-role`, using initials
+- **`by-author`**: `CRediT: Jane Smith: Conceptualization, Software; …`
+- **`by-author-short`**: same grouping as `by-author`, using initials
 
 Useful options:
 
