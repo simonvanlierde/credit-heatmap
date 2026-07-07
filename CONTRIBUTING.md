@@ -5,7 +5,7 @@ features are welcome.
 
 ## Getting set up
 
-**Prerequisites:** Node ≥ 22, pnpm ≥ 9, and optionally
+**Prerequisites:** Node ≥ 26, pnpm ≥ 11, and optionally
 [just](https://github.com/casey/just).
 
 ```bash
