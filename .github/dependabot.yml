@@ -8,7 +8,9 @@ updates:
       interval: weekly
     groups:
       npm:
-        patterns: ["*"]
+        patterns: [ "*" ]
+    cooldown:
+      default-days: 3
 
   - package-ecosystem: github-actions
     directory: /
@@ -16,4 +18,6 @@ updates:
       interval: weekly
     groups:
       github-actions:
-        patterns: ["*"]
+        patterns: [ "*" ]
+    cooldown:
+      default-days: 3
