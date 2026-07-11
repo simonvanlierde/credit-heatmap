@@ -33,6 +33,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { StepHeader } from "@/components/ui/step-header";
 import { announce } from "@/lib/announce";
 import { useContributionStore } from "@/store/contribution-store";
 
@@ -83,6 +84,8 @@ export function AuthorList() {
     updateAuthorName,
     selectedAuthorId,
     setSelectedAuthor,
+    welcomeOpen,
+    welcomeSeen,
   } = useContributionStore();
 
   const [newName, setNewName] = useState("");
@@ -148,27 +151,27 @@ export function AuthorList() {
 
   return (
     <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-5 md:p-8">
-      <h2
-        className="flex items-center gap-2 text-2xl italic font-semibold text-primary mb-6"
-        style={{ fontFamily: "var(--font-headline)" }}
-      >
-        Contributors
-      </h2>
+      <StepHeader n={1} title="Contributors" className="mb-4" />
 
       {authors.length === 0 && (
         <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
           <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
           <p className="text-sm text-on-surface-variant">
-            No contributors yet. Add a name or ORCID below, use <strong>Import</strong> in the header, or
+            No contributors yet. Add a name or ORCID below, or use <strong>Import</strong> in the header.
           </p>
-          <button
-            type="button"
-            onClick={loadSample}
-            className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary hover:text-on-primary hover:border-primary transition-colors"
-          >
-            <Sparkles className="h-4 w-4" />
-            Load sample data
-          </button>
+          {/* Only for returning/dismissed users (welcomeSeen) with the card closed —
+              on a first run the welcome card owns this action, so the button is never
+              duplicated and never flashes during hydration before the card opens. */}
+          {welcomeSeen && !welcomeOpen && (
+            <button
+              type="button"
+              onClick={loadSample}
+              className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary hover:text-on-primary hover:border-primary transition-colors"
+            >
+              <Sparkles className="h-4 w-4" />
+              Load sample data
+            </button>
+          )}
         </div>
       )}
 

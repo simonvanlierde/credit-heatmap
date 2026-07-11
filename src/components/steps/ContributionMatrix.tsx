@@ -19,6 +19,7 @@ import { ColorPopover } from "@/components/ui/color-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StepHeader } from "@/components/ui/step-header";
 import { Switch } from "@/components/ui/switch";
 import { announce } from "@/lib/announce";
 import { useOutputTranslators } from "@/lib/use-output-translators";
@@ -61,9 +62,12 @@ export function RoleAssignment() {
 
   if (!author) {
     return (
-      <div className="bg-surface-bright rounded-lg border border-outline-variant/20 p-8 text-center">
-        <UserSearch className="h-8 w-8 text-outline-variant mb-3 mx-auto" />
-        <p className="text-sm text-on-surface-variant">Select a contributor above to assign their CRediT roles.</p>
+      <div className="bg-surface-bright rounded-lg border border-outline-variant/20 p-5 md:p-8">
+        <StepHeader n={2} title="Contribution Matrix" className="mb-4" />
+        <div className="py-4 text-center">
+          <UserSearch className="h-8 w-8 text-outline-variant mb-3 mx-auto" />
+          <p className="text-sm text-on-surface-variant">Select a contributor above to assign their CRediT roles.</p>
+        </div>
       </div>
     );
   }
@@ -73,9 +77,7 @@ export function RoleAssignment() {
       <div className="flex flex-col gap-3 mb-6">
         {/* Row 1: title + mode toggle */}
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-2xl italic font-semibold text-primary" style={{ fontFamily: "var(--font-headline)" }}>
-            Contribution Matrix
-          </h2>
+          <StepHeader n={2} title="Contribution Matrix" />
           <SegmentedControl
             ariaLabel="Role input mode"
             options={INPUT_MODE_OPTIONS}

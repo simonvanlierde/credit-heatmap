@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
 import { AboutPopover } from "@/components/AboutPopover";
 import { HeaderActions } from "@/components/HeaderActions";
+import { HowItWorks } from "@/components/HowItWorks";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -85,6 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <ExternalLink className="size-3" aria-hidden="true" />
                     <span className="sr-only">(opens in new tab)</span>
                   </a>
+                  <HowItWorks />
                   <AboutPopover />
                 </nav>
               </div>
