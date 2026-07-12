@@ -227,6 +227,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* First-run welcome card entrance — transform only (an opacity fade lets an
+   accessibility scan catch the card mid-transition at reduced contrast).
+   Neutralized by the reduced-motion block below. */
+@keyframes welcome-in {
+  from {
+    transform: translateY(-6px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 /* Respect users who prefer reduced motion: neutralize transitions/animations
    (Radix select/popover zoom-fade, heatmap, hover color shifts). */
 @media (prefers-reduced-motion: reduce) {

@@ -82,7 +82,7 @@ export function StatementOutput() {
 
   return (
     <div className="bg-surface-bright rounded-lg shadow-md border border-outline-variant/10 p-8 flex flex-col gap-6">
-      {/* Header */}
+      {/* Header — the statement continues the output side (Step 3, marked on the heatmap above). */}
       <div>
         <h3 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">
           Author Contribution Statement

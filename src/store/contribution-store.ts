@@ -20,6 +20,12 @@ interface ContributionState {
   heatmapMonoColor: string;
   /** Language for the generated statement + human-facing exports (role names only). */
   outputLocale: string;
+  /** Whether the first-run welcome has ever been shown. Persisted; only ever set
+   *  true, so returning users are never auto-greeted again. */
+  welcomeSeen: boolean;
+  /** Whether the welcome card is currently open. Ephemeral (not persisted), so a
+   *  "How it works" re-open never survives a reload as a fake first run. */
+  welcomeOpen: boolean;
   loadAuthors: (authors: Author[]) => void;
   loadSample: () => void;
   setAuthorsFromText: (text: string) => void;
@@ -35,6 +41,8 @@ interface ContributionState {
   setInputMode: (mode: InputMode) => void;
   setHeatmapMonoColor: (color: string) => void;
   setOutputLocale: (locale: string) => void;
+  openWelcome: () => void;
+  closeWelcome: () => void;
   reset: () => void;
 }
 
@@ -110,6 +118,8 @@ export const useContributionStore = create<ContributionState>()(
       inputMode: "toggle",
       heatmapMonoColor: DEFAULT_MONO_COLOR,
       outputLocale: "en",
+      welcomeSeen: false,
+      welcomeOpen: false,
 
       loadAuthors: (authors) =>
         set((state) => {
@@ -242,6 +252,20 @@ export const useContributionStore = create<ContributionState>()(
           state.outputLocale = locale;
         }),
 
+      // Open marks it seen too: once the card has been shown (first run or an
+      // explicit re-open), the user is never auto-greeted on a later visit.
+      openWelcome: () =>
+        set((state) => {
+          state.welcomeOpen = true;
+          state.welcomeSeen = true;
+        }),
+
+      closeWelcome: () =>
+        set((state) => {
+          state.welcomeOpen = false;
+          state.welcomeSeen = true;
+        }),
+
       reset: () =>
         set((state) => {
           state.authors = [];
@@ -253,7 +277,7 @@ export const useContributionStore = create<ContributionState>()(
     })),
     {
       name: "credit-generator-state",
-      version: 2,
+      version: 3,
       // Don't read localStorage during store creation: the server renders the
       // empty initial state, so a synchronous rehydrate here would desync the
       // first client render (hydration mismatch). A client effect calls
@@ -266,6 +290,11 @@ export const useContributionStore = create<ContributionState>()(
         if (state && (state.inputMode as string) === "slider") {
           state.inputMode = "levels";
         }
+        // Returning users have already used the app; don't greet them with the
+        // first-run welcome card.
+        if (state && state.welcomeSeen === undefined) {
+          state.welcomeSeen = true;
+        }
         return state as ContributionState;
       },
       // spell-checker: ignore partialize
@@ -275,6 +304,7 @@ export const useContributionStore = create<ContributionState>()(
         heatmapMonoColor: state.heatmapMonoColor,
         outputLocale: state.outputLocale,
         selectedAuthorId: state.selectedAuthorId,
+        welcomeSeen: state.welcomeSeen,
       }),
     },
   ),
