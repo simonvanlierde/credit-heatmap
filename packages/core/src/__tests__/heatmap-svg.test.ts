@@ -28,11 +28,12 @@ function expectedCellCount(authors: Author[]): number {
 }
 
 describe("buildHeatmapSvg", () => {
-  it("produces a self-contained SVG with title, role labels, initials, and legend", () => {
+  it("produces a self-contained SVG with role labels, initials, and legend (no title)", () => {
     const svg = buildHeatmapSvg(authorsWithScores());
     expect(svg.startsWith("<svg")).toBe(true);
     expect(svg.trimEnd().endsWith("</svg>")).toBe(true);
-    expect(svg).toContain("CRediT Contribution Heatmap");
+    // No baked-in image title — captions belong to the embedding document.
+    expect(svg).not.toContain("CRediT Contribution Heatmap");
     expect(svg).toContain("Conceptualization");
     expect(svg).toContain(">JS<"); // author initials
     expect(svg).toContain(">Lead<"); // legend label, no score range
@@ -59,7 +60,7 @@ describe("buildHeatmapSvg", () => {
     expect(svg).toContain("Software");
   });
 
-  it("renders a titled placeholder when there are no contributions", () => {
+  it("renders a placeholder when there are no contributions", () => {
     const authors = parseAuthorText("Alice Brown");
     const svg = buildHeatmapSvg(authors);
     expect(svg).toContain("No contributions assigned yet.");
@@ -93,10 +94,9 @@ describe("buildHeatmapSvg", () => {
     expect(svg).not.toContain('fill="#0072b2"'); // no per-author hue
   });
 
-  it("localizes the title and level legend via translateUi", () => {
-    const translateUi = makeUiTranslator({ heatmapTitle: "Carte des contributions", lead: "Principal" });
+  it("localizes the level legend via translateUi", () => {
+    const translateUi = makeUiTranslator({ lead: "Principal" });
     const svg = buildHeatmapSvg(authorsWithScores(), { translateUi });
-    expect(svg).toContain("Carte des contributions");
     expect(svg).toContain(">Principal<"); // localized legend label
     expect(svg).not.toContain(">Lead<");
   });
