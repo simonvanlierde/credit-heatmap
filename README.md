@@ -13,23 +13,24 @@ Add contributors, assign the 14 roles, and copy a manuscript-ready statement. It
 
 **Try it:** [credit.duinlab.nl](https://credit.duinlab.nl)
 
-![The CRediT Generator workspace: a contributors list and contribution matrix on the left, a live heatmap and exportable statement on the right](docs/screenshots/hero.png)
+![The CRediT Generator workspace: a contributors list beside an editable contribution grid, with the generated statement and export controls below](docs/screenshots/hero.png)
 
 ## What it does
 
-- **Contributors**: add, rename, reorder, and paste an ORCID iD or URL to look up the name
-- **Contribution matrix**: assign each role as a yes/no value or as a contribution level
+- **Contributors**: add, rename, reorder, paste a whole author list, or paste an ORCID iD or URL to look up the name
+- **Contribution grid**: click cells to assign the 14 roles as yes/no values or as contribution levels. The grid is
+  the heatmap — transpose it, swap initials for full names, and recolor it in place
 - **Statements**: render by role or by author, with full names or initials and optional level labels
 - **Localized output**: translate role names in statements, Markdown tables, and heatmaps (via
   [credit-translation](https://github.com/contributorshipcollaboration/credit-translation)). Machine-readable
   exports keep the canonical English CRediT terms
-- **Heatmap**: preview in the browser, download as SVG or PNG
+- **Heatmap**: download the grid as SVG or PNG
 - **Exports**: copy or download JATS4R XML, CSV, JSON, and Markdown
 - **Sharing & import**: encode a draft in a URL, paste names, or import JSON, CSV, or JATS4R XML
 
 | First run | Statement & export |
 |---|---|
-| ![Empty first-run state inviting you to add a contributor, import, or load sample data](docs/screenshots/empty-state.png) | ![The contribution statement with format options, a copy-statement button, and a format picker offering copy or download](docs/screenshots/statement-export.png) |
+| ![Empty first-run state with a getting-started card inviting you to add a contributor, import, or load sample data](docs/screenshots/empty-state.png) | ![The contribution statement with grouping and level options, a copy-statement button, and a format picker offering copy or download](docs/screenshots/statement-export.png) |
 
 ---
 
