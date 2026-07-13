@@ -45,6 +45,26 @@ function detectOrcid(text: string): string | null {
   return ORCID_REGEX.test(candidate) ? candidate : null;
 }
 
+/**
+ * Split typed or pasted text into contributor names. Newlines and semicolons
+ * always separate; commas only when every part looks like a full name (or an
+ * ORCID iD), so a single "Lastname, Firstname" entry is never split in two.
+ */
+function splitNames(text: string): string[] {
+  const lines = text
+    .split(/[\n;]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const parts = lines
+    .flatMap((line) => line.split(","))
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length > lines.length && parts.every((part) => /\s/.test(part) || detectOrcid(part))) {
+    return parts;
+  }
+  return lines;
+}
+
 interface OrcidLookupResult {
   firstName: string;
   surname: string;
@@ -75,18 +95,8 @@ async function fetchOrcidName(orcid: string): Promise<{ displayName: string } | 
 }
 
 export function AuthorList() {
-  const {
-    authors,
-    addAuthor,
-    loadSample,
-    moveAuthor,
-    removeAuthor,
-    updateAuthorName,
-    selectedAuthorId,
-    setSelectedAuthor,
-    welcomeOpen,
-    welcomeSeen,
-  } = useContributionStore();
+  const { authors, addAuthor, loadSample, moveAuthor, removeAuthor, updateAuthorName, welcomeOpen, welcomeSeen } =
+    useContributionStore();
 
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
@@ -118,26 +128,57 @@ export function AuthorList() {
     onDragCancel: ({ active }) => `Reorder of ${nameForId(active.id)} was cancelled.`,
   };
 
+  /** Seed a row from an ORCID iD, then fill its name from the registry. */
+  async function addOrcidAuthor(orcid: string): Promise<{ id: string | null; error: string | null }> {
+    addAuthor(orcid, orcid);
+    const id = useContributionStore.getState().authors.at(-1)?.id ?? null;
+    if (!id) return { id, error: null };
+    const result = await fetchOrcidName(orcid);
+    if ("error" in result) return { id, error: result.error };
+    updateAuthorName(id, result.displayName);
+    return { id, error: null };
+  }
+
+  /** Add several contributors at once; ORCID tokens fill their names via lookup. */
+  async function addMany(tokens: string[]) {
+    for (const token of tokens) {
+      const orcid = detectOrcid(token);
+      if (orcid) {
+        // Keep the row on a failed lookup (named after its iD) so one bad
+        // token doesn't silently vanish from a pasted list.
+        const { error } = await addOrcidAuthor(orcid);
+        if (error) {
+          setAddError(error);
+          announce(error, { assertive: true });
+        }
+      } else {
+        addAuthor(token);
+      }
+    }
+    announce(`Added ${tokens.length} contributors.`);
+  }
+
   /** Add from the input: a bare ORCID seeds the row then fills its name from ORCID. */
   async function handleAdd() {
     const trimmed = newName.trim();
     if (!trimmed) return;
     setAddError(null);
+    const tokens = splitNames(trimmed);
+    if (tokens.length > 1) {
+      setNewName("");
+      await addMany(tokens);
+      return;
+    }
     const orcid = detectOrcid(trimmed);
     if (orcid) {
-      addAuthor(orcid, orcid);
-      const newId = useContributionStore.getState().selectedAuthorId;
       setNewName("");
-      if (!newId) return;
-      const result = await fetchOrcidName(orcid);
-      if ("error" in result) {
+      const { id, error } = await addOrcidAuthor(orcid);
+      if (error) {
         // No junk author named after the iD survives a failed lookup.
-        removeAuthor(newId);
-        setAddError(result.error);
-        announce(result.error, { assertive: true });
+        if (id) removeAuthor(id);
+        setAddError(error);
+        announce(error, { assertive: true });
         setNewName(orcid);
-      } else {
-        updateAuthorName(newId, result.displayName);
       }
     } else {
       addAuthor(trimmed);
@@ -149,15 +190,24 @@ export function AuthorList() {
     if (event.key === "Enter") void handleAdd();
   }
 
+  /** Pasting a whole author list adds every name; single names paste normally. */
+  function handleAddPaste(event: React.ClipboardEvent<HTMLInputElement>) {
+    const tokens = splitNames(event.clipboardData.getData("text"));
+    if (tokens.length <= 1) return;
+    event.preventDefault();
+    setAddError(null);
+    void addMany(tokens);
+  }
+
   return (
-    <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-5 md:p-8">
-      <StepHeader n={1} title="Contributors" className="mb-4" />
+    <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-4 md:p-5">
+      <StepHeader n={1} title="Contributors" className="mb-3" />
 
       {authors.length === 0 && (
         <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
           <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
           <p className="text-sm text-on-surface-variant">
-            No contributors yet. Add a name or ORCID below, or use <strong>Import</strong> in the header.
+            No contributors yet. Add or paste names or an ORCID below, or use <strong>Import</strong> in the header.
           </p>
           {/* Only for returning/dismissed users (welcomeSeen) with the card closed —
               on a first run the welcome card owns this action, so the button is never
@@ -182,14 +232,9 @@ export function AuthorList() {
         accessibility={{ announcements }}
       >
         <SortableContext items={authors.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
+          <div className="space-y-1">
             {authors.map((author, index) => (
-              <AuthorRow
-                key={author.id}
-                index={index}
-                isSelected={selectedAuthorId === author.id}
-                onSelect={() => setSelectedAuthor(selectedAuthorId === author.id ? null : author.id)}
-              />
+              <AuthorRow key={author.id} index={index} />
             ))}
           </div>
         </SortableContext>
@@ -197,7 +242,7 @@ export function AuthorList() {
 
       {addError !== null && <p className="mt-4 -mb-2 text-xs text-error">{addError}</p>}
 
-      <div className="mt-4 flex gap-2 items-center">
+      <div className="mt-3 flex gap-2 items-center">
         <input
           type="text"
           value={newName}
@@ -206,9 +251,10 @@ export function AuthorList() {
             if (addError !== null) setAddError(null);
           }}
           onKeyDown={handleNewNameKeyDown}
-          placeholder="Add author name or ORCID iD…"
-          aria-label="New author name or ORCID iD"
-          className="flex-1 bg-surface-container-low border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none px-3 py-2 text-sm rounded-t text-on-surface placeholder-outline transition-colors"
+          onPaste={handleAddPaste}
+          placeholder="Add names or an ORCID iD…"
+          aria-label="New author names or ORCID iD"
+          className="flex-1 min-w-0 text-ellipsis bg-surface-container-low border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none px-3 py-2 text-sm rounded-t text-on-surface placeholder-outline transition-colors"
         />
         <button
           type="button"
@@ -225,7 +271,7 @@ export function AuthorList() {
 }
 
 /** A single draggable contributor row. ORCID UI state is local to the row. */
-function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected: boolean; onSelect: () => void }) {
+function AuthorRow({ index }: { index: number }) {
   const { authors, removeAuthor, updateAuthorName, updateAuthorOrcid, setAuthorType } = useContributionStore();
   const author = authors[index];
 
@@ -306,25 +352,13 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
     applyOrcid(orcid);
   }
 
-  /** Select the row when its background (not an input/button/link) is clicked. */
-  function handleRowClick(event: React.MouseEvent<HTMLDivElement>) {
-    if ((event.target as HTMLElement).closest("input, button, a")) return;
-    onSelect();
-  }
-
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: the colored badge below is the keyboard-accessible selector; the row click is a pointer-only convenience.
-    // biome-ignore lint/a11y/noStaticElementInteractions: same as above.
-    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: same as above.
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      onClick={handleRowClick}
-      className={`group flex items-center gap-2.5 p-3 rounded-lg border transition-colors duration-150 ${
-        isSelected
-          ? "bg-surface-container-low border-primary/40 ring-1 ring-primary/30"
-          : "cursor-pointer bg-surface border-transparent hover:bg-surface-container-low hover:border-outline-variant/30"
-      } ${isDragging ? "relative z-10 shadow-md" : ""}`}
+      className={`group flex items-center gap-2 rounded-lg border border-transparent px-2 py-1 hover:border-outline-variant/30 hover:bg-surface-container-low transition-colors duration-150 ${
+        isDragging ? "relative z-10 bg-surface shadow-md" : ""
+      }`}
     >
       <button
         type="button"
@@ -337,18 +371,12 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
         <GripVertical className="h-4 w-4" />
       </button>
 
-      <button
-        type="button"
-        onClick={onSelect}
-        aria-pressed={isSelected}
-        aria-label={`Edit roles for ${author.name}`}
-        title={`${author.name} — click to edit roles`}
-        className={`shrink-0 inline-flex items-center justify-center min-w-[2.5rem] h-7 px-2 rounded-md font-mono text-[11px] font-semibold bg-primary/10 text-primary transition-shadow ${
-          isSelected ? "ring-2 ring-primary ring-offset-1" : "hover:ring-2 hover:ring-primary/40"
-        }`}
+      <span
+        title={author.name}
+        className="shrink-0 inline-flex items-center justify-center min-w-[2.5rem] h-6 px-1.5 rounded-md font-mono text-[11px] font-semibold bg-primary/10 text-primary"
       >
         {author.initials}
-      </button>
+      </span>
 
       <div className="flex-1 min-w-0">
         <input
@@ -358,11 +386,11 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
           value={author.name}
           onChange={(event) => updateAuthorName(author.id, event.target.value)}
           onPaste={handleSmartPaste}
-          className="w-full bg-transparent border-none p-0 focus:ring-0 text-on-surface font-medium border-b border-primary/20 focus:border-primary outline-none text-sm"
+          className="w-full text-ellipsis bg-transparent border-none p-0 focus:ring-0 text-on-surface font-medium border-b border-primary/20 focus:border-primary outline-none text-sm"
         />
 
         {/* Meta row: contributor-type badge (always shown, click to swap) + ORCID. */}
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => setAuthorType(author.id, isNonAuthor ? "author" : "non-author")}
@@ -454,7 +482,7 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
             <button
               type="button"
               onClick={() => setEditingOrcid(true)}
-              className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-colors sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
             >
               <Plus className="h-3 w-3" />
               ORCID iD
@@ -463,22 +491,14 @@ function AuthorRow({ index, isSelected, onSelect }: { index: number; isSelected:
         </div>
       </div>
 
-      {/* Right cluster — vertically centered, aligned with the color badge. */}
-      <div className="shrink-0 flex items-center gap-1">
-        {isSelected && (
-          <span className="hidden sm:inline text-[10px] uppercase tracking-wider font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-            Editing
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={() => removeAuthor(author.id)}
-          className="flex items-center justify-center w-7 h-7 rounded text-on-surface-variant hover:text-error transition-colors"
-          aria-label={`Remove ${author.name}`}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => removeAuthor(author.id)}
+        className="shrink-0 flex items-center justify-center w-7 h-7 rounded text-on-surface-variant hover:text-error transition-colors"
+        aria-label={`Remove ${author.name}`}
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
     </div>
   );
 }

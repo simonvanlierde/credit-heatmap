@@ -1,32 +1,27 @@
 import { AuthorList } from "@/components/steps/AuthorInput";
-import { ContributionHeatmap, RoleAssignment } from "@/components/steps/ContributionMatrix";
+import { ContributionGrid } from "@/components/steps/ContributionGrid";
 import { StatementOutput } from "@/components/steps/StatementOutput";
-import { StepHeader } from "@/components/ui/step-header";
 import { WelcomeCard } from "@/components/WelcomeCard";
 
 export default function HomePage() {
   return (
     <>
       <WelcomeCard />
-      <div className="flex flex-col xl:flex-row gap-0 min-h-[calc(100vh-4rem)]">
-        {/* Left: author entry + role assignment for the selected author */}
-        <section
-          aria-label="Contributors and role assignment"
-          className="flex-1 max-w-3xl border-b xl:border-b-0 xl:border-r border-outline-variant/20 p-4 md:p-8 space-y-6 md:space-y-8"
-        >
+      {/* Steps 1–3 in DOM (and tab) order; on xl+ contributors and the grid
+          share the top row and the statement runs full-width below, so it is
+          never squeezed into a narrow column by a long contributor list. */}
+      <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] xl:items-start">
+        <section aria-label="Contributors">
           <AuthorList />
-          <RoleAssignment />
         </section>
 
-        {/* Right (Step 3): the tinted output region — heatmap + statement + export.
-            The step number heads the whole group, since one step spans both panels. */}
-        <aside aria-label="Review and export" className="flex-1 p-4 md:p-8 bg-surface-container-low/40">
-          <StepHeader n={3} title="Review & export" className="mb-4 md:mb-6" />
-          <div className="space-y-6 md:space-y-8">
-            <ContributionHeatmap />
-            <StatementOutput />
-          </div>
-        </aside>
+        <section aria-label="Contribution grid">
+          <ContributionGrid />
+        </section>
+
+        <section aria-label="Statement and export" className="xl:col-span-2">
+          <StatementOutput />
+        </section>
       </div>
     </>
   );
