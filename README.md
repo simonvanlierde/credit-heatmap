@@ -1,11 +1,11 @@
-# CRediT Generator
+# CRediT generator
 
 [![CI](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/simonvanlierde/credit-heatmap/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/credit-heatmap)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcredit.duinlab.nl)](https://credit.duinlab.nl)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.21213659-blue.svg)](https://doi.org/10.5281/zenodo.21213659)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21213659.svg)](https://doi.org/10.5281/zenodo.21213659)
 
 A web app for drafting [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) contribution statements for scholarly publications.
 
