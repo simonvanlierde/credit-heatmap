@@ -63,10 +63,14 @@ describe("generateStatement", () => {
     expect(stmt).toContain("Conceptualization (Supporting)");
   });
 
-  it("ignores showLevels for the by-role formats", () => {
-    const withLevels = generateStatement(makeAuthors(), { format: "by-role", showLevels: true });
-    const without = generateStatement(makeAuthors(), { format: "by-role" });
-    expect(withLevels).toBe(without);
+  it("appends level labels to contributor names in by-role formats when showLevels is set", () => {
+    const stmt = generateStatement(makeAuthors(), { format: "by-role", showLevels: true });
+    // Jane leads Conceptualization (no label); Bob supports it (labelled).
+    expect(stmt).toContain("Conceptualization: Jane Smith, Bob White (Supporting)");
+    expect(stmt).toContain("Software: Jane Smith (Equal)");
+    // Lead contributions stay unannotated.
+    expect(stmt).toContain("Investigation: Bob White");
+    expect(stmt).not.toContain("Investigation: Bob White (");
   });
 
   it("credits non-author contributors on a separate Acknowledgements line", () => {
