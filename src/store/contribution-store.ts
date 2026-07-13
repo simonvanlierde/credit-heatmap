@@ -241,12 +241,17 @@ export const useContributionStore = create<ContributionState>()(
           state.welcomeSeen = true;
         }),
 
+      // Clears the workspace, not the user's history: welcomeSeen stays true, so
+      // a reset doesn't stage a fake first run. The open card is dismissed with
+      // it — left up over an emptied workspace it would re-offer "Load sample
+      // data", quietly undoing the reset.
       reset: () =>
         set((state) => {
           state.authors = [];
           state.inputMode = "toggle";
           state.heatmapMonoColor = DEFAULT_MONO_COLOR;
           state.outputLocale = "en";
+          state.welcomeOpen = false;
         }),
     })),
     {

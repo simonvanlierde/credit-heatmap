@@ -1,5 +1,5 @@
 import type { Author, Contribution, ContributorType } from "./author.js";
-import { isValidOrcid } from "./author.js";
+import { isValidOrcid, ORCID_INPUT_REGEX } from "./author.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
 
 /**
@@ -132,6 +132,30 @@ export function deduplicateAuthorInitials(authors: Author[]): Author[] {
 
 export function parseAuthors(names: string[]): Author[] {
   return deduplicateAuthorInitials(names.map((name) => createAuthor(name)));
+}
+
+/**
+ * Split typed or pasted text into contributor name tokens. Newlines and
+ * semicolons always separate. Commas separate too, except for a lone
+ * "Lastname, Firstname" pair — a two-comma-part line whose second part is a
+ * single word (a given name or initials) — which stays one contributor.
+ */
+export function splitNameList(text: string): string[] {
+  return text
+    .split(/[\n;]+/)
+    .flatMap((line) => splitCommaLine(line))
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function splitCommaLine(line: string): string[] {
+  const parts = line
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const second = parts[1] ?? "";
+  const isInvertedName = parts.length === 2 && !/\s/.test(second) && !ORCID_INPUT_REGEX.test(second);
+  return isInvertedName ? [line] : parts;
 }
 
 /**

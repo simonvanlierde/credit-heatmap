@@ -1,6 +1,6 @@
 "use client";
 
-import { ORCID_REGEX } from "@credit-generator/core";
+import { ORCID_REGEX, splitNameList } from "@credit-generator/core";
 import {
   type Announcements,
   closestCenter,
@@ -43,26 +43,6 @@ const ORCID_EXTRACT_REGEX = /(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/i;
 function detectOrcid(text: string): string | null {
   const candidate = text.trim().match(ORCID_EXTRACT_REGEX)?.[1]?.toUpperCase() ?? "";
   return ORCID_REGEX.test(candidate) ? candidate : null;
-}
-
-/**
- * Split typed or pasted text into contributor names. Newlines and semicolons
- * always separate; commas only when every part looks like a full name (or an
- * ORCID iD), so a single "Lastname, Firstname" entry is never split in two.
- */
-function splitNames(text: string): string[] {
-  const lines = text
-    .split(/[\n;]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const parts = lines
-    .flatMap((line) => line.split(","))
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length > lines.length && parts.every((part) => /\s/.test(part) || detectOrcid(part))) {
-    return parts;
-  }
-  return lines;
 }
 
 interface OrcidLookupResult {
@@ -141,21 +121,28 @@ export function AuthorList() {
 
   /** Add several contributors at once; ORCID tokens fill their names via lookup. */
   async function addMany(tokens: string[]) {
+    const failed: string[] = [];
     for (const token of tokens) {
       const orcid = detectOrcid(token);
-      if (orcid) {
-        // Keep the row on a failed lookup (named after its iD) so one bad
-        // token doesn't silently vanish from a pasted list.
-        const { error } = await addOrcidAuthor(orcid);
-        if (error) {
-          setAddError(error);
-          announce(error, { assertive: true });
-        }
-      } else {
+      if (!orcid) {
         addAuthor(token);
+        continue;
       }
+      // Keep the row on a failed lookup (named after its iD) so one bad token
+      // doesn't silently vanish from a pasted list — but say which ones failed,
+      // so the rows still named after an iD aren't mistaken for real names.
+      const { error } = await addOrcidAuthor(orcid);
+      if (error) failed.push(orcid);
     }
-    announce(`Added ${tokens.length} contributors.`);
+
+    const added = `Added ${tokens.length} contributors.`;
+    if (failed.length === 0) {
+      announce(added);
+      return;
+    }
+    const message = `Could not look up ${failed.length} of ${tokens.length} ORCID iDs (${failed.join(", ")}). Those rows are named after their iD — rename them by hand.`;
+    setAddError(message);
+    announce(`${added} ${message}`, { assertive: true });
   }
 
   /** Add from the input: a bare ORCID seeds the row then fills its name from ORCID. */
@@ -163,7 +150,7 @@ export function AuthorList() {
     const trimmed = newName.trim();
     if (!trimmed) return;
     setAddError(null);
-    const tokens = splitNames(trimmed);
+    const tokens = splitNameList(trimmed);
     if (tokens.length > 1) {
       setNewName("");
       await addMany(tokens);
@@ -192,7 +179,7 @@ export function AuthorList() {
 
   /** Pasting a whole author list adds every name; single names paste normally. */
   function handleAddPaste(event: React.ClipboardEvent<HTMLInputElement>) {
-    const tokens = splitNames(event.clipboardData.getData("text"));
+    const tokens = splitNameList(event.clipboardData.getData("text"));
     if (tokens.length <= 1) return;
     event.preventDefault();
     setAddError(null);
@@ -482,7 +469,7 @@ function AuthorRow({ index }: { index: number }) {
             <button
               type="button"
               onClick={() => setEditingOrcid(true)}
-              className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-colors sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+              className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-[color,opacity] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
             >
               <Plus className="h-3 w-3" />
               ORCID iD

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createAuthor, deduplicateAuthorInitials, parseAuthorText, parseNameParts } from "../parse-authors.js";
+import {
+  createAuthor,
+  deduplicateAuthorInitials,
+  parseAuthorText,
+  parseNameParts,
+  splitNameList,
+} from "../parse-authors.js";
 
 describe("parseNameParts", () => {
   it("parses a three-part name", () => {
@@ -91,5 +97,34 @@ describe("parseAuthorText", () => {
     const authors = parseAuthorText("Alice Brown");
     expect(authors[0]?.contributions).toHaveLength(14);
     expect(authors[0]?.contributions.every((c) => c.score === 0)).toBe(true);
+  });
+});
+
+describe("splitNameList", () => {
+  it("splits on newlines, semicolons, and commas", () => {
+    expect(splitNameList("Alice Brown, Bob White; Carol Davis\nDan Evans")).toEqual([
+      "Alice Brown",
+      "Bob White",
+      "Carol Davis",
+      "Dan Evans",
+    ]);
+  });
+
+  it("keeps a lone 'Lastname, Firstname' pair as one contributor", () => {
+    expect(splitNameList("Curie, Marie")).toEqual(["Curie, Marie"]);
+    expect(splitNameList("Curie, M.")).toEqual(["Curie, M."]);
+    expect(splitNameList("Curie, Marie; Smith, Jane")).toEqual(["Curie, Marie", "Smith, Jane"]);
+  });
+
+  it("splits a list containing a mononym", () => {
+    expect(splitNameList("Marie Curie, Jane Smith, Cher")).toEqual(["Marie Curie", "Jane Smith", "Cher"]);
+  });
+
+  it("splits a name paired with an ORCID iD rather than reading it as an inverted name", () => {
+    expect(splitNameList("Jane Smith, 0000-0002-1825-0097")).toEqual(["Jane Smith", "0000-0002-1825-0097"]);
+  });
+
+  it("ignores empty entries and surrounding whitespace", () => {
+    expect(splitNameList("  Alice Brown ,, \n\n ; Bob White ")).toEqual(["Alice Brown", "Bob White"]);
   });
 });
