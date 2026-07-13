@@ -1,8 +1,11 @@
 "use client";
 
+import process from "node:process";
 import { Code, ExternalLink, Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import packageJson from "../../package.json";
+
+// Inlined at build time from package.json — see next.config.ts.
+const VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
 
 export function AboutPopover() {
   return (
@@ -20,8 +23,7 @@ export function AboutPopover() {
       <PopoverContent align="start" className="max-w-xs space-y-3 text-sm text-on-surface-variant">
         <div>
           <p className="font-semibold text-on-surface">
-            CRediT Generator{" "}
-            <span className="font-mono text-xs font-normal text-on-surface-variant">v{packageJson.version}</span>
+            CRediT Generator <span className="font-mono text-xs font-normal text-on-surface-variant">v{VERSION}</span>
           </p>
           <p className="mt-0.5">A tool for building CRediT author contribution statements.</p>
         </div>

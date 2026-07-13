@@ -110,8 +110,7 @@ export function AuthorList() {
 
   /** Seed a row from an ORCID iD, then fill its name from the registry. */
   async function addOrcidAuthor(orcid: string): Promise<{ id: string | null; error: string | null }> {
-    addAuthor(orcid, orcid);
-    const id = useContributionStore.getState().authors.at(-1)?.id ?? null;
+    const id = addAuthor(orcid, orcid);
     if (!id) return { id, error: null };
     const result = await fetchOrcidName(orcid);
     if ("error" in result) return { id, error: result.error };
@@ -119,28 +118,46 @@ export function AuthorList() {
     return { id, error: null };
   }
 
-  /** Add several contributors at once; ORCID tokens fill their names via lookup. */
+  /**
+   * Add several contributors at once. Every row lands immediately, in the pasted
+   * order; ORCID names then fill in from concurrent lookups.
+   */
   async function addMany(tokens: string[]) {
-    const failed: string[] = [];
+    const pending: { id: string; orcid: string }[] = [];
+    const rejected: string[] = [];
+
     for (const token of tokens) {
       const orcid = detectOrcid(token);
-      if (!orcid) {
-        addAuthor(token);
-        continue;
-      }
-      // Keep the row on a failed lookup (named after its iD) so one bad token
-      // doesn't silently vanish from a pasted list — but say which ones failed,
-      // so the rows still named after an iD aren't mistaken for real names.
-      const { error } = await addOrcidAuthor(orcid);
-      if (error) failed.push(orcid);
+      const id = addAuthor(orcid ?? token, orcid ?? undefined);
+      if (!id) rejected.push(token);
+      else if (orcid) pending.push({ id, orcid });
     }
 
-    const added = `Added ${tokens.length} contributors.`;
-    if (failed.length === 0) {
+    // Keep the row on a failed lookup (named after its iD) so one bad token
+    // doesn't silently vanish from a pasted list — but say which ones failed,
+    // so the rows still named after an iD aren't mistaken for real names.
+    const failed: string[] = [];
+    await Promise.all(
+      pending.map(async ({ id, orcid }) => {
+        const result = await fetchOrcidName(orcid);
+        if ("error" in result) failed.push(orcid);
+        else updateAuthorName(id, result.displayName);
+      }),
+    );
+
+    const addedCount = tokens.length - rejected.length;
+    const added = `Added ${addedCount} contributors.`;
+    const problems = [
+      rejected.length > 0 && `Skipped ${rejected.length} entries with no name in them (${rejected.join(", ")}).`,
+      failed.length > 0 &&
+        `Could not look up ${failed.length} ORCID iDs (${failed.join(", ")}). Those rows are named after their iD — rename them by hand.`,
+    ].filter(Boolean);
+
+    if (problems.length === 0) {
       announce(added);
       return;
     }
-    const message = `Could not look up ${failed.length} of ${tokens.length} ORCID iDs (${failed.join(", ")}). Those rows are named after their iD — rename them by hand.`;
+    const message = problems.join(" ");
     setAddError(message);
     announce(`${added} ${message}`, { assertive: true });
   }
@@ -167,9 +184,10 @@ export function AuthorList() {
         announce(error, { assertive: true });
         setNewName(orcid);
       }
-    } else {
-      addAuthor(trimmed);
+    } else if (addAuthor(trimmed)) {
       setNewName("");
+    } else {
+      setAddError("That doesn’t look like a name — it needs at least one letter.");
     }
   }
 

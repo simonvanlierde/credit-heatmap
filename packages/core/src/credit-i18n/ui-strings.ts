@@ -10,15 +10,7 @@
  * not the community role repo's — hence a separate directory.
  */
 
-export type UiKey =
-  | "acknowledgements"
-  | "lead"
-  | "equal"
-  | "supporting"
-  | "none"
-  | "contributed"
-  | "heatmapTitle"
-  | "emptyState";
+export type UiKey = "acknowledgements" | "lead" | "equal" | "supporting" | "none" | "contributed" | "emptyState";
 
 export type UiTranslator = (key: UiKey) => string;
 
@@ -33,7 +25,6 @@ const EN_UI: Record<UiKey, string> = {
   supporting: "Supporting",
   none: "None",
   contributed: "Contributed",
-  heatmapTitle: "CRediT Contribution Heatmap",
   emptyState: "No contributions assigned yet.",
 };
 

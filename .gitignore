@@ -21,7 +21,7 @@ Thumbs.db
 
 # Local config
 .vscode
-.claude
+
 
 # Next.js generated
 next-env.d.ts

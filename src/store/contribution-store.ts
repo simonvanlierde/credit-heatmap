@@ -28,7 +28,8 @@ interface ContributionState {
   loadAuthors: (authors: Author[]) => void;
   loadSample: () => void;
   setAuthorsFromText: (text: string) => void;
-  addAuthor: (name: string, orcid?: string) => void;
+  /** Adds a contributor and returns its id; null when the name has no letters to parse. */
+  addAuthor: (name: string, orcid?: string) => string | null;
   removeAuthor: (authorId: string) => void;
   moveAuthor: (fromIndex: number, toIndex: number) => void;
   updateAuthorName: (authorId: string, name: string) => void;
@@ -127,13 +128,22 @@ export const useContributionStore = create<ContributionState>()(
           state.authors = normalizeAuthors(parsed.map((author) => existing.get(author.name) ?? author));
         }),
 
-      addAuthor: (name, orcid) =>
+      addAuthor: (name, orcid) => {
+        const trimmed = name.trim();
+        if (!trimmed) return null;
+        let nextAuthor: Author;
+        try {
+          nextAuthor = createAuthor(trimmed, orcid ? { orcid } : undefined);
+        } catch {
+          // Unparseable as a name (a stray affiliation marker in a pasted list,
+          // say). Reject it here rather than letting it throw through the caller.
+          return null;
+        }
         set((state) => {
-          const trimmed = name.trim();
-          if (!trimmed) return;
-          const nextAuthor = createAuthor(trimmed, orcid ? { orcid } : undefined);
           state.authors = normalizeAuthors([...state.authors, nextAuthor]);
-        }),
+        });
+        return nextAuthor.id;
+      },
 
       removeAuthor: (authorId) =>
         set((state) => {

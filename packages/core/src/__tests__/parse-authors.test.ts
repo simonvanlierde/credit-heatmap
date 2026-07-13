@@ -110,10 +110,30 @@ describe("splitNameList", () => {
     ]);
   });
 
-  it("keeps a lone 'Lastname, Firstname' pair as one contributor", () => {
+  it("keeps a 'Lastname, Firstname' pair as one contributor", () => {
     expect(splitNameList("Curie, Marie")).toEqual(["Curie, Marie"]);
     expect(splitNameList("Curie, M.")).toEqual(["Curie, M."]);
     expect(splitNameList("Curie, Marie; Smith, Jane")).toEqual(["Curie, Marie", "Smith, Jane"]);
+  });
+
+  it("keeps multi-token given names and initials attached to their surname", () => {
+    expect(splitNameList("Smith, J. A.")).toEqual(["Smith, J. A."]);
+    expect(splitNameList("Curie, Marie Skłodowska")).toEqual(["Curie, Marie Skłodowska"]);
+    expect(splitNameList("van der Berg, Anne")).toEqual(["van der Berg, Anne"]);
+  });
+
+  it("reads a comma-only list of inverted names as pairs", () => {
+    expect(splitNameList("Curie, Marie, Smith, J. A.")).toEqual(["Curie, Marie", "Smith, J. A."]);
+  });
+
+  it("treats commas as separators when the chunks don't pair up as surname + given name", () => {
+    expect(splitNameList("Alice Brown, Bob White")).toEqual(["Alice Brown", "Bob White"]);
+    expect(splitNameList("Marie Curie, Jane Smith, Cher, Madonna")).toEqual([
+      "Marie Curie",
+      "Jane Smith",
+      "Cher",
+      "Madonna",
+    ]);
   });
 
   it("splits a list containing a mononym", () => {

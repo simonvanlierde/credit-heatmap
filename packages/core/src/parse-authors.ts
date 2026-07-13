@@ -134,11 +134,47 @@ export function parseAuthors(names: string[]): Author[] {
   return deduplicateAuthorInitials(names.map((name) => createAuthor(name)));
 }
 
+/** Surname particles that stay attached to the surname ("van der Berg, Anne"). */
+const PARTICLES = new Set([
+  "van",
+  "von",
+  "de",
+  "del",
+  "della",
+  "di",
+  "da",
+  "du",
+  "le",
+  "la",
+  "den",
+  "der",
+  "ten",
+  "ter",
+]);
+
+/** A bare surname: one word, or particles followed by one word. Never an ORCID. */
+function isSurnamePart(text: string): boolean {
+  if (ORCID_INPUT_REGEX.test(text)) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  const last = words.pop();
+  if (!last || !/\p{L}/u.test(last)) return false;
+  return words.every((word) => PARTICLES.has(word.toLowerCase()));
+}
+
+/** A given-name fragment: up to three words, each a name or an initial ("J.", "Marie"). */
+function isGivenNamePart(text: string): boolean {
+  if (ORCID_INPUT_REGEX.test(text)) return false;
+  const words = text.split(/\s+/).filter(Boolean);
+  return words.length > 0 && words.length <= 3 && words.every((word) => /^\p{L}[\p{L}\p{M}'’ʼ-]*\.?$/u.test(word));
+}
+
 /**
  * Split typed or pasted text into contributor name tokens. Newlines and
- * semicolons always separate. Commas separate too, except for a lone
- * "Lastname, Firstname" pair — a two-comma-part line whose second part is a
- * single word (a given name or initials) — which stays one contributor.
+ * semicolons always separate. A comma is ambiguous on its own — it separates
+ * contributors ("Marie Curie, Jane Smith") or the halves of one inverted name
+ * ("Curie, Marie") — so the choice is made per line, over the whole chunk list
+ * rather than per comma: a line is read as inverted names only when its chunks
+ * pair up cleanly as surname + given name. Anything else is a delimiter list.
  */
 export function splitNameList(text: string): string[] {
   return text
@@ -149,13 +185,23 @@ export function splitNameList(text: string): string[] {
 }
 
 function splitCommaLine(line: string): string[] {
-  const parts = line
+  const chunks = line
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
-  const second = parts[1] ?? "";
-  const isInvertedName = parts.length === 2 && !/\s/.test(second) && !ORCID_INPUT_REGEX.test(second);
-  return isInvertedName ? [line] : parts;
+  if (chunks.length < 2 || chunks.length % 2 !== 0) return chunks;
+
+  // NOTE: a comma-only list of mononyms ("Cher, Madonna") reads as one
+  // inverted name. Genuinely undecidable without a name database — use
+  // semicolons or newlines to force separation.
+  const pairs: string[] = [];
+  for (let i = 0; i < chunks.length; i += 2) {
+    const surname = chunks[i] ?? "";
+    const given = chunks[i + 1] ?? "";
+    if (!isSurnamePart(surname) || !isGivenNamePart(given)) return chunks;
+    pairs.push(`${surname}, ${given}`);
+  }
+  return pairs;
 }
 
 /**

@@ -65,8 +65,9 @@ export function ContributionGrid() {
 
   function handleCellClick(author: Author, roleIndex: number, score: number) {
     if (inputMode === "levels") {
-      const next =
-        LEVEL_CYCLE[(LEVEL_CYCLE.indexOf(LEVEL_CYCLE.includes(score) ? score : 0) + 1) % LEVEL_CYCLE.length] ?? 0;
+      // Step up to the next level, wrapping at the top. An off-cycle score from
+      // imported data (say 50) simply steps up to the level above it.
+      const next = LEVEL_CYCLE.find((step) => step > score) ?? 0;
       setAuthorScore(author.id, roleIndex, next);
       // The pressed state alone can't convey a 4-level value to screen readers.
       announce(`${CREDIT_ROLES[roleIndex]?.name} for ${author.name}: ${translateUi(scoreToLevel(next))}`);
@@ -288,9 +289,9 @@ function RoleInfo({ role }: { role: (typeof CREDIT_ROLES)[number] }) {
         <button
           type="button"
           aria-label={`About ${role.name}`}
-          className="shrink-0 text-outline-variant hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+          className="shrink-0 rounded-full text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <Info className="h-3.5 w-3.5" />
+          <Info className="h-4 w-4" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="max-w-xs text-xs leading-relaxed text-on-surface-variant">
