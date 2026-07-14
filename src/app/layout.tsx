@@ -7,6 +7,9 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Announcer } from "@/lib/announce";
+// Server component: the manifest is read at build time and never bundled for the
+// client — only the version string is passed down to AboutPopover.
+import packageJson from "../../package.json";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -66,7 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </h1>
                 <nav className="hidden md:flex gap-6 items-center">
                   <HowItWorks />
-                  <AboutPopover />
+                  <AboutPopover version={packageJson.version} />
                 </nav>
               </div>
 

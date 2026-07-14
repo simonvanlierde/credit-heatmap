@@ -1,13 +1,11 @@
 "use client";
 
-import process from "node:process";
 import { Code, ExternalLink, Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-// Inlined at build time from package.json — see next.config.ts.
-const VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
-
-export function AboutPopover() {
+/** `version` is read from package.json by the (server) layout, so the manifest
+ *  never reaches the client bundle. */
+export function AboutPopover({ version }: { version: string }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -23,7 +21,7 @@ export function AboutPopover() {
       <PopoverContent align="start" className="max-w-xs space-y-3 text-sm text-on-surface-variant">
         <div>
           <p className="font-semibold text-on-surface">
-            CRediT Generator <span className="font-mono text-xs font-normal text-on-surface-variant">v{VERSION}</span>
+            CRediT Generator <span className="font-mono text-xs font-normal text-on-surface-variant">v{version}</span>
           </p>
           <p className="mt-0.5">A tool for building CRediT author contribution statements.</p>
         </div>
