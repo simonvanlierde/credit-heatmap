@@ -15,6 +15,7 @@ import { useState } from "react";
 import { CreditBadge } from "@/components/ui/credit-badge";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { StepHeader } from "@/components/ui/step-header";
 import { Switch } from "@/components/ui/switch";
 import { useCopyStatus } from "@/lib/use-copy-status";
 import { useOutputTranslators } from "@/lib/use-output-translators";
@@ -50,6 +51,12 @@ export function StatementOutput() {
   const { authors } = useContributionStore();
   const { translateRole, translateUi } = useOutputTranslators();
   const [copyStatus, copyText] = useCopyStatus();
+  // Separate status for the data-format Copy button, so feedback appears on
+  // the button that was clicked rather than on the main statement copy.
+  const [dataCopyStatus, copyDataText] = useCopyStatus({
+    copied: "Export data copied to clipboard",
+    error: "Could not copy export data",
+  });
   const [dataFormat, setDataFormat] = useState<DataFormat>("xml");
   // Statement-local output controls (independent of the heatmap's).
   const [grouping, setGrouping] = useState<"by-author" | "by-role">("by-author");
@@ -81,66 +88,61 @@ export function StatementOutput() {
   }
 
   return (
-    <div className="bg-surface-bright rounded-lg shadow-md border border-outline-variant/10 p-8 flex flex-col gap-6">
-      {/* Header — the statement continues the output side (Step 3, marked on the heatmap above). */}
-      <div>
-        <h3 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3">
-          Author Contribution Statement
-        </h3>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <SegmentedControl
-            ariaLabel="Statement grouping"
-            size="sm"
-            value={grouping}
-            onChange={setGrouping}
-            options={[
-              { value: "by-author", label: "By author" },
-              { value: "by-role", label: "By role" },
-            ]}
+    <div className="bg-surface-bright rounded-lg shadow-md border border-outline-variant/10 p-4 md:p-5 flex flex-col gap-3">
+      {/* One left-aligned wrapping row: a conditional toggle extends the row
+          instead of reflowing a justified cluster, so nothing jumps around. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <StepHeader n={3} title="Statement & export" className="mr-2" />
+        <SegmentedControl
+          ariaLabel="Statement grouping"
+          size="sm"
+          value={grouping}
+          onChange={setGrouping}
+          options={[
+            { value: "by-author", label: "By author" },
+            { value: "by-role", label: "By role" },
+          ]}
+        />
+        <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+          <Switch
+            checked={acronyms}
+            onCheckedChange={setAcronyms}
+            aria-label="Acronyms — use initials instead of names"
           />
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-              <Switch
-                checked={acronyms}
-                onCheckedChange={setAcronyms}
-                aria-label="Acronyms — use initials instead of names"
-              />
-              Acronyms
-            </span>
-            {canShowLevels && (
-              <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-                <Switch
-                  checked={showLevels}
-                  onCheckedChange={setShowLevels}
-                  aria-label="Show levels — annotate roles with contribution levels"
-                />
-                Show levels
-              </span>
-            )}
-            {hasNonAuthors && (
-              <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-                <Switch
-                  checked={separateAck}
-                  onCheckedChange={setSeparateAck}
-                  aria-label="Separate acknowledgements — credit non-author contributors on their own line"
-                />
-                Separate acknowledgements
-              </span>
-            )}
-          </div>
-        </div>
+          Acronyms
+        </span>
+        {canShowLevels && (
+          <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+            <Switch
+              checked={showLevels}
+              onCheckedChange={setShowLevels}
+              aria-label="Show levels — annotate roles with contribution levels"
+            />
+            Show levels
+          </span>
+        )}
+        {hasNonAuthors && (
+          <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+            <Switch
+              checked={separateAck}
+              onCheckedChange={setSeparateAck}
+              aria-label="Separate acknowledgements — credit non-author contributors on their own line"
+            />
+            Separate acknowledgements
+          </span>
+        )}
       </div>
 
       {/* Statement preview */}
       <div
-        className="relative z-10 min-h-[7rem] bg-surface-container-low border-l-2 border-primary p-5 rounded-r"
+        className="relative z-10 min-h-[3.5rem] bg-surface-container-low border-l-2 border-primary p-3 rounded-r"
         style={{ fontFamily: "var(--font-headline)" }}
       >
         {statement ? (
           <p className="whitespace-pre-line text-base italic leading-relaxed text-on-surface">{statement}</p>
         ) : (
           <p className="text-sm text-on-surface-variant not-italic">
-            No contributions assigned yet — select a contributor and toggle their roles.
+            No contributions assigned yet — click cells in the grid to assign roles.
           </p>
         )}
       </div>
@@ -168,62 +170,61 @@ export function StatementOutput() {
         </ul>
       )}
 
-      {/* Primary action: copy the prose statement (copy result is announced via the global live region). */}
-      <div className="relative z-10 flex flex-col gap-4">
+      {/* One action row: copy the statement (primary), export a data format,
+          and the badge anchored at the right. */}
+      <div className="relative z-10 flex flex-wrap items-center gap-x-4 gap-y-3">
         <button
           type="button"
           onClick={() => copyText(statement)}
           disabled={!statement}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary-container transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary-container transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Copy className="h-[18px] w-[18px]" />
           {copyStatus === "copied" ? "Copied!" : copyStatus === "error" ? "Copy failed" : "Copy statement"}
         </button>
 
-        <hr className="border-t border-outline-variant/20" />
+        <span aria-hidden="true" className="hidden sm:block h-6 w-px bg-outline-variant/30" />
 
         {/* Secondary: pick a data format, then copy or download it */}
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant mr-1">
-              Export data
-            </span>
-            <Select value={dataFormat} onValueChange={(value) => setDataFormat(value as DataFormat)}>
-              <SelectTrigger className="w-40 py-1.5 text-sm" aria-label="Export format">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.keys(DATA_FORMATS) as DataFormat[]).map((value) => (
-                  <SelectItem key={value} value={value} className="text-sm">
-                    {DATA_FORMATS[value].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant mr-1">
+            Export data
+          </span>
+          <Select value={dataFormat} onValueChange={(value) => setDataFormat(value as DataFormat)}>
+            <SelectTrigger className="w-32 py-1.5 text-xs" aria-label="Export format">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(DATA_FORMATS) as DataFormat[]).map((value) => (
+                <SelectItem key={value} value={value} className="text-sm">
+                  {DATA_FORMATS[value].label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            <button
-              type="button"
-              onClick={() => copyText(DATA_FORMATS[dataFormat].serialize(authors, translateRole, translateUi))}
-              disabled={!hasAuthors}
-              className="flex items-center gap-1.5 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Copy className="h-[18px] w-[18px]" />
-              Copy
-            </button>
+          <button
+            type="button"
+            onClick={() => copyDataText(DATA_FORMATS[dataFormat].serialize(authors, translateRole, translateUi))}
+            disabled={!hasAuthors}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            {dataCopyStatus === "copied" ? "Copied!" : dataCopyStatus === "error" ? "Copy failed" : "Copy"}
+          </button>
 
-            <button
-              type="button"
-              onClick={downloadData}
-              disabled={!hasAuthors}
-              className="flex items-center gap-1.5 px-3 py-2 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Download className="h-[18px] w-[18px]" />
-              Download
-            </button>
-          </div>
-
-          <CreditBadge className="flex items-center gap-1.5 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors" />
+          <button
+            type="button"
+            onClick={downloadData}
+            disabled={!hasAuthors}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download
+          </button>
         </div>
+
+        <CreditBadge className="sm:ml-auto flex items-center gap-1.5 text-xs font-medium text-on-surface-variant hover:text-primary transition-colors" />
       </div>
     </div>
   );

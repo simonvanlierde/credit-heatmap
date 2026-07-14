@@ -33,6 +33,12 @@ export { toJats4rXml } from "./export/xml.js";
 export { fromJats4rXml, fromXmlDocument } from "./export/xml-import.js";
 export type { StatementFormat, StatementOptions } from "./generate-statement.js";
 export { generateStatement } from "./generate-statement.js";
-export { createAuthor, deduplicateAuthorInitials, parseAuthorText, parseNameParts } from "./parse-authors.js";
+export {
+  createAuthor,
+  deduplicateAuthorInitials,
+  parseAuthorText,
+  parseNameParts,
+  splitNameList,
+} from "./parse-authors.js";
 export type { ValidationIssue, ValidationLevel } from "./validate.js";
 export { validateContributions } from "./validate.js";

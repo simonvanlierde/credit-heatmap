@@ -15,7 +15,6 @@ export type InputMode = "toggle" | "levels";
 
 interface ContributionState {
   authors: Author[];
-  selectedAuthorId: string | null;
   inputMode: InputMode;
   heatmapMonoColor: string;
   /** Language for the generated statement + human-facing exports (role names only). */
@@ -29,13 +28,13 @@ interface ContributionState {
   loadAuthors: (authors: Author[]) => void;
   loadSample: () => void;
   setAuthorsFromText: (text: string) => void;
-  addAuthor: (name: string, orcid?: string) => void;
+  /** Adds a contributor and returns its id; null when the name has no letters to parse. */
+  addAuthor: (name: string, orcid?: string) => string | null;
   removeAuthor: (authorId: string) => void;
   moveAuthor: (fromIndex: number, toIndex: number) => void;
   updateAuthorName: (authorId: string, name: string) => void;
   updateAuthorOrcid: (authorId: string, orcid: string) => void;
   setAuthorType: (authorId: string, contributorType: Author["contributorType"]) => void;
-  setSelectedAuthor: (authorId: string | null) => void;
   setAuthorScore: (authorId: string, roleIndex: number, score: number) => void;
   toggleContribution: (authorId: string, roleIndex: number) => void;
   setInputMode: (mode: InputMode) => void;
@@ -102,19 +101,10 @@ function normalizeAuthors(authors: Author[]): Author[] {
   );
 }
 
-function ensureSelectedAuthorId(authors: Author[], selectedAuthorId: string | null): string | null {
-  if (authors.length === 0) return null;
-  if (selectedAuthorId && authors.some((author) => author.id === selectedAuthorId)) {
-    return selectedAuthorId;
-  }
-  return authors[0]?.id ?? null;
-}
-
 export const useContributionStore = create<ContributionState>()(
   persist(
     immer((set) => ({
       authors: [],
-      selectedAuthorId: null,
       inputMode: "toggle",
       heatmapMonoColor: DEFAULT_MONO_COLOR,
       outputLocale: "en",
@@ -124,14 +114,11 @@ export const useContributionStore = create<ContributionState>()(
       loadAuthors: (authors) =>
         set((state) => {
           state.authors = normalizeAuthors(authors);
-          state.selectedAuthorId = ensureSelectedAuthorId(state.authors, state.selectedAuthorId);
         }),
 
       loadSample: () =>
         set((state) => {
-          const authors = buildSampleAuthors();
-          state.authors = normalizeAuthors(authors);
-          state.selectedAuthorId = state.authors[0]?.id ?? null;
+          state.authors = normalizeAuthors(buildSampleAuthors());
         }),
 
       setAuthorsFromText: (text) =>
@@ -139,17 +126,24 @@ export const useContributionStore = create<ContributionState>()(
           const parsed = parseAuthorText(text);
           const existing = new Map(state.authors.map((author) => [author.name, author]));
           state.authors = normalizeAuthors(parsed.map((author) => existing.get(author.name) ?? author));
-          state.selectedAuthorId = ensureSelectedAuthorId(state.authors, state.selectedAuthorId);
         }),
 
-      addAuthor: (name, orcid) =>
+      addAuthor: (name, orcid) => {
+        const trimmed = name.trim();
+        if (!trimmed) return null;
+        let nextAuthor: Author;
+        try {
+          nextAuthor = createAuthor(trimmed, orcid ? { orcid } : undefined);
+        } catch {
+          // Unparseable as a name (a stray affiliation marker in a pasted list,
+          // say). Reject it here rather than letting it throw through the caller.
+          return null;
+        }
         set((state) => {
-          const trimmed = name.trim();
-          if (!trimmed) return;
-          const nextAuthor = createAuthor(trimmed, orcid ? { orcid } : undefined);
           state.authors = normalizeAuthors([...state.authors, nextAuthor]);
-          state.selectedAuthorId = nextAuthor.id;
-        }),
+        });
+        return nextAuthor.id;
+      },
 
       removeAuthor: (authorId) =>
         set((state) => {
@@ -157,10 +151,6 @@ export const useContributionStore = create<ContributionState>()(
           if (index === -1) return;
           state.authors.splice(index, 1);
           state.authors = normalizeAuthors(state.authors);
-          state.selectedAuthorId =
-            state.selectedAuthorId === authorId
-              ? ensureSelectedAuthorId(state.authors, null)
-              : ensureSelectedAuthorId(state.authors, state.selectedAuthorId);
         }),
 
       moveAuthor: (fromIndex, toIndex) =>
@@ -214,11 +204,6 @@ export const useContributionStore = create<ContributionState>()(
           author.contributorType = contributorType;
         }),
 
-      setSelectedAuthor: (authorId) =>
-        set((state) => {
-          state.selectedAuthorId = authorId;
-        }),
-
       setAuthorScore: (authorId, roleIndex, score) =>
         set((state) => {
           const index = findAuthorIndex(state.authors, authorId);
@@ -266,29 +251,37 @@ export const useContributionStore = create<ContributionState>()(
           state.welcomeSeen = true;
         }),
 
+      // Clears the workspace, not the user's history: welcomeSeen stays true, so
+      // a reset doesn't stage a fake first run. The open card is dismissed with
+      // it — left up over an emptied workspace it would re-offer "Load sample
+      // data", quietly undoing the reset.
       reset: () =>
         set((state) => {
           state.authors = [];
-          state.selectedAuthorId = null;
           state.inputMode = "toggle";
           state.heatmapMonoColor = DEFAULT_MONO_COLOR;
           state.outputLocale = "en";
+          state.welcomeOpen = false;
         }),
     })),
     {
       name: "credit-generator-state",
-      version: 3,
+      version: 4,
       // Don't read localStorage during store creation: the server renders the
       // empty initial state, so a synchronous rehydrate here would desync the
       // first client render (hydration mismatch). A client effect calls
       // rehydrate() after mount instead — see HeaderActions.
       skipHydration: true,
       // v0 persisted a now-removed "slider" input mode; fold it into "levels".
-      // (The now-removed heatmapColorMode is simply ignored if present.)
+      // (Removed keys — heatmapColorMode, and selectedAuthorId as of v4 — are
+      // simply ignored if present.)
       migrate: (persisted) => {
         const state = persisted as Partial<ContributionState> | undefined;
         if (state && (state.inputMode as string) === "slider") {
           state.inputMode = "levels";
+        }
+        if (state && "selectedAuthorId" in state) {
+          delete (state as Record<string, unknown>).selectedAuthorId;
         }
         // Returning users have already used the app; don't greet them with the
         // first-run welcome card.
@@ -303,7 +296,6 @@ export const useContributionStore = create<ContributionState>()(
         inputMode: state.inputMode,
         heatmapMonoColor: state.heatmapMonoColor,
         outputLocale: state.outputLocale,
-        selectedAuthorId: state.selectedAuthorId,
         welcomeSeen: state.welcomeSeen,
       }),
     },

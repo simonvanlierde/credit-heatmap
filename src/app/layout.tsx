@@ -1,4 +1,3 @@
-import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
 import { AboutPopover } from "@/components/AboutPopover";
@@ -8,6 +7,9 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Announcer } from "@/lib/announce";
+// Server component: the manifest is read at build time and never bundled for the
+// client — only the version string is passed down to AboutPopover.
+import packageJson from "../../package.json";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -56,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* pr compensates the scrollbar width modal primitives remove on open; the fixed
               header escapes the body padding that keeps <main> from reflowing. */}
           <header className="fixed top-0 w-full z-50 bg-surface-bright/80 backdrop-blur-md border-b border-outline-variant/20 pr-[var(--removed-body-scroll-bar-size,0px)]">
-            <div className="flex justify-between items-center h-16 px-8 max-w-screen-xl mx-auto">
+            <div className="flex justify-between items-center h-16 px-8 max-w-screen-xl 2xl:max-w-[100rem] mx-auto">
               {/* Brand */}
               <div className="flex items-center gap-8">
                 <h1
@@ -66,28 +68,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   CRediT Generator
                 </h1>
                 <nav className="hidden md:flex gap-6 items-center">
-                  <a
-                    href="https://credit.niso.org/implementing-credit/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary transition-colors"
-                  >
-                    Taxonomy guide
-                    <ExternalLink className="size-3" aria-hidden="true" />
-                    <span className="sr-only">(opens in new tab)</span>
-                  </a>
-                  <a
-                    href="https://github.com/simonvanlierde/credit-heatmap"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-primary transition-colors"
-                  >
-                    Source code
-                    <ExternalLink className="size-3" aria-hidden="true" />
-                    <span className="sr-only">(opens in new tab)</span>
-                  </a>
                   <HowItWorks />
-                  <AboutPopover />
+                  <AboutPopover version={packageJson.version} />
                 </nav>
               </div>
 
@@ -100,7 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
 
-          <main id="main-content" className="pt-16 max-w-screen-xl mx-auto">
+          <main id="main-content" className="pt-16 max-w-screen-xl 2xl:max-w-[100rem] mx-auto">
             {children}
           </main>
           <Announcer />

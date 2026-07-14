@@ -21,7 +21,9 @@ keywords:
   - scholarly publishing
   - research software
   - ORCID
-version: "0.1.1"
+version: "0.2.0"
+date-released: "2026-07-14"
+# Concept DOI: resolves to all versions, so it stays fixed across releases.
 doi: "10.5281/zenodo.21213659"
 references:
   - type: software
