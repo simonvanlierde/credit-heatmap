@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createAuthor,
   deduplicateAuthorInitials,
+  parseAuthors,
   parseAuthorText,
   parseNameParts,
   splitNameList,
@@ -74,6 +75,14 @@ describe("deduplicateAuthorInitials", () => {
     expect(original.map((a) => a.initials)).toEqual(beforeInitials);
     expect(deduped[0]).not.toBe(original[0]);
     expect(deduped[1]?.initials).not.toBe(deduped[0]?.initials);
+  });
+
+  it("still assigns unique initials when the surname runs out of letters", () => {
+    // "Jo Li" → JL, then JLi (the surname's 2nd letter), and then the surname is
+    // spent, so the disambiguator falls back to a counter suffix.
+    const initials = parseAuthors(["Jo Li", "Jo Li", "Jo Li"]).map((a) => a.initials);
+    expect(new Set(initials).size).toBe(3);
+    expect(initials.slice(0, 2)).toEqual(["JL", "JLi"]);
   });
 });
 
