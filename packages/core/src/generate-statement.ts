@@ -9,9 +9,9 @@ export type StatementFormat = "by-role" | "by-role-short" | "by-author" | "by-au
 export interface StatementOptions {
   format: StatementFormat;
   /**
-   * When true, append the contribution level (Lead / Equal / Supporting)
-   * after each role name where the score is not 0 or 100.
-   * Ignored for by-role formats.
+   * When true, append the contribution level (Equal / Supporting) after each
+   * role name (by-author formats) or contributor label (by-role formats)
+   * whose score is not 0 or 100. Lead contributions stay unannotated.
    */
   showLevels?: boolean;
   /**
@@ -67,7 +67,7 @@ export function generateStatement(authors: Author[], options: StatementOptions):
 
   const body = (people: Author[]): string =>
     byRole
-      ? generateByRole(people, useInitials, translateRole)
+      ? generateByRole(people, useInitials, showLevels, translateRole, translateUi)
       : generateByAuthor(people, useInitials, showLevels, translateRole, translateUi);
 
   // Combined: everyone (authors and non-authors) on one CRediT line.
@@ -88,8 +88,22 @@ export function generateStatement(authors: Author[], options: StatementOptions):
   return lines.join("\n\n");
 }
 
+/** Annotate a role or contributor label with its non-lead level: "label (Equal)". */
+function withLevel(label: string, score: number, translateUi: UiTranslator): string {
+  const level = scoreToLevel(score);
+  if (level === "lead") return label;
+  const levelLabel = level === "equal" ? translateUi("equal") : translateUi("supporting");
+  return `${label} (${levelLabel})`;
+}
+
 /** Body of a by-role statement (no `CRediT:`/`Acknowledgements:` prefix); "" if empty. */
-function generateByRole(authors: Author[], useInitials: boolean, translateRole: RoleTranslator): string {
+function generateByRole(
+  authors: Author[],
+  useInitials: boolean,
+  showLevels: boolean,
+  translateRole: RoleTranslator,
+  translateUi: UiTranslator,
+): string {
   // Collect contributor labels per role, in author order. Keyed on the
   // canonical English role; localized only when emitting the line.
   const roleMap = new Map<string, string[]>();
@@ -98,7 +112,7 @@ function generateByRole(authors: Author[], useInitials: boolean, translateRole: 
     const label = useInitials ? author.initials : author.name.replace(/\s+/g, " ").trim();
     for (const contrib of activeContributions(author)) {
       const list = roleMap.get(contrib.role) ?? [];
-      list.push(label);
+      list.push(showLevels ? withLevel(label, contrib.score, translateUi) : label);
       roleMap.set(contrib.role, list);
     }
   }
@@ -130,14 +144,9 @@ function generateByAuthor(
 
     const label = useInitials ? author.initials : author.name.replace(/\s+/g, " ").trim();
 
-    const roleList = active.map((c) => {
-      const role = translateRole(c.role);
-      if (!showLevels) return role;
-      const level = scoreToLevel(c.score);
-      if (level === "lead") return role;
-      const levelLabel = level === "equal" ? translateUi("equal") : translateUi("supporting");
-      return `${role} (${levelLabel})`;
-    });
+    const roleList = active.map((c) =>
+      showLevels ? withLevel(translateRole(c.role), c.score, translateUi) : translateRole(c.role),
+    );
 
     parts.push(`${label}: ${roleList.join(", ")}`);
   }

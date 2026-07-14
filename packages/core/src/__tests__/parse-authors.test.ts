@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createAuthor, deduplicateAuthorInitials, parseAuthorText, parseNameParts } from "../parse-authors.js";
+import {
+  createAuthor,
+  deduplicateAuthorInitials,
+  parseAuthors,
+  parseAuthorText,
+  parseNameParts,
+  splitNameList,
+} from "../parse-authors.js";
 
 describe("parseNameParts", () => {
   it("parses a three-part name", () => {
@@ -69,6 +76,14 @@ describe("deduplicateAuthorInitials", () => {
     expect(deduped[0]).not.toBe(original[0]);
     expect(deduped[1]?.initials).not.toBe(deduped[0]?.initials);
   });
+
+  it("still assigns unique initials when the surname runs out of letters", () => {
+    // "Jo Li" → JL, then JLi (the surname's 2nd letter), and then the surname is
+    // spent, so the disambiguator falls back to a counter suffix.
+    const initials = parseAuthors(["Jo Li", "Jo Li", "Jo Li"]).map((a) => a.initials);
+    expect(new Set(initials).size).toBe(3);
+    expect(initials.slice(0, 2)).toEqual(["JL", "JLi"]);
+  });
 });
 
 describe("parseAuthorText", () => {
@@ -91,5 +106,54 @@ describe("parseAuthorText", () => {
     const authors = parseAuthorText("Alice Brown");
     expect(authors[0]?.contributions).toHaveLength(14);
     expect(authors[0]?.contributions.every((c) => c.score === 0)).toBe(true);
+  });
+});
+
+describe("splitNameList", () => {
+  it("splits on newlines, semicolons, and commas", () => {
+    expect(splitNameList("Alice Brown, Bob White; Carol Davis\nDan Evans")).toEqual([
+      "Alice Brown",
+      "Bob White",
+      "Carol Davis",
+      "Dan Evans",
+    ]);
+  });
+
+  it("keeps a 'Lastname, Firstname' pair as one contributor", () => {
+    expect(splitNameList("Curie, Marie")).toEqual(["Curie, Marie"]);
+    expect(splitNameList("Curie, M.")).toEqual(["Curie, M."]);
+    expect(splitNameList("Curie, Marie; Smith, Jane")).toEqual(["Curie, Marie", "Smith, Jane"]);
+  });
+
+  it("keeps multi-token given names and initials attached to their surname", () => {
+    expect(splitNameList("Smith, J. A.")).toEqual(["Smith, J. A."]);
+    expect(splitNameList("Curie, Marie Skłodowska")).toEqual(["Curie, Marie Skłodowska"]);
+    expect(splitNameList("van der Berg, Anne")).toEqual(["van der Berg, Anne"]);
+  });
+
+  it("reads a comma-only list of inverted names as pairs", () => {
+    expect(splitNameList("Curie, Marie, Smith, J. A.")).toEqual(["Curie, Marie", "Smith, J. A."]);
+  });
+
+  it("treats commas as separators when the chunks don't pair up as surname + given name", () => {
+    expect(splitNameList("Alice Brown, Bob White")).toEqual(["Alice Brown", "Bob White"]);
+    expect(splitNameList("Marie Curie, Jane Smith, Cher, Madonna")).toEqual([
+      "Marie Curie",
+      "Jane Smith",
+      "Cher",
+      "Madonna",
+    ]);
+  });
+
+  it("splits a list containing a mononym", () => {
+    expect(splitNameList("Marie Curie, Jane Smith, Cher")).toEqual(["Marie Curie", "Jane Smith", "Cher"]);
+  });
+
+  it("splits a name paired with an ORCID iD rather than reading it as an inverted name", () => {
+    expect(splitNameList("Jane Smith, 0000-0002-1825-0097")).toEqual(["Jane Smith", "0000-0002-1825-0097"]);
+  });
+
+  it("ignores empty entries and surrounding whitespace", () => {
+    expect(splitNameList("  Alice Brown ,, \n\n ; Bob White ")).toEqual(["Alice Brown", "Bob White"]);
   });
 });

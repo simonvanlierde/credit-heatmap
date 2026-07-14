@@ -1,6 +1,6 @@
 "use client";
 
-import { Fingerprint, Sparkles, TableProperties, TextQuote, X } from "lucide-react";
+import { ExternalLink, Fingerprint, Sparkles, TableProperties, TextQuote, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { StepNumber } from "@/components/ui/step-number";
 import { useContributionStore } from "@/store/contribution-store";
@@ -10,19 +10,19 @@ const STEPS = [
     n: 1,
     icon: Fingerprint,
     title: "Add contributors",
-    body: "Type a name, or paste an ORCID iD to fill it in automatically.",
+    body: "Type a name — or paste a whole author list, or an ORCID iD to fill the name in automatically.",
   },
   {
     n: 2,
     icon: TableProperties,
     title: "Assign roles",
-    body: "Pick a contributor, then mark which of the 14 CRediT roles they took on.",
+    body: "Click cells in the grid to mark which of the 14 CRediT roles each contributor took on.",
   },
   {
     n: 3,
     icon: TextQuote,
     title: "Review & export",
-    body: "Watch the heatmap fill in, then copy a ready-to-paste statement or download XML, CSV, and more.",
+    body: "The statement updates as you go — copy it, or download the heatmap, XML, CSV, and more.",
   },
 ];
 
@@ -124,6 +124,28 @@ export function WelcomeCard() {
               </button>
             </>
           )}
+          <span className="flex flex-wrap items-center gap-x-5 gap-y-3 sm:ml-auto">
+            <a
+              href="https://credit.niso.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-on-surface-variant transition-colors hover:text-primary"
+            >
+              Full CRediT standard
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+              <span className="sr-only">(opens in new tab)</span>
+            </a>
+            <a
+              href="https://doi.org/10.5281/zenodo.18421449"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-on-surface-variant transition-colors hover:text-primary"
+            >
+              CRediT Roles & Examples
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+              <span className="sr-only">(opens in new tab)</span>
+            </a>
+          </span>
         </div>
       </div>
     </section>
