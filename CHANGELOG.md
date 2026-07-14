@@ -9,14 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Editable contribution grid: roles and contributors in one matrix, where a click
-  assigns a role or cycles its contribution level in place. It doubles as the live
-  heatmap, and its transpose, full-name, and color controls carry through to the
-  SVG and PNG downloads.
-- First-run welcome card with a three-step walkthrough, re-openable from the
-  header, plus numbered step headings across the workspace.
+  assigns a role or cycles its level. It doubles as the live heatmap, and its
+  transpose, full-name, and color controls carry through to the SVG/PNG downloads.
 - Bulk contributor entry: paste an author list (commas, newlines, semicolons, or
-  ORCID iDs) and each name gets its own row. Inverted names such as
-  `Smith, J. A.` are kept whole.
+  ORCID iDs) and each name gets a row. Inverted names (`Smith, J. A.`) stay whole.
+- First-run welcome card, re-openable from the header, and numbered step headings.
 - Contribution levels in by-role statements, annotating contributors the way
   by-author statements already annotated roles.
 - A link to each role's full NISO definition in its info popover.
@@ -25,25 +22,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - The workspace fits one desktop screen: contributors beside the grid, statement
   full-width below.
-- Exported heatmaps drop the baked-in image title (captions belong to the
-  document they are pasted into) and size their label bands to their content.
+- Exported heatmaps drop the baked-in image title and fit their label bands to
+  their content.
 - The About popover carries the version and source link; the header nav is down
-  to *How it works* and *About*.
-- Copying an export format now confirms on its own button.
+  to two items.
+- Copying an export format confirms on its own button.
 
 ### Fixed
 
-- A comma-separated list is now split per line rather than per comma, so a name
-  with multiple initials or a compound given name (`Curie, Marie Skłodowska`)
-  survives a paste intact.
-- An entry with no name in it (a stray affiliation marker, say) no longer aborts
-  the rest of a pasted list; it is skipped and reported.
+- Comma-separated lists are split per line rather than per comma, so a name with
+  multiple initials or a compound given name survives a paste intact.
+- An entry with no name in it no longer aborts the rest of a pasted list; it is
+  skipped and reported.
 
 ### Removed
 
-- `@nivo/heatmap`, and the separate per-author role checklist beside it. The grid
-  is a plain table, so cells are keyboard-reachable and screen-readable rather
-  than an `aria-hidden` SVG.
+- `@nivo/heatmap`, and the per-author role checklist beside it. The grid is a
+  plain table, so cells are keyboard-reachable rather than an `aria-hidden` SVG.
 
 Persisted local drafts migrate automatically.
 
