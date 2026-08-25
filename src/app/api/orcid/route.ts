@@ -1,5 +1,10 @@
-import { isValidOrcid, ORCID_REGEX } from "@credit-generator/core";
+import { isValidOrcid, lookupOrcidPerson, ORCID_REGEX } from "@credit-generator/core";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { type NextRequest, NextResponse } from "next/server";
+
+interface RateLimiter {
+  limit(options: { key: string }): Promise<{ success: boolean }>;
+}
 
 /**
  * Server-side proxy for ORCID public lookups.
@@ -9,64 +14,41 @@ import { type NextRequest, NextResponse } from "next/server";
  * it directly. Everything else (statement, XML, CSV, JSON, heatmap SVG/PNG)
  * runs purely in the browser via `@credit-generator/core`.
  */
-export async function GET(request: NextRequest) {
-  const id = request.nextUrl.searchParams.get("id") ?? "";
+export async function POST(request: NextRequest) {
+  let id = "";
+  try {
+    const body: unknown = await request.json();
+    if (body !== null && typeof body === "object" && "id" in body && typeof body.id === "string") {
+      id = body.id;
+    }
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
-  // Require bare format (so the upstream URL is well-formed) and a valid checksum.
   if (!(ORCID_REGEX.test(id) && isValidOrcid(id))) {
     return NextResponse.json({ error: "Invalid ORCID iD format" }, { status: 400 });
   }
 
-  let response: Response;
-  try {
-    response = await fetch(`https://pub.orcid.org/v3.0/${id}/person`, {
-      headers: { Accept: "application/json" },
-    });
-  } catch {
-    return NextResponse.json({ error: "ORCID API unavailable" }, { status: 502 });
+  const rateLimiter = getRateLimiter();
+  if (rateLimiter) {
+    const clientKey = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for") ?? "unknown";
+    const { success } = await rateLimiter.limit({ key: clientKey.split(",")[0]?.trim() || "unknown" });
+    if (!success) {
+      return NextResponse.json({ error: "Too many ORCID lookups. Try again in a minute." }, { status: 429 });
+    }
   }
 
-  if (response.status === 404) {
-    return NextResponse.json({ error: "ORCID not found" }, { status: 404 });
-  }
-
-  if (!response.ok) {
-    return NextResponse.json({ error: "ORCID API unavailable" }, { status: 502 });
-  }
-
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch {
-    return NextResponse.json({ error: "ORCID API unavailable" }, { status: 502 });
-  }
-
-  if (body === null || typeof body !== "object" || !("name" in body) || body.name === null) {
-    return NextResponse.json({ error: "ORCID not found" }, { status: 404 });
-  }
-
-  const nameObj = (body as Record<string, unknown>).name;
-  if (nameObj === null || typeof nameObj !== "object") {
-    return NextResponse.json({ error: "ORCID not found" }, { status: 404 });
-  }
-
-  const name = nameObj as Record<string, unknown>;
-  const firstName = readValue(name["given-names"]);
-  const surname = readValue(name["family-name"]);
-  const displayName = `${firstName} ${surname}`.trim();
-
-  return NextResponse.json({ firstName, surname, displayName });
+  const result = await lookupOrcidPerson(id);
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json(result);
 }
 
-/** ORCID wraps values as `{ value: string }`; pull the string out safely. */
-function readValue(field: unknown): string {
-  if (
-    field !== null &&
-    typeof field === "object" &&
-    "value" in field &&
-    typeof (field as Record<string, unknown>).value === "string"
-  ) {
-    return (field as Record<string, unknown>).value as string;
+function getRateLimiter(): RateLimiter | null {
+  try {
+    const { env } = getCloudflareContext();
+    return ((env as Record<string, unknown>).ORCID_RATE_LIMITER as RateLimiter | undefined) ?? null;
+  } catch {
+    // The binding is unavailable under `next dev`; production gets it from Wrangler.
+    return null;
   }
-  return "";
 }

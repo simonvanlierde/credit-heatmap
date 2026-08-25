@@ -18,13 +18,21 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": ".open-next/worker.js",
   "name": "credit-heatmap",
+  "ratelimits": [
+    {
+      "name": "ORCID_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 30, "period": 60 }
+    }
+  ],
   "observability": {
     "enabled": true,
     // log 10% of requests
     "head_sampling_rate": 0.1,
     "logs": {
       "enabled": true,
-      "invocation_logs": true
+      // ORCID identifiers are submitted to /api/orcid and must not land in request logs.
+      "invocation_logs": false
     }
   },
   // Bound to a Custom Domain
