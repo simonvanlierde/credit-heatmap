@@ -82,7 +82,9 @@ export function WelcomeCard() {
       }}
       className="m-auto w-full max-w-3xl max-h-[90dvh] overflow-y-auto rounded-lg bg-surface-bright p-0 text-on-surface shadow-2xl ring-1 ring-outline-variant/20 backdrop:bg-on-surface/30 backdrop:backdrop-blur-sm"
     >
-      <div className="animate-[welcome-in_0.4s_ease-out] relative flex flex-col gap-6 px-6 py-6 md:px-8 md:py-8">
+      {/* The entrance moved onto the <dialog> itself (globals.css), so this card
+          and the import modal now arrive the same way, backdrop included. */}
+      <div className="relative flex flex-col gap-6 px-6 py-6 md:px-8 md:py-8">
         <button
           type="button"
           onClick={closeWelcome}

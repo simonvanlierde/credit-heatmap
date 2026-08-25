@@ -46,9 +46,7 @@ export function SelectContent({
         sideOffset={4}
         className={cn(
           "z-50 max-w-[calc(100vw-1rem)] min-w-[8rem] overflow-hidden rounded border border-outline-variant bg-surface-bright shadow-md",
-          "data-[state=open]:animate-in data-[state=closed]:animate-out",
-          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-          "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          "panel-motion [transform-origin:var(--radix-select-content-transform-origin)]",
           className,
         )}
         {...props}
