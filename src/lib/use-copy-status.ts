@@ -4,23 +4,31 @@ import { announce } from "@/lib/announce";
 export type CopyStatus = "idle" | "copied" | "error";
 
 /**
- * Copy text to the clipboard, exposing a status that resets to "idle" after 2s.
+ * Copy to the clipboard, exposing a status that resets to "idle" after 2s.
  * The outcome is also announced to assistive tech; pass `labels` to tailor the
  * spoken text to what was copied (defaults to a generic "Copied to clipboard").
+ *
+ * The returned `copy` takes either a string (written as text) or a function
+ * doing the write itself. The heatmap copies an image blob, which is the same
+ * status/announce/reset contract with a different clipboard call.
  */
 export function useCopyStatus(labels?: {
   copied?: string;
   error?: string;
-}): [CopyStatus, (text: string) => Promise<void>] {
+}): [CopyStatus, (source: string | (() => Promise<void>)) => Promise<void>] {
   const [status, setStatus] = useState<CopyStatus>("idle");
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Clear any pending reset on unmount so it can't setState on a dead component.
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  async function copy(text: string) {
+  async function copy(source: string | (() => Promise<void>)) {
     try {
-      await navigator.clipboard.writeText(text);
+      if (typeof source === "string") {
+        await navigator.clipboard.writeText(source);
+      } else {
+        await source();
+      }
       setStatus("copied");
       announce(labels?.copied ?? "Copied to clipboard");
     } catch {
