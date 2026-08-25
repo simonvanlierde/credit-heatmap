@@ -8,7 +8,7 @@ describe("lookupOrcidPerson", () => {
     expect(await lookupOrcidPerson("0000-0002-1825-0098", fetcher)).toEqual({
       ok: false,
       status: 400,
-      error: "Invalid ORCID iD format",
+      error: "That is not a valid ORCID iD. Check the digits and try again.",
     });
     expect(fetcher).not.toHaveBeenCalled();
   });
