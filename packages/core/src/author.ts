@@ -2,6 +2,10 @@ import { z } from "zod";
 import type { CreditRoleName } from "./credit-roles.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
 
+export const MAX_AUTHORS = 200;
+export const MAX_AUTHOR_NAME_LENGTH = 500;
+export const MAX_IMPORT_BYTES = 1_000_000;
+
 /**
  * A contribution is a 0–100 integer score for one CRediT role.
  *
@@ -29,6 +33,11 @@ export const ORCID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
 /** ORCID iD accepted on input: bare form or the canonical orcid.org URL. */
 export const ORCID_INPUT_REGEX = /^(https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
 
+/** Return the canonical bare ORCID form used in state and exports. */
+export function normalizeOrcid(id: string): string {
+  return id.replace(/^https?:\/\/orcid\.org\//, "");
+}
+
 /**
  * Validate an ORCID iD fully: correct shape *and* a valid ISO 7064 MOD 11-2
  * check digit. The shape regexes alone accept checksum-invalid iDs (e.g. a
@@ -37,7 +46,7 @@ export const ORCID_INPUT_REGEX = /^(https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\
  */
 export function isValidOrcid(id: string): boolean {
   if (!ORCID_INPUT_REGEX.test(id)) return false;
-  const digits = id.replace(/^https?:\/\/orcid\.org\//, "").replace(/-/g, "");
+  const digits = normalizeOrcid(id).replace(/-/g, "");
   let total = 0;
   for (let i = 0; i < 15; i += 1) total = (total + Number(digits[i])) * 2;
   const check = (12 - (total % 11)) % 11;
@@ -51,23 +60,23 @@ export const AuthorSchema = z.object({
     .min(1)
     .default(() => globalThis.crypto.randomUUID()),
   /** Display name as entered by the user (e.g. "Jane A. Smith") */
-  name: z.string().min(1),
+  name: z.string().min(1).max(MAX_AUTHOR_NAME_LENGTH),
   /** Parsed first name */
-  firstName: z.string(),
+  firstName: z.string().max(MAX_AUTHOR_NAME_LENGTH),
   /** Parsed middle name (may be empty) */
-  middleName: z.string(),
+  middleName: z.string().max(MAX_AUTHOR_NAME_LENGTH),
   /** Parsed surname */
-  surname: z.string(),
+  surname: z.string().max(MAX_AUTHOR_NAME_LENGTH),
   /**
    * Unique initials (e.g. "JAS"). Generated automatically, deduplicated
    * across the author list. Used in the short statement format.
    */
-  initials: z.string(),
+  initials: z.string().max(MAX_AUTHOR_NAME_LENGTH),
   /**
    * ORCID iD in URL form (e.g. "https://orcid.org/0000-0002-1825-0097")
    * or bare 16-digit format ("0000-0002-1825-0097"). Optional.
    */
-  orcid: z.string().refine(isValidOrcid, "Invalid ORCID iD.").optional(),
+  orcid: z.string().refine(isValidOrcid, "Invalid ORCID iD.").transform(normalizeOrcid).optional(),
   /**
    * Whether this person is a named author or a non-author contributor credited
    * in an Acknowledgements section. CRediT applies to both (see NISO guidance);
@@ -75,7 +84,7 @@ export const AuthorSchema = z.object({
    */
   contributorType: z.enum(["author", "non-author"]).default("author"),
   /** Scores for each of the 14 CRediT roles, keyed by role name */
-  contributions: z.array(ContributionSchema),
+  contributions: z.array(ContributionSchema).max(CREDIT_ROLES.length),
 });
 
 export type Author = z.infer<typeof AuthorSchema>;

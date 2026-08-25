@@ -75,10 +75,12 @@ export function fromXmlDocument(doc: Document): Author[] {
     // biome-ignore lint/security/noSecrets: this is a CSS attribute selector, not a credential.
     const orcidEl = contrib.querySelector('contrib-id[contrib-id-type="orcid"]');
     const orcid = orcidEl?.textContent?.trim() ?? "";
+    const contributorType = contrib.getAttribute("contrib-type") === "contributor" ? "non-author" : "author";
 
     return [
       createAuthor(displayName, {
         contributions,
+        contributorType,
         // Drop an unparseable ORCID rather than aborting the whole import.
         ...(orcid && isValidOrcid(orcid) ? { orcid } : {}),
       }),

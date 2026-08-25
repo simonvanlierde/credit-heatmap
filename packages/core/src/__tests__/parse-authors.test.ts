@@ -37,8 +37,21 @@ describe("parseNameParts", () => {
       middleName: "",
       surname: "Watson",
     });
-    // The comma is stripped, the apostrophe survives.
-    expect(parseNameParts("O'Brien, Séan").firstName).toBe("O'Brien");
+    // Surname-first notation is normalized, and the apostrophe survives.
+    expect(parseNameParts("O'Brien, Séan")).toEqual({ firstName: "Séan", middleName: "", surname: "O'Brien" });
+  });
+
+  it("parses surname-first notation into canonical name fields", () => {
+    expect(parseNameParts("Curie, Marie")).toEqual({
+      firstName: "Marie",
+      middleName: "",
+      surname: "Curie",
+    });
+    expect(parseNameParts("van der Berg, Anne")).toEqual({
+      firstName: "Anne",
+      middleName: "",
+      surname: "van der Berg",
+    });
   });
 
   it("treats a single-token name as a first name with empty surname", () => {
@@ -60,7 +73,7 @@ describe("createAuthor", () => {
     expect(() => createAuthor("Jane Smith", { orcid: "not-an-orcid" })).toThrow(/ORCID/);
     expect(createAuthor("Jane Smith", { orcid: "0000-0002-1825-0097" }).orcid).toBe("0000-0002-1825-0097");
     expect(createAuthor("Jane Smith", { orcid: "https://orcid.org/0000-0002-1825-0097" }).orcid).toBe(
-      "https://orcid.org/0000-0002-1825-0097",
+      "0000-0002-1825-0097",
     );
   });
 });
@@ -84,6 +97,13 @@ describe("deduplicateAuthorInitials", () => {
     expect(new Set(initials).size).toBe(3);
     expect(initials.slice(0, 2)).toEqual(["JL", "JLi"]);
   });
+
+  it("deduplicates supplementary-plane initials without corrupting Unicode", () => {
+    const initials = parseAuthors(["A 𐐀x", "A 𐐀y"]).map((author) => author.initials);
+
+    expect(initials).toEqual(["A𐐀", "A𐐀y"]);
+    expect(initials.every((value) => value.isWellFormed())).toBe(true);
+  });
 });
 
 describe("parseAuthorText", () => {
@@ -93,6 +113,13 @@ describe("parseAuthorText", () => {
     expect(authors[0]?.initials).toBe("AB");
     expect(authors[1]?.initials).toBe("BW");
     expect(authors[2]?.initials).toBe("CAD");
+  });
+
+  it("keeps a surname-first name as one contributor", () => {
+    const authors = parseAuthorText("Curie, Marie");
+
+    expect(authors).toHaveLength(1);
+    expect(authors[0]).toMatchObject({ name: "Curie, Marie", firstName: "Marie", surname: "Curie", initials: "MC" });
   });
 
   it("deduplicates initials when authors share them", () => {

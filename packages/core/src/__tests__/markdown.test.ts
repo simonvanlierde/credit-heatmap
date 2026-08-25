@@ -51,4 +51,16 @@ describe("toMarkdown", () => {
 
     expect(toMarkdown(authors)).toContain("Jane \\| Smith");
   });
+
+  it("renders untrusted Markdown and HTML syntax as literal table text", () => {
+    const [author] = parseAuthorText("Jane Smith");
+    if (!author) throw new Error("expected author");
+    author.name = "Jane\n[click](https://example.com) <img src=x onerror=alert(1)>";
+
+    const md = toMarkdown([author]);
+
+    expect(md.split("\n")).toHaveLength(3);
+    expect(md).toContain("Jane \\[click\\](https://example.com) &lt;img src=x onerror=alert(1)&gt;");
+    expect(md).not.toContain("<img");
+  });
 });

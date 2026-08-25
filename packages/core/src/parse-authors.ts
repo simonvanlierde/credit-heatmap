@@ -1,5 +1,5 @@
 import type { Author, Contribution, ContributorType } from "./author.js";
-import { isValidOrcid, ORCID_INPUT_REGEX } from "./author.js";
+import { isValidOrcid, MAX_AUTHOR_NAME_LENGTH, normalizeOrcid, ORCID_INPUT_REGEX } from "./author.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
 
 /**
@@ -22,9 +22,25 @@ export function parseNameParts(name: string): {
   middleName: string;
   surname: string;
 } {
+  const commaParts = name
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (commaParts.length === 2 && isSurnamePart(commaParts[0] ?? "") && isGivenNamePart(commaParts[1] ?? "")) {
+    const surname = cleanNamePart(commaParts[0] ?? "");
+    const givenParts = cleanNamePart(commaParts[1] ?? "")
+      .split(/\s+/)
+      .filter(Boolean);
+    return {
+      firstName: givenParts[0] ?? "",
+      middleName: givenParts.length > 1 ? (givenParts[1] ?? "") : "",
+      surname,
+    };
+  }
+
   // Keep the straight apostrophe plus the typographic (U+2019) and modifier
   // (U+02BC) variants that iOS/Word autocorrect emit, so "O'Brien" survives.
-  const cleaned = name.replace(/[^\p{L}\p{M}'’ʼ\-\s]/gu, "").trim();
+  const cleaned = cleanNamePart(name);
   const parts = cleaned.split(/\s+/).filter(Boolean);
 
   const firstName = parts[0] ?? "";
@@ -32,6 +48,10 @@ export function parseNameParts(name: string): {
   const middleName = parts.length > 2 ? (parts[1] ?? "") : "";
 
   return { firstName, middleName, surname };
+}
+
+function cleanNamePart(value: string): string {
+  return value.replace(/[^\p{L}\p{M}'’ʼ\-\s]/gu, "").trim();
 }
 
 /**
@@ -70,6 +90,9 @@ export function createAuthor(
   if (!(firstName || middleName || surname)) {
     throw new Error("Author name must contain at least one letter.");
   }
+  if (name.length > MAX_AUTHOR_NAME_LENGTH) {
+    throw new Error(`Author name must be ${MAX_AUTHOR_NAME_LENGTH} characters or fewer.`);
+  }
 
   if (overrides?.orcid && !isValidOrcid(overrides.orcid)) {
     throw new Error(`Invalid ORCID iD: "${overrides.orcid}"`);
@@ -82,7 +105,7 @@ export function createAuthor(
     middleName,
     surname,
     initials: buildInitials(firstName, middleName, surname),
-    ...(overrides?.orcid ? { orcid: overrides.orcid } : {}),
+    ...(overrides?.orcid ? { orcid: normalizeOrcid(overrides.orcid) } : {}),
     contributorType: overrides?.contributorType ?? "author",
     contributions: normalizeContributions(overrides?.contributions),
   };
@@ -113,12 +136,13 @@ export function deduplicateAuthorInitials(authors: Author[]): Author[] {
 
   return authors.map((author) => {
     const initials = author.initials;
+    const surnameCodePoints = [...author.surname];
     let attempt = initials;
     let extraIdx = 1;
 
     while (existingInitials.has(attempt)) {
-      if (extraIdx < author.surname.length) {
-        attempt = initials + (author.surname[extraIdx]?.toLowerCase() ?? String(extraIdx));
+      if (extraIdx < surnameCodePoints.length) {
+        attempt = initials + (surnameCodePoints[extraIdx]?.toLowerCase() ?? String(extraIdx));
         extraIdx += 1;
       } else {
         attempt = initials + String(existingInitials.size);
@@ -209,9 +233,5 @@ function splitCommaLine(line: string): string[] {
  * Empty lines / entries are ignored.
  */
 export function parseAuthorText(text: string): Author[] {
-  const names = text
-    .split(/[\n,]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return parseAuthors(names);
+  return parseAuthors(splitNameList(text));
 }

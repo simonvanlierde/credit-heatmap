@@ -1,5 +1,6 @@
 import { DOMParser } from "linkedom";
 import { describe, expect, it } from "vitest";
+import { MAX_AUTHORS } from "../author.js";
 import { fromJson, toJson } from "../export/json.js";
 import { toJats4rXml } from "../export/xml.js";
 import { fromXmlDocument } from "../export/xml-import.js";
@@ -70,6 +71,14 @@ describe("round-trip exports", () => {
     expect(parsed[0]?.contributions[0]?.score).toBe(100);
   });
 
+  it("rejects JSON payloads beyond the contributor limit", () => {
+    const [author] = parseAuthorText("Jane Smith");
+    if (!author) throw new Error("expected author");
+    const payload = JSON.stringify({ version: 1, authors: Array.from({ length: MAX_AUTHORS + 1 }, () => author) });
+
+    expect(() => fromJson(payload)).toThrow();
+  });
+
   it("XML round-trip preserves ORCID value", () => {
     const authors = parseAuthorText("Jane Smith");
     const [jane] = authors;
@@ -83,5 +92,26 @@ describe("round-trip exports", () => {
     const doc = new DOMParser().parseFromString(xml, "text/xml");
     const parsed = fromXmlDocument(doc as unknown as Document);
     expect(parsed[0]?.orcid).toBe("0000-0001-2345-6789");
+  });
+
+  it("XML round-trip preserves non-author contributor type", () => {
+    const [contributor] = parseAuthorText("Alex Rivera");
+    if (!contributor) throw new Error("expected contributor");
+    contributor.contributorType = "non-author";
+
+    const doc = new DOMParser().parseFromString(toJats4rXml([contributor]), "text/xml");
+    const [parsed] = fromXmlDocument(doc as unknown as Document);
+
+    expect(parsed?.contributorType).toBe("non-author");
+  });
+
+  it("exports surname-first names into the correct JATS fields", () => {
+    const [curie] = parseAuthorText("Curie, Marie");
+    if (!curie) throw new Error("expected contributor");
+
+    const xml = toJats4rXml([curie]);
+
+    expect(xml).toContain("<given-names>Marie</given-names>");
+    expect(xml).toContain("<surname>Curie</surname>");
   });
 });

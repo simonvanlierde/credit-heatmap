@@ -6,6 +6,10 @@ export {
   hasContributions,
   isAllBinary,
   isValidOrcid,
+  MAX_AUTHOR_NAME_LENGTH,
+  MAX_AUTHORS,
+  MAX_IMPORT_BYTES,
+  normalizeOrcid,
   ORCID_INPUT_REGEX,
   ORCID_REGEX,
   rolesWithContributions,
@@ -33,6 +37,8 @@ export { toJats4rXml } from "./export/xml.js";
 export { fromJats4rXml, fromXmlDocument } from "./export/xml-import.js";
 export type { StatementFormat, StatementOptions } from "./generate-statement.js";
 export { generateStatement } from "./generate-statement.js";
+export type { OrcidLookupResult } from "./orcid-lookup.js";
+export { lookupOrcidPerson } from "./orcid-lookup.js";
 export {
   createAuthor,
   deduplicateAuthorInitials,

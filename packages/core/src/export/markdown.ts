@@ -3,9 +3,15 @@ import { activeContributions, scoreToLevel } from "../author.js";
 import { DEFAULT_ROLE_TRANSLATOR, type RoleTranslator } from "../credit-i18n/index.js";
 import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "../credit-i18n/ui-strings.js";
 
-/** Escape backslash and pipe so role/name text can't break the Markdown table. */
+/** Render untrusted text literally inside a Markdown table cell. */
 function escapeCell(s: string): string {
-  return s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+  return s
+    .replace(/\r?\n|\r/g, " ")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\\/g, "\\\\")
+    .replace(/([|[\]`*_!])/g, "\\$1");
 }
 
 /**
