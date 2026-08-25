@@ -7,9 +7,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-A web app for drafting [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) contribution statements for scholarly publications.
+A web app for drafting [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) contribution
+statements for scholarly publications.
 
-Add contributors, assign the 14 roles, and copy a manuscript-ready statement. It also builds a contribution heatmap and exports for journal submission systems: JATS4R XML, CSV, JSON, and Markdown.
+Add contributors, assign the 14 roles, and copy a manuscript-ready statement. It also builds a
+contribution heatmap and exports for journal submission systems: JATS4R XML, CSV, JSON, and
+Markdown.
 
 **Try it:** [credit.duinlab.nl](https://credit.duinlab.nl)
 
@@ -17,13 +20,15 @@ Add contributors, assign the 14 roles, and copy a manuscript-ready statement. It
 
 ## What it does
 
-- **Contributors**: add, rename, reorder, paste a whole author list, or paste an ORCID iD or URL to look up the name
-- **Contribution grid**: click cells to assign the 14 roles as yes/no values or as contribution levels. The grid is
-  the heatmap — transpose it, swap initials for full names, and recolor it in place
+- **Contributors**: add, rename, reorder, paste a whole author list, or paste an ORCID iD or URL to
+  look up the name
+- **Contribution grid**: click cells to assign the 14 roles as yes/no values or as contribution
+  levels. The grid is the heatmap — transpose it, swap initials for full names, and recolor it in
+  place
 - **Statements**: render by role or by author, with full names or initials and optional level labels
 - **Localized output**: translate role names in statements, Markdown tables, and heatmaps (via
-  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation)). Machine-readable
-  exports keep the canonical English CRediT terms
+  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation)).
+  Machine-readable exports keep the canonical English CRediT terms
 - **Heatmap**: download the grid as SVG or PNG
 - **Exports**: copy or download JATS4R XML, CSV, JSON, and Markdown
 - **Sharing & import**: encode a draft in a URL, paste names, or import JSON, CSV, or JATS4R XML
@@ -61,8 +66,8 @@ Browser
 
 Nearly everything runs in the browser. [`packages/core`](packages/core/README.md) holds the domain
 logic — statements, exports, validation, XML import (native `DOMParser`), and the heatmap SVG — as
-pure TypeScript with one runtime dependency, `zod`. The PNG download is drawn from that same SVG onto
-a `<canvas>`.
+pure TypeScript with one runtime dependency, `zod`. The PNG download is drawn from that same SVG
+onto a `<canvas>`.
 
 The one server-side call is the ORCID lookup: the ORCID public API sends no CORS headers, so
 `/api/orcid` proxies it through a small Next.js route handler. (`/health` backs uptime monitors.)
@@ -112,22 +117,25 @@ Config lives in [wrangler.jsonc](wrangler.jsonc) and [open-next.config.ts](open-
 - **Localize the app UI.** Today only the output (statements, Markdown tables, heatmaps) uses the
   bundled role translations; the interface itself is English-only.
 - **Widen locale coverage.** Only a curated subset of
-  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation) locales is
-  vendored under [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations);
+  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation) locales
+  is vendored under
+  [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations);
   refresh them with `node packages/core/scripts/fetch-credit-translations.mjs`.
 - **Smooth onboarding.** Better empty states and a gentler path from a blank workspace to a finished
   statement.
 
 ## Contributing
 
-Bug reports and small features are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md) for setup, testing, and the accessibility checks. Design decisions are recorded as [ADRs](docs/adr/).
+Bug reports and small features are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
+testing, and the accessibility checks. Design decisions are recorded as [ADRs](docs/adr/).
 
 ## Acknowledgements
 
 The CRediT Generator builds on prior tools and scholarship on contributorship:
 
-- The original [Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator),
-  which inspired this app.
+- The original
+  [Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator), which
+  inspired this app.
 - Role translations from
   [credit-translation](https://github.com/contributorshipcollaboration/credit-translation).
 - The **contribution matrix** proposed by Nick Steinmetz (2019), the visual form this app's heatmap
@@ -149,10 +157,12 @@ The CRediT Generator builds on prior tools and scholarship on contributorship:
 ## Citing this software
 
 If you use the CRediT Generator in your work, please cite it. Metadata lives in
-[CITATION.cff](CITATION.cff), and GitHub's "Cite this repository" button generates APA and BibTeX from
-it. The archived, versioned release is on Zenodo: [doi:10.5281/zenodo.21213659](https://doi.org/10.5281/zenodo.21213659).
+[CITATION.cff](CITATION.cff), and GitHub's "Cite this repository" button generates APA and BibTeX
+from it. The archived, versioned release is on Zenodo:
+[doi:10.5281/zenodo.21213659](https://doi.org/10.5281/zenodo.21213659).
 
-> van Lierde, S. *CRediT Generator* [Computer software]. Zenodo. <https://doi.org/10.5281/zenodo.21213659>
+> van Lierde, S. *CRediT Generator* [Computer software]. Zenodo.
+> <https://doi.org/10.5281/zenodo.21213659>
 >
 ## License
 
