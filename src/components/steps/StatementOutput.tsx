@@ -94,7 +94,7 @@ export function StatementOutput() {
   }
 
   return (
-    <div className="bg-surface-bright rounded-lg shadow-md border border-outline-variant/10 p-4 md:p-5 flex flex-col gap-3">
+    <div className="bg-surface-bright rounded-lg shadow-md border border-outline-variant/10 p-3 md:p-4 flex flex-col gap-3 desk:h-full">
       {/* One left-aligned wrapping row: a conditional toggle extends the row
           instead of reflowing a justified cluster, so nothing jumps around. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -156,8 +156,15 @@ export function StatementOutput() {
       )}
 
       {/* Statement preview */}
-      <div
-        className="relative z-10 min-h-[3.5rem] border-l border-primary bg-surface-container-low p-3 rounded-r"
+      {/* Sized to the statement, not to the pane — a short statement should not
+          render as a tall empty box. It shrinks and scrolls only once the card
+          runs out of room. tabIndex makes that overflow keyboard-reachable:
+          the pane holds no focusable content of its own. */}
+      <section
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region with no focusable content needs a tab stop, or keyboard users cannot reach the overflow (axe scrollable-region-focusable).
+        tabIndex={0}
+        aria-label="Generated statement"
+        className="relative z-10 min-h-[3.5rem] border-l border-primary bg-surface-container-low p-3 rounded-r focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary desk:min-h-0 desk:overflow-y-auto"
         style={{ fontFamily: "var(--font-headline)" }}
       >
         {statement ? (
@@ -169,11 +176,17 @@ export function StatementOutput() {
             No contributions assigned yet — click cells in the grid to assign roles.
           </p>
         )}
-      </div>
+      </section>
 
       {/* Validation notices — a live region so changes are announced as authors edit. */}
       {issues.length > 0 && (
-        <ul className="relative z-10 flex flex-col gap-1.5" aria-label="Statement checks" aria-live="polite">
+        <ul
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: same as the statement pane — the bounded checks list scrolls and holds no focusable content.
+          tabIndex={0}
+          className="relative z-10 flex max-h-40 flex-col gap-1.5 overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          aria-label="Statement checks"
+          aria-live="polite"
+        >
           {issues.map((issue) => (
             <li
               key={issue.message}
@@ -194,8 +207,10 @@ export function StatementOutput() {
         </ul>
       )}
 
-      {/* One action row: copy the statement (primary), export a data format,
-          and the badge anchored at the right. */}
+      {/* One action row: copy the statement (primary), export a data format, and
+          the badge anchored at the right. The groups wrap onto their own lines
+          in the narrow 2xl column, so the "Export data" label carries the
+          separation rather than a divider that would be left orphaned. */}
       <div className="relative z-10 flex flex-wrap items-center gap-x-4 gap-y-3">
         <button
           type="button"
@@ -207,43 +222,46 @@ export function StatementOutput() {
           {copyStatus === "copied" ? "Copied!" : copyStatus === "error" ? "Copy failed" : "Copy statement"}
         </button>
 
-        <span aria-hidden="true" className="hidden sm:block h-6 w-px bg-outline-variant/30" />
-
         {/* Secondary: pick a data format, then copy or download it */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">Export data</span>
-          <Select value={dataFormat} onValueChange={(value) => setDataFormat(value as DataFormat)}>
-            <SelectTrigger className="w-32 py-1.5 text-xs" aria-label="Export format">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(DATA_FORMATS) as DataFormat[]).map((value) => (
-                <SelectItem key={value} value={value} className="text-sm">
-                  {DATA_FORMATS[value].label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Export data</span>
+          {/* The label sits above so it stops competing for the row's width and
+              leaving Download dangling on its own line. The controls still wrap
+              on a phone, where three of them genuinely do not fit one line. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={dataFormat} onValueChange={(value) => setDataFormat(value as DataFormat)}>
+              <SelectTrigger className="w-32 py-1.5 text-xs" aria-label="Export format">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(DATA_FORMATS) as DataFormat[]).map((value) => (
+                  <SelectItem key={value} value={value} className="text-sm">
+                    {DATA_FORMATS[value].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <button
-            type="button"
-            onClick={() => copyDataText(DATA_FORMATS[dataFormat].serialize(authors, translateRole, translateUi))}
-            disabled={!hasAuthors}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Copy className="h-3.5 w-3.5" />
-            {dataCopyStatus === "copied" ? "Copied!" : dataCopyStatus === "error" ? "Copy failed" : "Copy"}
-          </button>
+            <button
+              type="button"
+              onClick={() => copyDataText(DATA_FORMATS[dataFormat].serialize(authors, translateRole, translateUi))}
+              disabled={!hasAuthors}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {dataCopyStatus === "copied" ? "Copied!" : dataCopyStatus === "error" ? "Copy failed" : "Copy"}
+            </button>
 
-          <button
-            type="button"
-            onClick={downloadData}
-            disabled={!hasAuthors}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Download
-          </button>
+            <button
+              type="button"
+              onClick={downloadData}
+              disabled={!hasAuthors}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download
+            </button>
+          </div>
         </div>
 
         <CreditBadge className="sm:ml-auto flex items-center gap-1.5 text-xs font-medium text-on-surface-variant hover:text-primary transition-colors" />

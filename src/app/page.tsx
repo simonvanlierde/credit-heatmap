@@ -7,19 +7,28 @@ export default function HomePage() {
   return (
     <>
       <WelcomeCard />
-      {/* Steps 1–3 in DOM (and tab) order; on xl+ contributors and the grid
-          share the top row and the statement runs full-width below, so it is
-          never squeezed into a narrow column by a long contributor list. */}
-      <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] xl:items-start">
-        <section aria-label="Contributors" className="min-w-0">
+      {/* Steps 1–3 in DOM (and tab) order. Below xl they stack and the page
+          scrolls; from xl each step gets its own column, so the workflow reads
+          left to right and fits one desktop viewport.
+
+          The statement never spans a full-width row: its prose is capped at 75ch
+          for readability, so a 1200px-wide row would wrap the text at half its
+          width and leave the rest empty. The matrix column is sized to the
+          matrix (max-content) and the statement absorbs whatever horizontal
+          space the matrix does not need, down to a 26rem floor.
+
+          `desk` additionally locks the row to the viewport height; each pane
+          scrolls its own content from there. */}
+      <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[19rem_minmax(0,max-content)_minmax(26rem,1fr)] xl:items-start desk:h-full desk:items-stretch desk:overflow-hidden">
+        <section aria-label="Contributors" className="min-w-0 desk:min-h-0">
           <AuthorList />
         </section>
 
-        <section aria-label="Contribution grid" className="min-w-0">
+        <section aria-label="Contribution grid" className="min-w-0 desk:min-h-0">
           <ContributionGrid />
         </section>
 
-        <section aria-label="Statement and export" className="min-w-0 xl:col-span-2">
+        <section aria-label="Statement and export" className="min-w-0 desk:min-h-0">
           <StatementOutput />
         </section>
       </div>

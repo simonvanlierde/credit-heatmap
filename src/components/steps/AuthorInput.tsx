@@ -274,7 +274,7 @@ export function AuthorList() {
   }
 
   return (
-    <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-4 md:p-5">
+    <div className="flex flex-col bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4 desk:h-full">
       <StepHeader n={1} title="Contributors" className="mb-3" />
 
       {authors.length === 0 && !welcomeOpen && (
@@ -306,7 +306,7 @@ export function AuthorList() {
         accessibility={{ announcements }}
       >
         <SortableContext items={authors.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-1">
+          <div className="space-y-1 desk:min-h-0 desk:flex-1 desk:overflow-y-auto">
             {authors.map((author, index) => (
               <AuthorRow key={author.id} index={index} onRemove={handleRemove} />
             ))}
@@ -407,14 +407,18 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
   const [nameDraft, setNameDraft] = useState(author?.name ?? "");
   const [nameError, setNameError] = useState<string | null>(null);
   const committedRef = useRef(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   // Guard against setState after the row unmounts mid-lookup (delete/reorder).
   const mounted = useRef(true);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // Set on mount, not just at creation: React re-runs effects on a StrictMode
+    // remount, and the cleanup would otherwise leave this false for good — every
+    // later lookup would bail out before clearing "Looking up…".
+    mounted.current = true;
+    return () => {
       mounted.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   useEffect(() => {
     if (author) setNameDraft(author.name);
@@ -461,6 +465,13 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
   }
 
   function applyOrcid(orcid: string) {
+    if (!isValidOrcid(orcid)) {
+      const message = "That ORCID iD has an invalid checksum. Check the digits and try again.";
+      setLookupError(message);
+      announce(message, { assertive: true });
+      setEditingOrcid(true);
+      return;
+    }
     updateAuthorOrcid(authorId, orcid);
     setEditingOrcid(false);
     setLookupError(null);
@@ -483,6 +494,10 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
   }
 
   function commitName() {
+    // A long name leaves the input scrolled to its tail. Rewind it so the
+    // truncation reads from the start ("Maximiliana Feathersto…") the moment
+    // the field is left, rather than whenever the row next re-renders.
+    nameInputRef.current?.scrollTo({ left: 0 });
     if (updateAuthorName(authorId, nameDraft)) {
       setNameError(null);
       return;
@@ -494,7 +509,7 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group flex items-center gap-2 rounded-lg border border-transparent px-2 py-1 hover:border-outline-variant/30 hover:bg-surface-container-low transition-colors duration-150 ${
+      className={`group flex items-center gap-2 rounded-lg border border-transparent px-2 py-0.5 hover:border-outline-variant/30 hover:bg-surface-container-low transition-colors duration-150 ${
         isDragging ? "relative z-10 bg-surface shadow-md" : ""
       }`}
     >
@@ -518,6 +533,7 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
 
       <div className="flex-1 min-w-0">
         <input
+          ref={nameInputRef}
           id={`author-name-${author.id}`}
           type="text"
           aria-label="Name or ORCID iD"
@@ -547,7 +563,7 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
         )}
 
         {/* Meta row: contributor-type badge (always shown, click to swap) + ORCID. */}
-        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => setAuthorType(author.id, isNonAuthor ? "author" : "non-author")}
@@ -603,7 +619,6 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
               >
                 <X className="h-3.5 w-3.5" />
               </button>
-              {lookupError !== null && <span className="text-[10px] text-error leading-tight">{lookupError}</span>}
               {lookedUp === bareOrcid && (
                 <span className="text-[10px] text-primary leading-tight">Name updated from ORCID</span>
               )}
@@ -636,22 +651,29 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
               className="w-full max-w-[15rem] bg-transparent p-0 focus:ring-0 text-on-surface-variant text-xs border-b border-outline-variant/40 focus:border-primary outline-none font-mono"
             />
           ) : (
+            // Short label: the trigger is hover-revealed but still occupies its
+            // width, and "ORCID iD" pushed the meta row onto a second line in the
+            // narrow contributors column.
             <button
               type="button"
               onClick={() => setEditingOrcid(true)}
+              aria-label="Add ORCID iD"
               className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-[color,opacity] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
             >
               <Plus className="h-3 w-3" />
-              ORCID iD
+              ORCID
             </button>
           )}
+          {/* Outside the branches above: a rejected iD is reported while the
+              input is still open, when the row has no stored ORCID to hang it on. */}
+          {lookupError !== null && <span className="text-[10px] leading-tight text-error">{lookupError}</span>}
         </div>
       </div>
 
       <button
         type="button"
         onClick={() => onRemove(author, index)}
-        className="touch-target shrink-0 flex items-center justify-center size-9 rounded text-on-surface-variant hover:bg-error-container/30 hover:text-error transition-colors"
+        className="touch-target shrink-0 flex items-center justify-center size-8 rounded text-on-surface-variant hover:bg-error-container/30 hover:text-error transition-colors"
         aria-label={`Remove ${author.name}`}
       >
         <Trash2 className="h-4 w-4" />

@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, Fingerprint, Sparkles, TableProperties, TextQuote, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StepNumber } from "@/components/ui/step-number";
 import { useContributionStore } from "@/store/contribution-store";
 
@@ -27,11 +27,16 @@ const STEPS = [
 ];
 
 /**
- * First-run welcome — a non-blocking card above the workspace. Auto-opens once
- * for a new visitor (tracked by the persisted `welcomeSeen` flag) and is
- * re-openable from the header via the ephemeral `welcomeOpen` flag. When it is
- * re-opened over an already-populated workspace it drops the "Load sample data"
- * action, so a re-open can never overwrite real contributor data.
+ * First-run welcome — a native modal over the workspace. Auto-opens once for a
+ * new visitor (tracked by the persisted `welcomeSeen` flag) and is re-openable
+ * from the header via the ephemeral `welcomeOpen` flag. When it is re-opened
+ * over an already-populated workspace it drops the "Load sample data" action,
+ * so a re-open can never overwrite real contributor data.
+ *
+ * It overlays rather than sits inline: as a band above the workspace it cost
+ * ~295px of vertical space and reflowed the entire page on dismissal. `<dialog
+ * showModal()>` gives the focus trap, Escape handling, backdrop, and inert
+ * background for free — the same primitive ImportModal uses.
  */
 export function WelcomeCard() {
   const welcomeOpen = useContributionStore((s) => s.welcomeOpen);
@@ -43,6 +48,7 @@ export function WelcomeCard() {
   // flags aren't known until HeaderActions triggers rehydration. Gate on that,
   // then auto-open exactly once for a first-time visitor.
   const [hydrated, setHydrated] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const onHydrated = () => {
       setHydrated(true);
@@ -53,20 +59,35 @@ export function WelcomeCard() {
     return useContributionStore.persist.onFinishHydration(onHydrated);
   }, []);
 
-  if (!hydrated || !welcomeOpen) return null;
+  // Drive the native dialog from the store flag, so the header's "How it works"
+  // and the first-run auto-open share one code path.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (welcomeOpen && !dialog.open) dialog.showModal();
+    else if (!welcomeOpen && dialog.open) dialog.close();
+  }, [welcomeOpen]);
+
+  if (!hydrated) return null;
 
   return (
-    <section
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: the onMouseDown closes the dialog on backdrop click; Escape and the Dismiss button provide the accessible paths.
+    <dialog
+      ref={dialogRef}
       id="getting-started"
       aria-label="Getting started"
-      className="animate-[welcome-in_0.4s_ease-out] border-b border-outline-variant/20 bg-surface-bright px-4 py-6 md:px-8 md:py-8"
+      onClose={closeWelcome}
+      onMouseDown={(event) => {
+        if (event.target === dialogRef.current) dialogRef.current?.close();
+      }}
+      className="m-auto w-full max-w-3xl max-h-[90dvh] overflow-y-auto rounded-lg bg-surface-bright p-0 text-on-surface shadow-2xl ring-1 ring-outline-variant/20 backdrop:bg-on-surface/30 backdrop:backdrop-blur-sm"
     >
-      <div className="relative flex flex-col gap-6">
+      <div className="animate-[welcome-in_0.4s_ease-out] relative flex flex-col gap-6 px-6 py-6 md:px-8 md:py-8">
         <button
           type="button"
           onClick={closeWelcome}
           aria-label="Dismiss getting started"
-          className="absolute -top-1 right-0 flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <X className="h-4 w-4" />
         </button>
@@ -148,6 +169,6 @@ export function WelcomeCard() {
           </span>
         </div>
       </div>
-    </section>
+    </dialog>
   );
 }

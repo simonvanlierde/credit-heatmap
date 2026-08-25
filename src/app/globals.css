@@ -1,6 +1,14 @@
 /* spell-checker: ignore wght */
 @import "tailwindcss";
 
+/*
+ * `desk` height-locks the workspace into the viewport, but only when there is
+ * genuinely room for it: a short window, a zoomed-in page, or a phone in
+ * landscape falls back to ordinary document flow rather than trapping the
+ * whole app in a nested scroller.
+ */
+@custom-variant desk (@media (min-width: 80rem) and (min-height: 45rem));
+
 :root {
   /* --- Accent (single ink-blue: links, focus, primary buttons only) --- */
   --color-primary: #1f4e79;

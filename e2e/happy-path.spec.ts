@@ -1,8 +1,52 @@
 // biome-ignore lint/correctness/noNodejsModules: Playwright tests run in Node.
 import { readFile } from "node:fs/promises";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+/**
+ * Most flows exercise the workspace, not the first-run welcome. That welcome is
+ * now a modal dialog, so leaving it open would intercept every click. Seeding
+ * the "returning visitor" flag keeps it closed — and only when nothing is
+ * stored yet, so the persistence and migration flows still own their own state.
+ * The first-run modal itself is covered by its own tests.
+ */
+async function asReturningVisitor(page: Page) {
+  await page.addInitScript(() => {
+    if (window.localStorage.getItem("credit-generator-state")) return;
+    window.localStorage.setItem(
+      "credit-generator-state",
+      JSON.stringify({ state: { authors: [], welcomeSeen: true }, version: 4 }),
+    );
+  });
+}
 
 test.describe("Happy path UI flows", () => {
+  test.beforeEach(async ({ page }) => {
+    await asReturningVisitor(page);
+  });
+
+  test("the first-run welcome opens as a modal and dismisses to the workspace", async ({ page }) => {
+    // Opt back out of the returning-visitor seed: this is the first-run path.
+    await page.addInitScript(() => window.localStorage.removeItem("credit-generator-state"));
+    await page.goto("/");
+
+    const welcome = page.locator("dialog#getting-started");
+    await expect(welcome).toBeVisible();
+    // A modal, so focus is inside it and the workspace behind it is inert.
+    await expect(welcome).toHaveJSProperty("open", true);
+    await expect(page.locator("dialog#getting-started :focus")).toBeAttached();
+
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(welcome).toBeHidden();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    // Re-opening from the header never re-offers a data-replacing action.
+    await page.getByRole("button", { name: "How it works" }).click();
+    await expect(welcome).toBeVisible();
+    await expect(page.getByRole("button", { name: "Load sample data" })).toBeHidden();
+    await page.keyboard.press("Escape");
+    await expect(welcome).toBeHidden();
+  });
+
   test("Load sample data populates contributors and the heatmap", async ({ page }) => {
     await page.goto("/");
 
@@ -263,6 +307,126 @@ test.describe("Happy path UI flows", () => {
     await expect(statement).toContainText("Acknowledgements: Jane A. Smith");
     await page.getByRole("switch", { name: /Separate acknowledgements/ }).click();
     await expect(statement).not.toContainText("Acknowledgements:");
+  });
+
+  test("explains a rejected ORCID iD instead of dropping it, and never sticks on the lookup", async ({ page }) => {
+    // Stub the proxy so the row's own states are what is under test, not the registry.
+    await page.route("**/api/orcid", (route) =>
+      route.fulfill({ json: { firstName: "Jane", surname: "Smith", displayName: "Jane A. Smith" } }),
+    );
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    const orcidField = page.getByLabel("ORCID iD", { exact: true });
+    await page.getByRole("button", { name: "Add ORCID iD" }).first().click();
+
+    // Shape-valid but checksum-invalid: the store rejects it, so the row has to
+    // say why rather than silently closing the input.
+    await orcidField.fill("0000-0002-1825-0098");
+    await orcidField.press("Enter");
+    const rowError = page
+      .locator("section[aria-label=Contributors] li, section[aria-label=Contributors] .space-y-1 > *")
+      .first()
+      .getByText(/invalid checksum/i);
+    await expect(rowError).toBeVisible();
+    await expect(orcidField).toBeVisible();
+
+    // A valid iD resolves and must not leave the row stuck on "Looking up…".
+    await orcidField.fill("0000-0002-1825-0097");
+    await orcidField.press("Enter");
+    await expect(page.getByText("Looking up…")).toBeHidden();
+    await expect(page.getByRole("link", { name: /0000-0002-1825-0097/ })).toBeVisible();
+  });
+
+  test("matrix option panels close on an outside click and show their open state", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    for (const name of ["Bulk assign", "Heatmap options"]) {
+      const trigger = page.getByRole("button", { name });
+      await expect(trigger).toHaveAttribute("data-state", "closed");
+      await trigger.click();
+      await expect(trigger).toHaveAttribute("data-state", "open");
+
+      // Clicking away dismisses it — a plain <details> never did.
+      await page.getByRole("heading", { name: "Contributors" }).click();
+      await expect(trigger).toHaveAttribute("data-state", "closed");
+    }
+  });
+
+  test("bulk assigns a chosen level, and keeps the legend row stable across modes", async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    // The export buttons and the card width must not move when the legend grows.
+    const exports = page.getByText("Heatmap", { exact: true });
+    const card = page.locator("section[aria-label='Contribution grid'] > div");
+    const before = { x: (await exports.boundingBox())?.x, w: (await card.boundingBox())?.width };
+    await page.getByRole("radio", { name: "Levels" }).click();
+    await expect(page.getByText("Click to cycle", { exact: true })).toBeVisible();
+    expect((await exports.boundingBox())?.x).toBe(before.x);
+    expect((await card.boundingBox())?.width).toBe(before.w);
+
+    // Bulk assign in Levels mode must apply the chosen level, not silently Lead.
+    await page.getByRole("button", { name: "Bulk assign" }).click();
+    await page.getByRole("combobox", { name: "Level to assign" }).click();
+    await page.getByRole("option", { name: "Supporting" }).click();
+    await page.getByRole("button", { name: "Assign all" }).click();
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { name: /^Conceptualization for Jane A\. Smith: Supporting$/ }),
+    ).toBeVisible();
+  });
+
+  test("keeps matrix labels readable and the layout stable across display modes", async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    // Switching assignment mode must not reflow the header and shove the matrix down.
+    const table = page.locator("table");
+    const beforeY = (await table.boundingBox())?.y;
+    await page.getByRole("radio", { name: "Levels" }).click();
+    await expect(page.getByText("Click to cycle", { exact: true })).toBeVisible();
+    expect((await table.boundingBox())?.y).toBe(beforeY);
+
+    // Enough contributors that the 14 role columns are squeezed to their minimum
+    // width — the condition that used to clip every angled label.
+    const longName = "Maximiliana Featherstonehaugh-Wentworth";
+    const adder = page.getByLabel("New author names or ORCID iD");
+    await adder.fill(`${longName}, Dmitri Ivanov, Elena Fischer, Farid Haddad, Grace Okoro`);
+    await adder.press("Enter");
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(8);
+
+    await page.getByText("Heatmap options", { exact: true }).click();
+    await page.getByRole("button", { name: "Transpose" }).click();
+    await page.keyboard.press("Escape");
+
+    // An angled role label overhangs its own column, so it must paint above the
+    // neighbouring headers rather than being buried under their backgrounds.
+    // Sample along its length: every point must still hit the label itself.
+    const buried = await page.evaluate(() => {
+      const label = document.querySelector("thead th span[title]");
+      if (!label) return "no label";
+      const box = label.getBoundingClientRect();
+      for (const fraction of [0.2, 0.4, 0.6]) {
+        const x = box.left + box.width * fraction;
+        const y = box.bottom - box.height * fraction;
+        if (!label.contains(document.elementFromPoint(x, y))) return `covered at ${fraction}`;
+      }
+      return "";
+    });
+    expect(buried).toBe("");
+
+    // A long contributor name is truncated in the transposed row header rather
+    // than growing the label column and pushing role columns out of view.
+    const rowHeader = page.locator("tbody th").filter({ hasText: "Maximiliana" }).locator("span > span").last();
+    expect(await rowHeader.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   });
 
   test("bulk assigns one contributor without obscuring direct grid editing", async ({ page }) => {

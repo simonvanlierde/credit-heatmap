@@ -14,8 +14,37 @@ import { expect, type Page, test } from "@playwright/test";
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 const scan = (page: Page) => new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
 
+/**
+ * Most flows exercise the workspace, not the first-run welcome. That welcome is
+ * now a modal dialog, so leaving it open would intercept every click. Seeding
+ * the "returning visitor" flag keeps it closed — and only when nothing is
+ * stored yet, so the persistence and migration flows still own their own state.
+ * The first-run modal itself is covered by its own tests.
+ */
+async function asReturningVisitor(page: Page) {
+  await page.addInitScript(() => {
+    if (window.localStorage.getItem("credit-generator-state")) return;
+    window.localStorage.setItem(
+      "credit-generator-state",
+      JSON.stringify({ state: { authors: [], welcomeSeen: true }, version: 4 }),
+    );
+  });
+}
+
 test.describe("Accessibility (axe-core)", () => {
-  test("first-run empty state has no detectable violations", async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
+    await asReturningVisitor(page);
+  });
+
+  test("first-run welcome modal has no detectable violations", async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.removeItem("credit-generator-state"));
+    await page.goto("/");
+    await expect(page.locator("dialog#getting-started")).toBeVisible();
+    const results = await scan(page);
+    expect(results.violations).toEqual([]);
+  });
+
+  test("returning empty state has no detectable violations", async ({ page }) => {
     await page.goto("/");
     const results = await scan(page);
     expect(results.violations).toEqual([]);
@@ -90,7 +119,6 @@ test.describe("Accessibility (axe-core)", () => {
   test("help disclosure exposes state and respects reduced motion", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
-    await page.getByRole("button", { name: "Dismiss getting started" }).click();
     const help = page.getByRole("button", { name: "How it works" });
     await expect(help).toHaveAttribute("aria-expanded", "false");
     await help.click();

@@ -58,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* pr compensates the scrollbar width modal primitives remove on open; the fixed
               header escapes the body padding that keeps <main> from reflowing. */}
           <header className="fixed top-0 w-full z-50 bg-surface-bright/80 backdrop-blur-md border-b border-outline-variant/20 pr-[var(--removed-body-scroll-bar-size,0px)]">
-            <div className="mx-auto flex h-16 max-w-screen-xl items-center justify-between gap-2 px-3 sm:px-8 2xl:max-w-[100rem]">
+            <div className="mx-auto flex h-13 max-w-[100rem] items-center justify-between gap-2 px-3 sm:px-8">
               {/* Brand */}
               <div className="flex items-center gap-8">
                 <h1
@@ -82,7 +82,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
 
-          <main id="main-content" className="pt-16 max-w-screen-xl 2xl:max-w-[100rem] mx-auto">
+          {/* On a desktop-sized window the workspace is height-locked to the viewport
+              (see the `desk` variant): the page itself never scrolls, and each of the
+              three panes scrolls its own content. Narrow, short, or zoomed viewports
+              keep ordinary document flow. */}
+          <main id="main-content" className="mx-auto max-w-[100rem] pt-13 desk:h-dvh desk:overflow-hidden">
             {children}
           </main>
           <Announcer />

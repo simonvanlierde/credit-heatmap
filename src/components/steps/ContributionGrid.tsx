@@ -9,7 +9,18 @@ import {
   type UiKey,
   type UiTranslator,
 } from "@credit-generator/core";
-import { Check, Columns3, Download, ExternalLink, Info, ListChecks, Rows3, Settings2, UserPlus } from "lucide-react";
+import {
+  Check,
+  Columns3,
+  Copy,
+  Download,
+  ExternalLink,
+  Info,
+  ListChecks,
+  Rows3,
+  Settings2,
+  UserPlus,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { ColorPopover } from "@/components/ui/color-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StepHeader } from "@/components/ui/step-header";
 import { Switch } from "@/components/ui/switch";
 import { announce } from "@/lib/announce";
+import type { CopyStatus } from "@/lib/use-copy-status";
 import { useOutputTranslators } from "@/lib/use-output-translators";
 import { download as downloadBlob } from "@/lib/utils";
 import { type InputMode, useContributionStore } from "@/store/contribution-store";
@@ -35,6 +47,11 @@ const FLAT_KEY: { key: UiKey; score: number }[] = [
   { key: "contributed", score: 100 },
   { key: "none", score: 0 },
 ];
+
+// "None" is what Clear does, so the bulk picker offers only the assignable levels.
+const ASSIGNABLE_LEVELS = LEVEL_KEY.filter(({ score }) => score > 0);
+// Equal, not Lead: bulk-marking everyone as Lead overstates every one of them.
+const DEFAULT_BULK_LEVEL = 66;
 
 const INPUT_MODE_OPTIONS: { value: InputMode; label: string }[] = [
   { value: "toggle", label: "Yes / no" },
@@ -60,15 +77,17 @@ export function ContributionGrid() {
     welcomeOpen,
   } = useContributionStore();
   const { translateUi } = useOutputTranslators();
-  const [transpose, setTranspose] = useState(false);
   const [acronyms, setAcronyms] = useState(true);
   const [selectedAuthorId, setSelectedAuthorId] = useState("");
   const [bulkAuthorId, setBulkAuthorId] = useState("");
+  const [transpose, setTranspose] = useState(false);
   const [bulkRoleIndex, setBulkRoleIndex] = useState("0");
+  const [bulkLevel, setBulkLevel] = useState(String(DEFAULT_BULK_LEVEL));
 
   // Graded (level) colors and labels follow the input mode, so the legend and
   // cells always match the way clicks behave.
   const graded = inputMode === "levels";
+  const modeHint = "Click a cell repeatedly: None → Supporting → Equal → Lead.";
 
   function handleCellClick(author: Author, roleIndex: number, score: number) {
     if (inputMode === "levels") {
@@ -85,7 +104,7 @@ export function ContributionGrid() {
 
   if (authors.length === 0) {
     return (
-      <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-4 md:p-5">
+      <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4">
         <StepHeader n={2} title="Contributions" className="mb-3" />
         {welcomeOpen ? (
           <p className="text-sm text-on-surface-variant">Your contribution workspace will appear here.</p>
@@ -106,6 +125,8 @@ export function ContributionGrid() {
   const selectedAuthor = authors.find((author) => author.id === selectedAuthorId) ?? firstAuthor;
   const bulkAuthor = authors.find((author) => author.id === bulkAuthorId) ?? firstAuthor;
   const parsedBulkRoleIndex = Number.parseInt(bulkRoleIndex, 10);
+  // Yes/no has one "assigned" value; levels asks which one.
+  const assignScore = graded ? Number.parseInt(bulkLevel, 10) : 100;
 
   const renderCell = (author: Author, roleIndex: number) => {
     const role = CREDIT_ROLES[roleIndex];
@@ -138,29 +159,45 @@ export function ContributionGrid() {
   };
 
   return (
-    <div className="min-w-0 max-w-full bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-4 md:p-5">
+    <div className="flex min-w-0 max-w-full flex-col bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4 desk:h-full">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <StepHeader n={2} title="Contributions" />
         <div className="flex flex-wrap items-start gap-2">
-          <div>
-            <SegmentedControl
-              ariaLabel="Role assignment mode"
-              options={INPUT_MODE_OPTIONS}
-              value={inputMode}
-              onChange={setInputMode}
-            />
-            <p className="mt-1 max-w-56 text-xs leading-snug text-on-surface-variant">
-              {graded ? "Click repeatedly: None → Supporting → Equal → Lead." : "Click a cell to mark a contribution."}
-            </p>
-          </div>
-          <details className="group relative">
-            <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <SegmentedControl
+            ariaLabel="Role assignment mode"
+            options={INPUT_MODE_OPTIONS}
+            value={inputMode}
+            onChange={setInputMode}
+          />
+          <Popover>
+            <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
               <ListChecks className="size-3.5" aria-hidden="true" />
               Bulk assign
-            </summary>
-            <div className="absolute right-0 z-30 mt-2 hidden w-72 max-w-[calc(100vw-2rem)] gap-4 rounded-lg border border-outline-variant/30 bg-surface-bright p-3 shadow-lg group-open:grid">
-              <fieldset className="grid gap-2">
-                <legend className="mb-1 text-xs font-semibold text-on-surface">One contributor</legend>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="grid w-72 max-w-[calc(100vw-2rem)] gap-4">
+              {graded && (
+                <div className="grid gap-2 text-xs font-semibold text-on-surface">
+                  <span id="bulk-level">Level to assign</span>
+                  <Select value={bulkLevel} onValueChange={setBulkLevel}>
+                    <SelectTrigger className="w-full text-xs font-normal" aria-labelledby="bulk-level">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ASSIGNABLE_LEVELS.map(({ key, score }) => (
+                        <SelectItem key={key} value={String(score)}>
+                          {translateUi(key)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {/* A <legend> renders unreliably inside a `display: grid` fieldset,
+                  so the group is labelled by a plain heading instead. */}
+              <fieldset aria-labelledby="bulk-one-contributor" className="grid gap-2">
+                <p id="bulk-one-contributor" className="mb-1 text-xs font-semibold text-on-surface">
+                  One contributor
+                </p>
                 <Select value={bulkAuthor?.id} onValueChange={setBulkAuthorId}>
                   <SelectTrigger className="w-full text-xs" aria-label="Contributor for bulk assignment">
                     <SelectValue />
@@ -174,12 +211,14 @@ export function ContributionGrid() {
                   </SelectContent>
                 </Select>
                 <div className="grid grid-cols-2 gap-2">
-                  <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, 100)}>Assign all</BulkButton>
+                  <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, assignScore)}>Assign all</BulkButton>
                   <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, 0)}>Clear all</BulkButton>
                 </div>
               </fieldset>
-              <fieldset className="grid gap-2 border-t border-outline-variant/30 pt-3">
-                <legend className="mb-1 text-xs font-semibold text-on-surface">One role</legend>
+              <fieldset aria-labelledby="bulk-one-role" className="grid gap-2 border-t border-outline-variant/30 pt-3">
+                <p id="bulk-one-role" className="mb-1 text-xs font-semibold text-on-surface">
+                  One role
+                </p>
                 <Select value={bulkRoleIndex} onValueChange={setBulkRoleIndex}>
                   <SelectTrigger className="w-full text-xs" aria-label="Role for bulk assignment">
                     <SelectValue />
@@ -193,18 +232,18 @@ export function ContributionGrid() {
                   </SelectContent>
                 </Select>
                 <div className="grid grid-cols-2 gap-2">
-                  <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, 100)}>Assign to all</BulkButton>
+                  <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, assignScore)}>Assign to all</BulkButton>
                   <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, 0)}>Clear role</BulkButton>
                 </div>
               </fieldset>
-            </div>
-          </details>
-          <details className="group relative">
-            <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
               <Settings2 className="size-3.5" aria-hidden="true" />
               Heatmap options
-            </summary>
-            <div className="absolute right-0 z-30 mt-2 hidden w-64 flex-wrap items-center gap-3 rounded-lg border border-outline-variant/30 bg-surface-bright p-3 shadow-lg group-open:flex">
+            </PopoverTrigger>
+            <PopoverContent align="end" className="flex w-64 flex-wrap items-center gap-3">
               <ColorPopover
                 value={heatmapMonoColor}
                 onChange={setHeatmapMonoColor}
@@ -242,13 +281,13 @@ export function ContributionGrid() {
                 <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label="Use contributor initials" />
                 Use initials
               </span>
-            </div>
-          </details>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
       <div className="md:hidden">
-        <div className="sticky top-16 z-20 -mx-1 mb-2 bg-surface-bright px-1 py-2">
+        <div className="sticky top-13 z-20 -mx-1 mb-2 bg-surface-bright px-1 py-2">
           <label className="mb-1.5 block text-xs font-semibold text-on-surface" htmlFor="mobile-contributor">
             Contributor to assign
           </label>
@@ -298,25 +337,36 @@ export function ContributionGrid() {
 
       {/* A bounded viewport makes both sticky axes persistent during long desktop matrices. */}
       <div
-        className={`hidden max-h-[min(70vh,44rem)] max-w-full overflow-auto md:block ${
-          transpose || !acronyms ? "pr-24" : ""
+        className={`hidden max-h-[min(70vh,44rem)] max-w-full overflow-auto md:block desk:max-h-none desk:min-h-0 desk:flex-1 ${
+          // Right padding lets the last angled label overhang its own column:
+          // a 9.5rem label rotated 45° reaches ~107px past its own centre.
+          transpose || !acronyms ? "pr-32" : ""
         }`}
       >
-        <table className="w-max min-w-full table-auto border-separate border-spacing-1">
+        <table className="w-max min-w-full table-auto border-separate border-spacing-[3px]">
           <thead>
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 top-0 z-30 min-w-40 bg-surface-bright pb-1 text-left align-bottom font-mono text-xs font-medium uppercase tracking-wider text-on-surface-variant md:min-w-48"
+                className={`sticky left-0 top-0 z-40 bg-surface-bright pb-1 text-left align-bottom font-mono text-xs font-medium uppercase tracking-wider text-on-surface-variant ${
+                  // Transposed with initials, the row headers are 40px chips —
+                  // let the axis title size the column instead of reserving the
+                  // width a full role name needs.
+                  transpose && acronyms ? "" : "min-w-40 md:min-w-48"
+                }`}
               >
                 {transpose ? "Contributor" : "Role"}
               </th>
               {transpose
-                ? CREDIT_ROLES.map((role) => (
+                ? CREDIT_ROLES.map((role, columnIndex) => (
                     <th
                       key={role.name}
                       scope="col"
-                      className="sticky top-0 z-20 min-w-[2rem] bg-surface-bright pb-1 align-bottom"
+                      // An angled label overhangs its own column to the right, so
+                      // without a reversed paint order the next header's opaque
+                      // background covers all but its first few characters.
+                      style={{ zIndex: 20 + (CREDIT_ROLES.length - columnIndex) }}
+                      className="sticky top-0 min-w-[2rem] bg-surface-bright pb-1 align-bottom"
                     >
                       <span className="flex flex-col items-center gap-1">
                         <AngledLabel text={role.name} />
@@ -324,11 +374,12 @@ export function ContributionGrid() {
                       </span>
                     </th>
                   ))
-                : authors.map((author) => (
+                : authors.map((author, columnIndex) => (
                     <th
                       key={author.id}
                       scope="col"
-                      className="sticky top-0 z-20 min-w-[2.75rem] bg-surface-bright pb-1 align-bottom"
+                      style={{ zIndex: 20 + (authors.length - columnIndex) }}
+                      className="sticky top-0 min-w-[2.75rem] bg-surface-bright pb-1 align-bottom"
                     >
                       {acronyms ? (
                         <>
@@ -350,7 +401,10 @@ export function ContributionGrid() {
                       <span className="flex items-center gap-1.5 min-w-0">
                         <InitialsChip author={author} />
                         {!acronyms && (
-                          <span className="truncate text-[13px] font-medium text-on-surface" title={author.name}>
+                          <span
+                            className="max-w-36 truncate text-[13px] font-medium text-on-surface"
+                            title={author.name}
+                          >
                             {author.name}
                           </span>
                         )}
@@ -380,8 +434,13 @@ export function ContributionGrid() {
         </table>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-        <GridLegend monoColor={heatmapMonoColor} graded={graded} translateUi={translateUi} />
+      {/* No flex-wrap here: the export buttons stay pinned right in both modes,
+          and the legend — which is longer in Levels — wraps inside its own share
+          of the row instead of displacing them.
+          `w-0 min-w-full` keeps this row out of the card's max-content width, so
+          switching modes cannot resize the whole column to fit a longer legend. */}
+      <div className="mt-2 flex w-0 min-w-full items-center justify-between gap-3">
+        <GridLegend monoColor={heatmapMonoColor} graded={graded} hint={modeHint} translateUi={translateUi} />
         <HeatmapExports
           authors={authors}
           monoColor={heatmapMonoColor}
@@ -421,15 +480,16 @@ function InitialsChip({ author }: { author: Author }) {
 /**
  * A 45°-angled column label for long names in narrow columns, leaning up-right
  * from the column's bottom center — the same style as the downloaded heatmap's
- * top axis. The table wrapper adds right padding so the last column's label
- * has room to overhang.
+ * top axis. The label overhangs its own column, so the table wrapper pads the
+ * right edge for the last one and the header cells paint in reverse order (see
+ * the thead) so a neighbour's background cannot cover it.
  */
 function AngledLabel({ text }: { text: string }) {
   return (
     <span className="relative block h-28 w-full">
       <span
         title={text}
-        className="absolute bottom-0 left-1/2 origin-bottom-left -rotate-45 max-w-[9.5rem] overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-medium text-on-surface-variant"
+        className="absolute bottom-0 left-1/2 max-w-[9.5rem] origin-bottom-left -rotate-45 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-medium text-on-surface-variant"
       >
         {text}
       </span>
@@ -471,28 +531,41 @@ function RoleInfo({ role }: { role: (typeof CREDIT_ROLES)[number] }) {
 function GridLegend({
   monoColor,
   graded,
+  hint,
   translateUi,
 }: {
   monoColor: string;
   graded: boolean;
+  hint: string;
   translateUi: UiTranslator;
 }) {
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant">
-      <span className="font-mono text-xs uppercase tracking-wider">{graded ? "Level" : "Key"}</span>
-      {(graded ? LEVEL_KEY : FLAT_KEY).map(({ key, score }) => (
-        <span key={key} className="inline-flex items-center gap-1.5">
-          <span
-            className="h-3 w-3 rounded-sm border border-outline-variant"
-            style={{
-              // Zero-score swatch matches the grid's theme-aware empty cells,
-              // not the download SVG's fixed paper-white fill.
-              backgroundColor: score > 0 ? heatCellColor(monoColor, score) : "var(--color-surface-container-high)",
-            }}
-          />
-          {translateUi(key)}
-        </span>
-      ))}
+    // The label heads the legend rather than sharing its line, so the entries
+    // get the full width and no longer dangle onto a second row in Levels. Both
+    // modes are two lines, so switching them cannot change the row's height.
+    <div className="flex min-w-0 flex-col gap-1 text-xs text-on-surface-variant">
+      <span className="flex items-center gap-3">
+        <span className="font-mono text-xs uppercase tracking-wider">{graded ? "Level" : "Key"}</span>
+        {/* Yes/no needs no hint — the grid says it. Levels does, because the click
+            cycle isn't visible. It sits here rather than beside the mode control,
+            where switching modes reflowed the whole header and shifted the matrix. */}
+        {graded && <span title={hint}>Click to cycle</span>}
+      </span>
+      <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {(graded ? LEVEL_KEY : FLAT_KEY).map(({ key, score }) => (
+          <span key={key} className="inline-flex items-center gap-1.5">
+            <span
+              className="h-3 w-3 rounded-sm border border-outline-variant"
+              style={{
+                // Zero-score swatch matches the grid's theme-aware empty cells,
+                // not the download SVG's fixed paper-white fill.
+                backgroundColor: score > 0 ? heatCellColor(monoColor, score) : "var(--color-surface-container-high)",
+              }}
+            />
+            {translateUi(key)}
+          </span>
+        ))}
+      </span>
     </div>
   );
 }
@@ -549,43 +622,73 @@ function HeatmapExports({
   acronyms: boolean;
 }) {
   const { translateRole, translateUi } = useOutputTranslators();
-  const [loading, setLoading] = useState<ExportFormat | null>(null);
+  const [loading, setLoading] = useState<ExportFormat | "copy" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
+
+  function renderSvg() {
+    return buildHeatmapSvg(authors, { transpose, monoColor, showLevels, acronyms, translateRole, translateUi });
+  }
+
+  function fail(err: unknown, what: string) {
+    const message = err instanceof Error ? err.message : "Export failed";
+    setError(message);
+    announce(`Heatmap ${what} failed: ${message}`, { assertive: true });
+  }
 
   async function download(format: ExportFormat) {
     setLoading(format);
     setError(null);
     try {
-      const svg = buildHeatmapSvg(authors, {
-        transpose,
-        monoColor,
-        showLevels,
-        acronyms,
-        translateRole,
-        translateUi,
-      });
+      const svg = renderSvg();
       if (format === "svg") {
         downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), "credit-heatmap.svg");
       } else {
         downloadBlob(await svgToPngBlob(svg), "credit-heatmap.png");
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Export failed";
-      setError(message);
-      announce(`Heatmap export failed: ${message}`, { assertive: true });
+      fail(err, "export");
     } finally {
       setLoading(null);
     }
   }
 
+  // Copy the image bytes (not a URL) so it pastes straight into a doc or slide —
+  // the same move the CRediT badge makes. PNG, because that is what editors take.
+  async function copyPng() {
+    setLoading("copy");
+    setError(null);
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": svgToPngBlob(renderSvg()) })]);
+      setCopyStatus("copied");
+      announce("Heatmap PNG copied to clipboard");
+    } catch (err) {
+      setCopyStatus("error");
+      fail(err, "copy");
+    } finally {
+      setLoading(null);
+      setTimeout(() => setCopyStatus("idle"), 2000);
+    }
+  }
+
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       <span className="font-mono uppercase tracking-wider text-[10px] text-on-surface-variant">Heatmap</span>
       {error && (
         <span className="text-[10px] text-error max-w-[120px] truncate" title={error}>
           {error}
         </span>
       )}
+      <button
+        type="button"
+        disabled={loading !== null}
+        onClick={() => void copyPng()}
+        title="Copy the heatmap as a PNG image"
+        className="flex items-center gap-1.5 px-2.5 py-1 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        <Copy className="h-3.5 w-3.5" />
+        {copyStatus === "copied" ? "Copied!" : copyStatus === "error" ? "Failed" : "Copy"}
+      </button>
       {(["svg", "png"] as ExportFormat[]).map((format) => (
         <button
           key={format}

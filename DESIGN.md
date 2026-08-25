@@ -94,10 +94,45 @@ explanations. Use IBM Plex Mono for contributor initials and compact data labels
 
 ## Layout
 
-Follow the task order: contributors, contributions, then statement and export. Use one column on
-small screens. At `xl`, place the first two steps side by side and span the statement below them.
+Follow the task order: contributors, contributions, then statement and export.
+
+Use one column on small screens. From `xl`, give all three steps their own column, so the workflow
+reads left to right. Never give the statement a full-width row: its prose is capped at 75ch for
+readability, so a 1200px row wraps the text at half its width and leaves the rest empty. Size the
+matrix column to the matrix, and let the statement absorb the space the matrix doesn't need.
+
+Let the page use the screen it's given, up to `100rem`. A cap that holds until a late breakpoint
+letterboxes the very laptops this workspace is built for.
+
+On a desktop-sized window the workspace is height-locked to the viewport. The page itself doesn't
+scroll; each pane scrolls its own content. The `desk` variant carries that rule (≥80rem wide **and**
+≥45rem tall). The height guard matters: a short window, a zoomed page, or a phone in landscape falls
+back to ordinary document flow instead of trapping the app in a nested scroller.
+
+Give a pane that scrolls but holds no focusable content a tab stop, or keyboard users can't reach
+its overflow.
+
+Panels that hang off a control belong in a popover, not a hand-placed absolute box. A popover
+dismisses on an outside click and on Escape, portals out of any scrolling ancestor, and reports its
+open state so the control that opened it can show it.
+
+A row whose content changes with a mode must not reflow when it does. Pin the elements that anchor
+to an edge, let the variable-length part wrap inside its own share of the row, and keep a row whose
+width varies out of a `max-content` column's intrinsic sizing (`w-0 min-w-full`). Otherwise flipping
+a mode moves controls the visitor was about to click.
+
 Use a contributor-focused role list on narrow screens. Keep the desktop matrix in a bounded viewport
 with sticky row and column labels.
+
+## Density
+
+This is a working surface, not a reading one: on a standard 1080p desktop viewport the whole
+workflow should be visible at once, with no page scroll. Spend vertical space on contributor rows
+and matrix rows, and take it back from chrome. Prefer bounding a list that grows without limit
+(contributors, validation checks) over letting it push the rest of the workflow below the fold.
+
+First-run guidance overlays the workspace rather than sitting above it. An inline band costs the
+height permanently, and reflows the whole page on dismissal.
 
 ## Elevation & Depth
 
@@ -145,6 +180,8 @@ accessible label, and exported data. Keep bulk assignment behind a disclosure.
 - **Do** use semantic tokens across light and dark themes.
 - **Do** define specialist terminology at the decision point.
 - **Do** budget for long names, translations, keyboards, and touch.
+- **Do** keep the desktop workflow inside one viewport, and let each pane scroll its own overflow.
+- **Do** ask which level a bulk action assigns. Defaulting to the strongest one overstates the claim.
 
 ### Don't
 
@@ -152,3 +189,5 @@ accessible label, and exported data. Keep bulk assignment behind a disclosure.
 - **Don't** use serif typography for dense controls or data labels.
 - **Don't** hide core contribution functionality on small screens.
 - **Don't** make color the only way to distinguish a matrix value.
+- **Don't** height-lock the workspace without a viewport-height guard. A zoomed or short window
+  needs ordinary document flow.
