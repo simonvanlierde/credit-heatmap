@@ -19,7 +19,7 @@ export default function HomePage() {
 
           `desk` additionally locks the row to the viewport height; each pane
           scrolls its own content from there. */}
-      <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[19rem_minmax(0,max-content)_minmax(26rem,1fr)] xl:items-start desk:h-full desk:items-stretch desk:overflow-hidden">
+      <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[21rem_minmax(0,max-content)_minmax(26rem,1fr)] xl:items-start desk:h-full desk:items-stretch desk:overflow-hidden">
         <section aria-label="Contributors" className="min-w-0 desk:min-h-0">
           <AuthorList />
         </section>

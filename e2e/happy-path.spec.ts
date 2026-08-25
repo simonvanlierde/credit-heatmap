@@ -356,6 +356,41 @@ test.describe("Happy path UI flows", () => {
     }
   });
 
+  test("gives an attached ORCID iD its own aligned line rather than a ragged wrap", async ({ page }) => {
+    await page.route("**/api/orcid", (route) =>
+      route.fulfill({ json: { firstName: "Jane", surname: "Smith", displayName: "Jane A. Smith" } }),
+    );
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    const row = page.locator("section[aria-label=Contributors] .space-y-1 > *").first();
+    const plainHeight = (await row.boundingBox())?.height ?? 0;
+
+    await page.getByRole("button", { name: "Add ORCID iD" }).first().click();
+    const field = page.getByLabel("ORCID iD", { exact: true });
+    await field.fill("0000-0002-1825-0097");
+    await field.press("Enter");
+
+    const chip = row.getByRole("link", { name: /0000-0002-1825-0097/ });
+    await expect(chip).toBeVisible();
+    const badge = row.getByRole("button", { name: /Author/ });
+
+    // The iD shares a left edge with the type badge above it...
+    expect(Math.round((await chip.boundingBox())?.x ?? 0)).toBe(Math.round((await badge.boundingBox())?.x ?? -1));
+
+    // ...its remove action sits on the same line, not wrapped below it...
+    const remove = row.getByRole("button", { name: "Remove ORCID iD" });
+    const chipBox = await chip.boundingBox();
+    const removeBox = await remove.boundingBox();
+    expect(Math.abs((chipBox?.y ?? 0) - (removeBox?.y ?? 99))).toBeLessThan(chipBox?.height ?? 0);
+
+    // ...and the row grows by one line, not three.
+    const withOrcid = (await row.boundingBox())?.height ?? 0;
+    expect(withOrcid - plainHeight).toBeLessThanOrEqual(28);
+  });
+
   test("bulk assigns a chosen level, and keeps the legend row stable across modes", async ({ page }) => {
     await page.setViewportSize({ width: 1600, height: 900 });
     await page.goto("/");

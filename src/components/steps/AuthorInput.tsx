@@ -509,89 +509,123 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group flex items-center gap-2 rounded-lg border border-transparent px-2 py-0.5 hover:border-outline-variant/30 hover:bg-surface-container-low transition-colors duration-150 ${
+      className={`group rounded-lg border border-transparent px-2 py-0.5 hover:border-outline-variant/30 hover:bg-surface-container-low transition-colors duration-150 ${
         isDragging ? "relative z-10 bg-surface shadow-md" : ""
       }`}
     >
-      <button
-        type="button"
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        aria-label={`Reorder ${author.name}`}
-        className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-outline-variant transition-colors hover:text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      {/* Identity line: everything that is one-per-contributor and short. */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          aria-label={`Reorder ${author.name}`}
+          className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-outline-variant transition-colors hover:text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
 
-      <span
-        title={author.name}
-        className="shrink-0 inline-flex items-center justify-center min-w-[2.5rem] h-6 px-1.5 rounded-md font-mono text-[11px] font-semibold bg-primary/10 text-primary"
-      >
-        {author.initials}
-      </span>
+        <span
+          title={author.name}
+          className="shrink-0 inline-flex items-center justify-center min-w-[2.5rem] h-6 px-1.5 rounded-md font-mono text-[11px] font-semibold bg-primary/10 text-primary"
+        >
+          {author.initials}
+        </span>
 
-      <div className="flex-1 min-w-0">
-        <input
-          ref={nameInputRef}
-          id={`author-name-${author.id}`}
-          type="text"
-          aria-label="Name or ORCID iD"
-          value={nameDraft}
-          onChange={(event) => {
-            setNameDraft(event.target.value);
-            setNameError(null);
-          }}
-          onBlur={commitName}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") event.currentTarget.blur();
-            if (event.key === "Escape") {
-              setNameDraft(author.name);
+        <div className="flex-1 min-w-0">
+          <input
+            ref={nameInputRef}
+            id={`author-name-${author.id}`}
+            type="text"
+            aria-label="Name or ORCID iD"
+            value={nameDraft}
+            onChange={(event) => {
+              setNameDraft(event.target.value);
               setNameError(null);
-              event.currentTarget.blur();
-            }
-          }}
-          onPaste={handleSmartPaste}
-          aria-invalid={nameError !== null}
-          aria-describedby={nameError ? `author-name-error-${author.id}` : undefined}
-          className="w-full text-ellipsis bg-transparent border-none p-0 focus:ring-0 text-on-surface font-medium border-b border-primary/20 focus:border-primary outline-none text-sm"
-        />
-        {nameError && (
-          <span id={`author-name-error-${author.id}`} className="mt-1 block text-[11px] text-error">
-            {nameError}
-          </span>
-        )}
+            }}
+            onBlur={commitName}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur();
+              if (event.key === "Escape") {
+                setNameDraft(author.name);
+                setNameError(null);
+                event.currentTarget.blur();
+              }
+            }}
+            onPaste={handleSmartPaste}
+            aria-invalid={nameError !== null}
+            aria-describedby={nameError ? `author-name-error-${author.id}` : undefined}
+            className="w-full text-ellipsis bg-transparent border-none p-0 focus:ring-0 text-on-surface font-medium border-b border-primary/20 focus:border-primary outline-none text-sm"
+          />
+          {nameError && (
+            <span id={`author-name-error-${author.id}`} className="mt-1 block text-[11px] text-error">
+              {nameError}
+            </span>
+          )}
 
-        {/* Meta row: contributor-type badge (always shown, click to swap) + ORCID. */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setAuthorType(author.id, isNonAuthor ? "author" : "non-author")}
-            aria-pressed={isNonAuthor}
-            title={
-              isNonAuthor
-                ? "Acknowledged (non-author) contributor — click to mark as author"
-                : "Author — click to mark as acknowledged (non-author) contributor"
-            }
-            className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant hover:text-primary transition-colors"
-          >
-            {isNonAuthor ? <UserMinus className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
-            {isNonAuthor ? "Contributor" : "Author"}
-          </button>
+          {/* Type badge, plus the ORCID trigger while there is nothing to show. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setAuthorType(author.id, isNonAuthor ? "author" : "non-author")}
+              aria-pressed={isNonAuthor}
+              title={
+                isNonAuthor
+                  ? "Acknowledged (non-author) contributor — click to mark as author"
+                  : "Author — click to mark as acknowledged (non-author) contributor"
+              }
+              className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant hover:text-primary transition-colors"
+            >
+              {isNonAuthor ? <UserMinus className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
+              {isNonAuthor ? "Contributor" : "Author"}
+            </button>
+            {!hasOrcid && !editingOrcid && (
+              // Short label: the trigger is hover-revealed but still occupies its
+              // width, and "ORCID iD" pushed this row onto a second line in the
+              // narrow contributors column.
+              <button
+                type="button"
+                onClick={() => setEditingOrcid(true)}
+                aria-label="Add ORCID iD"
+                className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-[color,opacity] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+              >
+                <Plus className="h-3 w-3" />
+                ORCID
+              </button>
+            )}
+          </div>
+        </div>
 
-          {/* ORCID: a chip when set, a reveal-on-demand input otherwise. */}
+        <button
+          type="button"
+          onClick={() => onRemove(author, index)}
+          className="touch-target shrink-0 flex items-center justify-center size-8 rounded text-on-surface-variant hover:bg-error-container/30 hover:text-error transition-colors"
+          aria-label={`Remove ${author.name}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* ORCID line. A 19-character iD never fits beside the type badge in this
+          column, so it gets a line of its own, indented to the name column so it
+          shares a left edge with the type badge above it, and with its actions on
+          the same line instead of wrapping into a ragged fourth one. */}
+      {(hasOrcid || editingOrcid || lookupError !== null) && (
+        <div className="mt-1 flex items-center gap-1.5 pl-20">
           {hasOrcid ? (
             <>
               <a
                 href={`https://orcid.org/${bareOrcid}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-mono text-on-surface-variant hover:text-primary transition-colors"
+                title={bareOrcid}
+                className="inline-flex min-w-0 items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 font-mono text-[11px] text-on-surface-variant transition-colors hover:text-primary"
               >
-                <Fingerprint className="h-3 w-3" />
-                {bareOrcid}
+                <Fingerprint className="h-3 w-3 shrink-0" />
+                <span className="truncate">{bareOrcid}</span>
                 {!orcidValid && (
-                  <span className="text-error">
+                  <span className="shrink-0 text-error">
                     <span aria-hidden="true">✗</span>
                     <span className="sr-only">(invalid ORCID iD)</span>
                   </span>
@@ -605,7 +639,7 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
                   onClick={() => void lookup(bareOrcid)}
                   aria-label="Look up name from ORCID"
                   title="Look up name from ORCID"
-                  className="inline-flex items-center gap-1 text-[11px] text-primary transition-opacity hover:underline disabled:opacity-50 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                  className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] text-primary transition-opacity hover:underline disabled:opacity-50 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                 >
                   <UserSearch className="h-3.5 w-3.5" />
                   {loading && "Looking up…"}
@@ -615,12 +649,12 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
                 type="button"
                 onClick={clearOrcid}
                 aria-label="Remove ORCID iD"
-                className="text-on-surface-variant hover:text-error transition-colors"
+                className="ml-auto shrink-0 text-on-surface-variant transition-colors hover:text-error"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
               {lookedUp === bareOrcid && (
-                <span className="text-[10px] text-primary leading-tight">Name updated from ORCID</span>
+                <span className="shrink-0 text-[10px] leading-tight text-primary">Name updated</span>
               )}
             </>
           ) : editingOrcid ? (
@@ -629,7 +663,8 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
               autoFocus
               type="text"
               aria-label="ORCID iD"
-              placeholder="0000-0000-0000-0000 or paste a URL"
+              placeholder="0000-0000-0000-0000"
+              title="Type an ORCID iD, or paste one as an iD or an orcid.org URL"
               onPaste={handleSmartPaste}
               onKeyDown={(event) => {
                 if (event.key !== "Enter") return;
@@ -648,36 +683,12 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
                 if (orcid) applyOrcid(orcid);
                 else setEditingOrcid(false);
               }}
-              className="w-full max-w-[15rem] bg-transparent p-0 focus:ring-0 text-on-surface-variant text-xs border-b border-outline-variant/40 focus:border-primary outline-none font-mono"
+              className="w-full min-w-0 border-b border-outline-variant/40 bg-transparent p-0 font-mono text-xs text-on-surface-variant outline-none focus:border-primary focus:ring-0"
             />
-          ) : (
-            // Short label: the trigger is hover-revealed but still occupies its
-            // width, and "ORCID iD" pushed the meta row onto a second line in the
-            // narrow contributors column.
-            <button
-              type="button"
-              onClick={() => setEditingOrcid(true)}
-              aria-label="Add ORCID iD"
-              className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-[color,opacity] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
-            >
-              <Plus className="h-3 w-3" />
-              ORCID
-            </button>
-          )}
-          {/* Outside the branches above: a rejected iD is reported while the
-              input is still open, when the row has no stored ORCID to hang it on. */}
-          {lookupError !== null && <span className="text-[10px] leading-tight text-error">{lookupError}</span>}
+          ) : null}
         </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => onRemove(author, index)}
-        className="touch-target shrink-0 flex items-center justify-center size-8 rounded text-on-surface-variant hover:bg-error-container/30 hover:text-error transition-colors"
-        aria-label={`Remove ${author.name}`}
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+      )}
+      {lookupError !== null && <p className="mt-1 pl-20 text-[10px] leading-tight text-error">{lookupError}</p>}
     </div>
   );
 }
