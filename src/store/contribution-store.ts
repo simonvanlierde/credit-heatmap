@@ -5,6 +5,7 @@ import {
   DEFAULT_MONO_COLOR,
   deduplicateAuthorInitials,
   isValidOrcid,
+  MAX_AUTHOR_NAME_LENGTH,
   MAX_AUTHORS,
   normalizeOrcid,
   parseAuthorText,
@@ -167,6 +168,10 @@ export const useContributionStore = create<ContributionState>()(
       restoreAuthor: (author, index) =>
         set((state) => {
           if (state.authors.some((candidate) => candidate.id === author.id)) return;
+          // Undo can arrive after the list refilled to the cap; without this
+          // the splice pushes past MAX_AUTHORS and normalizeAuthors throws
+          // uncaught inside the reducer. Matches addAuthor's guard.
+          if (state.authors.length >= MAX_AUTHORS) return;
           state.authors.splice(Math.max(0, Math.min(index, state.authors.length)), 0, author);
           state.authors = normalizeAuthors(state.authors);
         }),
@@ -299,7 +304,7 @@ export const useContributionStore = create<ContributionState>()(
 
       // Clears the workspace, not the user's history: welcomeSeen stays true, so
       // a reset doesn't stage a fake first run. The open card is dismissed with
-      // it — left up over an emptied workspace it would re-offer "Load sample
+      // it. Left up over an emptied workspace it would re-offer "Load sample
       // data", quietly undoing the reset.
       reset: () =>
         set((state) => {
@@ -312,14 +317,14 @@ export const useContributionStore = create<ContributionState>()(
     })),
     {
       name: "credit-generator-state",
-      version: 4,
+      version: 5,
       // Don't read localStorage during store creation: the server renders the
       // empty initial state, so a synchronous rehydrate here would desync the
       // first client render (hydration mismatch). A client effect calls
-      // rehydrate() after mount instead — see HeaderActions.
+      // rehydrate() after mount instead; see HeaderActions.
       skipHydration: true,
       // v0 persisted a now-removed "slider" input mode; fold it into "levels".
-      // (Removed keys — heatmapColorMode, and selectedAuthorId as of v4 — are
+      // (Removed keys, heatmapColorMode and selectedAuthorId as of v4, are
       // simply ignored if present.)
       migrate: (persisted) => {
         const state = persisted as Partial<ContributionState> | undefined;
@@ -333,6 +338,17 @@ export const useContributionStore = create<ContributionState>()(
         // first-run welcome card.
         if (state && state.welcomeSeen === undefined) {
           state.welcomeSeen = true;
+        }
+        // v5 introduced MAX_AUTHOR_NAME_LENGTH. A draft saved before it can
+        // hold a longer pasted name, which rehydrates fine but then makes
+        // every later mutation throw inside createAuthor. Trim on the way in
+        // and drop the ones that carry no name at all, so an old draft stays
+        // usable instead of bricking the workspace.
+        if (state && Array.isArray(state.authors)) {
+          state.authors = state.authors
+            .filter((author) => typeof author?.name === "string" && /[\p{L}\p{M}]/u.test(author.name))
+            .slice(0, MAX_AUTHORS)
+            .map((author) => ({ ...author, name: author.name.slice(0, MAX_AUTHOR_NAME_LENGTH) }));
         }
         return state as ContributionState;
       },
