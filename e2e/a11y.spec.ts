@@ -86,4 +86,34 @@ test.describe("Accessibility (axe-core)", () => {
     await expect(byRole).toBeChecked();
     await expect(byRole).toBeFocused();
   });
+
+  test("help disclosure exposes state and respects reduced motion", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Dismiss getting started" }).click();
+    const help = page.getByRole("button", { name: "How it works" });
+    await expect(help).toHaveAttribute("aria-expanded", "false");
+    await help.click();
+    await expect(help).toHaveAttribute("aria-expanded", "true");
+    await expect(page.locator("#getting-started")).toBeVisible();
+  });
+
+  test("compact icon controls meet the minimum target size", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+
+    const reorder = await page.getByRole("button", { name: /Reorder Jane/ }).boundingBox();
+    const roleInfo = await page.getByRole("button", { name: "About Conceptualization" }).boundingBox();
+    await page.getByRole("button", { name: "Grid color" }).click();
+    const swatch = await page
+      .getByRole("button", { name: /Set color/ })
+      .first()
+      .boundingBox();
+
+    for (const box of [reorder, roleInfo, swatch]) {
+      expect(box).not.toBeNull();
+      expect(box?.width).toBeGreaterThanOrEqual(24);
+      expect(box?.height).toBeGreaterThanOrEqual(24);
+    }
+  });
 });
