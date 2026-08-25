@@ -18,7 +18,7 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - uses: pnpm/setup@v2
         with:
@@ -39,11 +39,11 @@ jobs:
           files: packages/core/coverage/lcov.info
           fail_ci_if_error: false
 
-  a11y:
-    name: Accessibility (axe)
+  e2e:
+    name: E2E and accessibility
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - uses: pnpm/setup@v2
         with:
@@ -54,23 +54,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Only Chromium is needed for the axe scans; skip the other browsers.
+      # Only Chromium is needed; skip the other browsers.
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      # Just the axe accessibility spec on every push/PR (the full E2E suite
-      # stays behind the `e2e` label in e2e.yml). Fast: one browser, one file.
-      - name: Run axe accessibility scans
+      # The whole Playwright suite gates every push/PR: the axe scans *and*
+      # the critical-workflow specs (import, undo, ORCID lookup, persistence,
+      # bulk assign, export). Running only a11y.spec.ts here let a regression
+      # in any of those merge with CI fully green, since e2e.yml is opt-in.
+      - name: Run Playwright suite
         env:
           CI: true
-        run: pnpm exec playwright test a11y.spec.ts --workers=1
+        run: pnpm exec playwright test --workers=1
 
   build:
     name: Build
     runs-on: ubuntu-latest
     needs: [check]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - uses: pnpm/setup@v2
         with:
@@ -85,7 +87,7 @@ jobs:
       # rebuilds are faster. Keyed on lockfile + source; falls back to the last
       # cache for the same deps when only source changed.
       - name: Cache Next.js build
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: .next/cache
           key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('**/*.{js,jsx,ts,tsx}') }}
