@@ -2,7 +2,7 @@
  * Canonical heatmap-color logic, shared by the live UI and the SVG/PNG export so
  * on-screen and exported heatmaps never drift. Heatmap intensity encodes the
  * contribution *level*; the single base hue (the chosen mono color) carries no
- * meaning beyond legibility — contributors are identified by the row/column labels.
+ * meaning beyond legibility: contributors are identified by the row/column labels.
  */
 
 /** Default hue for the heatmap (the app's ink-blue accent). */
@@ -26,11 +26,17 @@ export const OKABE_ITO = [
 const NONE_FILL = "#ececea";
 const MIX_TOWARD = "#ffffff";
 
-/** CRediT score (0–100) → fraction of the base hue to show (0 = empty). */
+/**
+ * CRediT score (0–100) → fraction of the base hue to show (0 = empty).
+ *
+ * The lowest tier is 0.4 rather than 0.25: at 0.25 a "supporting" cell mixed
+ * with white sits ~1.3:1 against the empty-cell fill, which reads as empty.
+ * The tiers stay far enough apart (0.4 / 0.7 / 1) to remain distinguishable.
+ */
 function scoreFraction(score: number): number {
   if (score <= 0) return 0;
-  if (score <= 33) return 0.25;
-  if (score <= 66) return 0.6;
+  if (score <= 33) return 0.4;
+  if (score <= 66) return 0.7;
   return 1;
 }
 
@@ -53,6 +59,38 @@ export function mixHex(a: string, b: string, t: number): string {
 export function luminance(hex: string): number {
   const [r, g, b] = rgb(hex);
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+
+/** WCAG 2.x relative luminance: gamma-linearised, unlike the cheap `luminance` above. */
+function wcagLuminance(hex: string): number {
+  const [r, g, b] = rgb(hex).map((channel) => {
+    const s = channel / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two colors (1–21). */
+export function contrastRatio(a: string, b: string): number {
+  const [la, lb] = [wcagLuminance(a), wcagLuminance(b)];
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** Ink (near-black) or paper (white), whichever contrasts better against `background`. */
+export const ON_COLOR_DARK = "#16181c";
+export const ON_COLOR_LIGHT = "#ffffff";
+
+/**
+ * Foreground for a glyph drawn on `background`.
+ *
+ * Picks by measured contrast rather than a luminance threshold, so a light hue
+ * (e.g. the Okabe–Ito yellow) gets dark ink instead of an invisible white mark.
+ */
+export function onColor(background: string): string {
+  return contrastRatio(background, ON_COLOR_DARK) >= contrastRatio(background, ON_COLOR_LIGHT)
+    ? ON_COLOR_DARK
+    : ON_COLOR_LIGHT;
 }
 
 function rgb(hex: string): [number, number, number] {

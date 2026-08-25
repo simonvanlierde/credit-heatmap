@@ -5,6 +5,7 @@ export {
   ContributionSchema,
   hasContributions,
   isAllBinary,
+  isUsableAuthorName,
   isValidOrcid,
   MAX_AUTHOR_NAME_LENGTH,
   MAX_AUTHORS,
@@ -15,7 +16,14 @@ export {
   rolesWithContributions,
   scoreToLevel,
 } from "./author.js";
-export { DEFAULT_MONO_COLOR, heatCellColor, luminance, OKABE_ITO } from "./contributor-color.js";
+export {
+  contrastRatio,
+  DEFAULT_MONO_COLOR,
+  heatCellColor,
+  luminance,
+  OKABE_ITO,
+  onColor,
+} from "./contributor-color.js";
 export type { LocaleInfo, RoleCatalog, RoleTranslation, RoleTranslator } from "./credit-i18n/index.js";
 export {
   AVAILABLE_LOCALES,
