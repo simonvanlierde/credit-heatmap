@@ -2,7 +2,7 @@
 //   https://github.com/contributorshipcollaboration/credit-translation
 //
 // Downloads the curated locale set into src/credit-i18n/translations/ as
-// pruned JSON (metadata.translators + translations only — no schema/render
+// pruned JSON (metadata.translators + translations only, no schema/render
 // cruft). Run with `node scripts/fetch-credit-translations.mjs` and review the
 // diff before committing.
 //
@@ -54,7 +54,7 @@ for (const [code, stem] of Object.entries(LOCALES)) {
   };
   await writeFile(join(outDir, `${code}.json`), `${JSON.stringify(pruned, null, 2)}\n`);
   creditRows.push(`| ${full.metadata?.languageName ?? code} | ${translators.map(fmtTranslator).join("; ")} |`);
-  console.log(`✓ ${code} (${stem}) — ${Object.keys(full.translations).length} roles`);
+  console.log(`✓ ${code} (${stem}): ${Object.keys(full.translations).length} roles`);
 }
 
 // CC BY 4.0 attribution record: every vendored file is licensed CC BY 4.0 and

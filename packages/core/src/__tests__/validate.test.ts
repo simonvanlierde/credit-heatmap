@@ -33,8 +33,8 @@ describe("validateContributions", () => {
     setScore(authors, 0, "Investigation", 100); // present, but not an expected role
 
     const messages = validateContributions(authors).map((i) => i.message);
-    expect(messages).toContain('No contributor is assigned "Conceptualization".');
-    expect(messages).toContain('No contributor is assigned "Writing – original draft".');
+    expect(messages).toContain("No contributor is assigned \u201cConceptualization\u201d.");
+    expect(messages).toContain("No contributor is assigned \u201cWriting – original draft\u201d.");
   });
 
   it("is clean when expected roles are covered and everyone contributes", () => {

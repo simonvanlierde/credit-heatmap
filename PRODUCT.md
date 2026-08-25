@@ -1,31 +1,29 @@
-# Product
+# Product brief
 
-## Platform
-
-web
+A reference for anyone writing copy or designing screens for the CRediT Generator. It covers the
+audience, the promise, and the claims this product may make. It is not user documentation: for what
+the app does, read the [README](README.md), and for visual rules, read [DESIGN.md](DESIGN.md).
 
 ## Users
 
-Researchers and research teams preparing manuscripts. They use the CRediT Contributor Roles Taxonomy
-to agree on, record, and export each contributor's work.
+Researchers and research teams preparing manuscripts on the web. They use the CRediT Contributor
+Roles Taxonomy to agree on, record, and export each contributor's work.
 
-## Product Purpose
+## Purpose
 
-CRediT Generator turns contributor names and role assignments into a manuscript-ready statement and
-submission files. Teams do not need to format the taxonomy by hand.
-
-## Positioning
+The CRediT Generator turns contributor names and role assignments into a manuscript-ready statement
+and submission files, so teams never format the taxonomy by hand.
 
 The contribution matrix is both the editor and the source of a downloadable heatmap. The same data
 produces prose, JATS4R XML, CSV, JSON, and Markdown.
 
-## Operating Context
+## Operating context
 
-The product supports manuscript preparation and revision alongside author lists, ORCID records,
-journal requirements, and co-author discussions. Drafts persist locally. Users can share an encoded
+The app supports manuscript preparation and revision alongside author lists, ORCID records, journal
+requirements, and co-author discussions. Drafts persist in the browser. A user can share an encoded
 URL or import a supported format.
 
-## Capabilities and Constraints
+## Capabilities and constraints
 
 - Add, rename, reorder, paste, import, and classify contributors. Optionally resolve names through
   ORCID.
@@ -34,18 +32,16 @@ URL or import a supported format.
 - Keep contribution data client-side except for the proxied ORCID lookup.
 - Preserve scientific accuracy, round-trip integrity, privacy, accessibility, and localization.
 
-## Brand Commitments
+## Voice and claims
 
-The product name is CRediT Generator. Its voice is direct, precise, calm, and useful. Explain
-specialist concepts without weakening their meaning or making unsupported claims.
+The product name is **CRediT Generator**. Its voice is direct, precise, calm, and useful. Explain
+specialist concepts without weakening their meaning.
 
-## Evidence on Hand
+Support every claim from the workflow in `src/`, the screenshots in `docs/screenshots/`, the tests
+in `packages/core/`, the records in `docs/adr/`, and `CITATION.cff`. Invent no testimonials,
+customer logos, usage statistics, or performance numbers.
 
-Evidence comes from the workflow in `src/`, screenshots in `docs/screenshots/`, tests in
-`packages/core/`, records in `docs/adr/`, and `CITATION.cff`. Do not invent testimonials, customer
-logos, usage statistics, or performance claims.
-
-## Product Principles
+## Principles
 
 - Make an accurate contribution statement the shortest clear path.
 - Keep contributors, assignments, and generated output visibly connected.
@@ -53,7 +49,7 @@ logos, usage statistics, or performance claims.
 - Preserve user work across refreshes, errors, imports, and interruptions.
 - Treat accessibility, localization, privacy, and export correctness as product behavior.
 
-## Accessibility & Inclusion
+## Accessibility and inclusion
 
 The full workflow must support keyboards, screen readers, narrow widths, and 200% zoom. It must not
 rely on color alone. Localized output must support longer labels and non-English scripts.

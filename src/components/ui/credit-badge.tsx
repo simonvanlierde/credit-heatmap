@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
 const BADGE_SRC = "/credit-badge.png";
 const CREDIT_URL = "https://credit.niso.org/";
-const ALT = "CRediT — Contributor Roles Taxonomy";
+const ALT = "CRediT: Contributor Roles Taxonomy";
 
 /** The page's own origin, so a pasted snippet keeps working off this deployment. */
 function origin() {

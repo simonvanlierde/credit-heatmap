@@ -3,7 +3,7 @@
 import { HelpCircle } from "lucide-react";
 import { useContributionStore } from "@/store/contribution-store";
 
-/** Re-opens the welcome modal. Ephemeral — the re-open isn't persisted, so it
+/** Re-opens the welcome modal. Ephemeral: the re-open isn't persisted, so it
  *  never resurfaces as a fake first run on the next visit. */
 export function HowItWorks() {
   const openWelcome = useContributionStore((s) => s.openWelcome);

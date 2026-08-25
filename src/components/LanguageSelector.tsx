@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { useContributionStore } from "@/store/contribution-store";
 
 /**
- * Header control for the *output* language — localizes role names in the
+ * Header control for the *output* language. It localizes role names in the
  * generated statement, Markdown, and heatmap. The note makes clear this is not
  * a UI translation (that's on the roadmap). Icon-only trigger to sit next to
  * the theme toggle; the appended Select chevron is hidden.
@@ -17,7 +17,7 @@ export function LanguageSelector() {
 
   return (
     <Select value={outputLocale} onValueChange={setOutputLocale}>
-      {/* Only SelectItems may live inside the listbox — the explanatory note moved
+      {/* Only SelectItems may live inside the listbox, so the explanatory note moved
           to this tooltip and the translation credit to the About popover, so the
           dropdown stays a valid listbox (no interactive/non-option children). */}
       <SelectTrigger

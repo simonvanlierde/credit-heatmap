@@ -15,7 +15,7 @@ export interface RoleTranslation {
   description: string;
 }
 
-/** A locale's catalog, keyed by NISO role URL — matches the upstream `translations` object. */
+/** A locale's catalog, keyed by NISO role URL, matching the upstream `translations` object. */
 export type RoleCatalog = Record<string, RoleTranslation>;
 
 /** Maps a canonical English role name to its localized display name. */
@@ -82,5 +82,5 @@ export function makeRoleTranslator(catalog: RoleCatalog | null | undefined): Rol
   };
 }
 
-/** Identity role translator (no catalog) — the canonical English default. */
+/** Identity role translator (no catalog): the canonical English default. */
 export const DEFAULT_ROLE_TRANSLATOR: RoleTranslator = makeRoleTranslator(null);

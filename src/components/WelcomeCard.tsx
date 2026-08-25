@@ -10,7 +10,7 @@ const STEPS = [
     n: 1,
     icon: Fingerprint,
     title: "Add contributors",
-    body: "Type a name — or paste a whole author list, or an ORCID iD to fill the name in automatically.",
+    body: "Type a name, or paste a whole author list. Paste an ORCID iD and the app fills the name in for you.",
   },
   {
     n: 2,
@@ -22,12 +22,12 @@ const STEPS = [
     n: 3,
     icon: TextQuote,
     title: "Review & export",
-    body: "The statement updates as you go — copy it, or download the heatmap, XML, CSV, and more.",
+    body: "The statement updates as you go. Copy it, or download the heatmap, XML, CSV, JSON, or Markdown.",
   },
 ];
 
 /**
- * First-run welcome — a native modal over the workspace. Auto-opens once for a
+ * First-run welcome: a native modal over the workspace. Auto-opens once for a
  * new visitor (tracked by the persisted `welcomeSeen` flag) and is re-openable
  * from the header via the ephemeral `welcomeOpen` flag. When it is re-opened
  * over an already-populated workspace it drops the "Load sample data" action,
@@ -36,7 +36,7 @@ const STEPS = [
  * It overlays rather than sits inline: as a band above the workspace it cost
  * ~295px of vertical space and reflowed the entire page on dismissal. `<dialog
  * showModal()>` gives the focus trap, Escape handling, backdrop, and inert
- * background for free — the same primitive ImportModal uses.
+ * background for free, from the same primitive ImportModal uses.
  */
 export function WelcomeCard() {
   const welcomeOpen = useContributionStore((s) => s.welcomeOpen);
@@ -75,7 +75,7 @@ export function WelcomeCard() {
     <dialog
       ref={dialogRef}
       id="getting-started"
-      aria-label="Getting started"
+      aria-labelledby="getting-started-title"
       onClose={closeWelcome}
       onMouseDown={(event) => {
         if (event.target === dialogRef.current) dialogRef.current?.close();
@@ -95,7 +95,10 @@ export function WelcomeCard() {
         </button>
 
         <div className="max-w-2xl pr-10">
-          <h2 className="font-headline text-2xl italic font-semibold text-primary md:text-3xl">
+          <h2
+            id="getting-started-title"
+            className="font-headline text-2xl italic font-semibold text-primary md:text-3xl"
+          >
             Draft a manuscript-ready contribution statement in three steps.
           </h2>
         </div>
@@ -117,7 +120,7 @@ export function WelcomeCard() {
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           {hasAuthors ? (
-            // Re-opened over existing work — no data-replacing action.
+            // Re-opened over existing work, so no data-replacing action.
             <button
               type="button"
               onClick={closeWelcome}

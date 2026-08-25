@@ -125,7 +125,7 @@ describe("parseAuthorText", () => {
   it("deduplicates initials when authors share them", () => {
     const authors = parseAuthorText("Alice Brown\nAmy Burke");
     expect(authors[0]?.initials).toBe("AB");
-    // Second author "Amy Burke" also starts as AB — should be disambiguated
+    // Second author "Amy Burke" also starts as AB, so it should be disambiguated
     expect(authors[1]?.initials).not.toBe("AB");
   });
 

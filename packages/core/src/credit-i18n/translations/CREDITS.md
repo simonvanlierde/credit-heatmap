@@ -19,4 +19,5 @@ text was altered.
 | Chinese - simplified | Yefeng Yang; Wawa Yu; Alex O. Holcombe (0000-0003-2869-0085) |
 | Japanese | Ayumi Mizuno (0000-0003-0822-5637); Sawaka Oka |
 
-Per-language license statements: https://github.com/contributorshipcollaboration/credit-translation/tree/main/md_files
+Per-language license statements:
+<https://github.com/contributorshipcollaboration/credit-translation/tree/main/md_files>

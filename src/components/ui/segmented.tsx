@@ -11,7 +11,7 @@ export interface SegmentedOption<T extends string> {
 }
 
 /**
- * A pill-group segmented control — the app's standard for picking one of a few
+ * A pill-group segmented control: the app's standard for picking one of a few
  * mutually exclusive options (input mode, statement format, heatmap colors).
  *
  * Implemented as a radiogroup: one tab stop, arrow keys move between (and select)

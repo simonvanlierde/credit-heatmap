@@ -32,7 +32,7 @@ describe("buildHeatmapSvg", () => {
     const svg = buildHeatmapSvg(authorsWithScores());
     expect(svg.startsWith("<svg")).toBe(true);
     expect(svg.trimEnd().endsWith("</svg>")).toBe(true);
-    // No baked-in image title — captions belong to the embedding document.
+    // No baked-in image title: captions belong to the embedding document.
     expect(svg).not.toContain("CRediT Contribution Heatmap");
     expect(svg).toContain("Conceptualization");
     expect(svg).toContain(">JS<"); // author initials

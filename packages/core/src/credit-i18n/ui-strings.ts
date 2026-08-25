@@ -1,5 +1,5 @@
 /**
- * UI-string translations — the non-role strings in human-facing output
+ * UI-string translations: the non-role strings in human-facing output
  * (statement + heatmap): "Acknowledgements", the contribution-level labels, the
  * heatmap title, and the empty-state line.
  *
@@ -7,7 +7,7 @@
  * the bundler) so the live UI and exports share one mechanism and this can grow
  * to cover the whole app. English is the canonical source and the per-key
  * fallback; per-locale catalogs in ./ui/ hold only the overrides. Our strings,
- * not the community role repo's — hence a separate directory.
+ * not the community role repo's, hence a separate directory.
  */
 
 export type UiKey = "acknowledgements" | "lead" | "equal" | "supporting" | "none" | "contributed" | "emptyState";
@@ -17,7 +17,7 @@ export type UiTranslator = (key: UiKey) => string;
 /** A locale's overrides; any missing key falls back to {@link EN_UI}. */
 export type UiCatalog = Partial<Record<UiKey, string>>;
 
-/** Canonical English — the source text and the fallback for any missing entry. */
+/** Canonical English: the source text and the fallback for any missing entry. */
 const EN_UI: Record<UiKey, string> = {
   acknowledgements: "Acknowledgements",
   lead: "Lead",
@@ -60,5 +60,5 @@ export function makeUiTranslator(catalog: UiCatalog | null | undefined): UiTrans
   return (key) => catalog[key] || EN_UI[key];
 }
 
-/** Canonical English UI translator (no catalog) — the default for all consumers. */
+/** Canonical English UI translator (no catalog): the default for all consumers. */
 export const DEFAULT_UI_TRANSLATOR: UiTranslator = makeUiTranslator(null);

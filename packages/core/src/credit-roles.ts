@@ -3,10 +3,10 @@
  * https://credit.niso.org/
  *
  * Stored as a const tuple so the role names are narrowed to their literal
- * string types — callers can use `CreditRoleName` as a union type.
+ * string types, so callers can use `CreditRoleName` as a union type.
  *
  * Each role carries its canonical NISO `id` (the official role UUID) so the
- * identifiers travel with exported data — Crossref adds CRediT to its metadata
+ * identifiers travel with exported data. Crossref adds CRediT to its metadata
  * schema in 2026 and these UUIDs are the machine-readable role keys.
  */
 
@@ -109,7 +109,7 @@ export const CREDIT_ROLES = [
 
 export type CreditRoleName = (typeof CREDIT_ROLES)[number]["name"];
 
-/** Lookup a role by name — throws if the name is not a valid CRediT role. */
+/** Lookup a role by name. Throws if the name is not a valid CRediT role. */
 export function getRoleByName(name: string): (typeof CREDIT_ROLES)[number] {
   const role = CREDIT_ROLES.find((r) => r.name === name);
   if (!role) throw new Error(`Unknown CRediT role: "${name}"`);

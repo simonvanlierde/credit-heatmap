@@ -16,7 +16,7 @@ const EXPECTED_ROLES: CreditRoleName[] = ["Conceptualization", "Writing – orig
  * Check a set of authors for common CRediT statement problems, mirroring the
  * sanity checks an editor or submission system would run.
  *
- * Pure and side-effect free — returns an ordered list of issues (empty when the
+ * Pure and side-effect free. Returns an ordered list of issues (empty when the
  * statement looks complete). Returns nothing for an empty author list, since
  * "no authors yet" is a starting state rather than a mistake.
  */
@@ -45,7 +45,7 @@ export function validateContributions(authors: Author[]): ValidationIssue[] {
     if (!assigned.has(role)) {
       issues.push({
         level: "info",
-        message: `No contributor is assigned "${role}".`,
+        message: `No contributor is assigned “${role}”.`,
       });
     }
   }

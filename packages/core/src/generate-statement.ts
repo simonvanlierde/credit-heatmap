@@ -36,7 +36,7 @@ export interface StatementOptions {
  * Generate a CRediT author statement.
  *
  * Named authors are listed after a `CRediT:` prefix; people marked as non-author
- * contributors are credited on a second `Acknowledgements:` line — CRediT applies
+ * contributors are credited on a second `Acknowledgements:` line. CRediT applies
  * to both (see NISO guidance). Either line is omitted when no one on that side has
  * contributions; the two lines are separated by a blank line.
  *

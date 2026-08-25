@@ -23,7 +23,7 @@ export function AboutPopover({ version }: { version: string }) {
           <p className="font-semibold text-on-surface">
             CRediT Generator <span className="font-mono text-xs font-normal text-on-surface-variant">v{version}</span>
           </p>
-          <p className="mt-0.5">A tool for building CRediT author contribution statements.</p>
+          <p className="mt-0.5">A tool for drafting CRediT contribution statements for scholarly publications.</p>
         </div>
         <a
           href="https://github.com/simonvanlierde/credit-heatmap"

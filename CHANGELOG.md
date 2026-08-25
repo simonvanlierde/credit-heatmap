@@ -4,6 +4,33 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Bulk assignment: set or clear every role for one contributor, or one role across every
+  contributor, from a popover in the contribution step.
+- Undo for a removed contributor, and an explicit "Clear local draft" action with a confirmation.
+- Rate limiting and stricter input validation on the `/api/orcid` proxy.
+- End-to-end coverage of the critical workflows, and release verification in CI.
+- `PRODUCT.md` and `DESIGN.md`, documenting the product brief and the design system.
+
+### Changed
+
+- The desktop workspace fits one viewport: the page no longer scrolls, and each of the three panes
+  scrolls its own content. Short, zoomed, and narrow windows keep ordinary document flow.
+- First-run guidance is a modal over the workspace instead of a band above it, so dismissing it no
+  longer reflows the page.
+- Heatmap controls (color, transpose, initials) moved into a popover beside the grid.
+
+### Fixed
+
+- An ORCID iD attached to a contributor gets its own line, instead of pushing the contributor row
+  onto a second line.
+- Responsive and accessibility fixes across the contributor row, grid, and export controls.
+- Hardened contributor data handling in `core`, and the lookup and response boundaries of the
+  ORCID proxy.
+
 ## [0.2.0] - 2026-07-14
 
 ### Added
@@ -72,6 +99,7 @@ Persisted local drafts migrate automatically.
   contribution heatmap, JATS4R XML / CSV / JSON / Markdown exports, ORCID lookup,
   share links, and a framework-agnostic `@credit-generator/core` domain package.
 
+[Unreleased]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/simonvanlierde/credit-heatmap/releases/tag/v0.1.0

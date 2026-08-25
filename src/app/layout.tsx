@@ -8,7 +8,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Announcer } from "@/lib/announce";
 // Server component: the manifest is read at build time and never bundled for the
-// client — only the version string is passed down to AboutPopover.
+// client: only the version string is passed down to AboutPopover.
 import packageJson from "../../package.json";
 import "./globals.css";
 
@@ -36,7 +36,7 @@ const newsreader = Newsreader({
 
 export const metadata: Metadata = {
   title: "CRediT Generator",
-  description: "Generate CRediT author contribution statements for scholarly publications.",
+  description: "Draft CRediT contribution statements for scholarly publications.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

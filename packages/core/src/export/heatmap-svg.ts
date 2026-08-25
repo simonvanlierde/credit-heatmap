@@ -44,14 +44,14 @@ export interface HeatmapSvgOptions {
 /**
  * Render a contribution heatmap as a self-contained SVG string.
  *
- * Pure and dependency-free — runs in the browser (for live preview, SVG
+ * Pure and dependency-free. Runs in the browser (for live preview, SVG
  * download, and canvas→PNG export) and in Node (for tests). The SVG uses
  * system font stacks, so no font embedding is required.
  *
  * The label bands are orientation-aware: the axis carrying long role names gets
  * a wide/tall band, the one carrying short initials gets a small one, so
  * nothing overflows the viewBox. Roles that no author contributed to are
- * omitted, matching the live chart. There is no baked-in image title —
+ * omitted, matching the live chart. There is no baked-in image title:
  * captions belong to the embedding document.
  */
 export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): string {
@@ -71,7 +71,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
 
   const PAD_S = PAD * scale;
 
-  // Nothing to show — render a small placeholder rather than a 0-row grid.
+  // Nothing to show: render a small placeholder rather than a 0-row grid.
   if (roles.length === 0) {
     const w = 320 * scale;
     const h = 56 * scale;

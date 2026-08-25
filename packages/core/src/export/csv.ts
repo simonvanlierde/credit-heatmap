@@ -29,7 +29,7 @@ function unescapeCsvValue(value: string): string {
 }
 
 /**
- * Split raw CSV into records of fields, honoring RFC-4180 quoting — including
+ * Split raw CSV into records of fields, honoring RFC-4180 quoting, including
  * commas and newlines *inside* quoted fields. (Splitting on newlines first, as
  * a naive parser does, tears a quoted multi-line field into broken rows.)
  */

@@ -16,8 +16,8 @@ import { useContributionStore } from "@/store/contribution-store";
 /**
  * Resolves the current output locale (from the store) to the translators for
  * human-facing output: role names and the non-role UI strings ("Acknowledgements",
- * level labels, heatmap title). One concern — translating the output to a
- * language — so one hook: a single locale subscription, both catalogs loaded in
+ * level labels, heatmap title). It is one concern, translating the output to a
+ * language, so it is one hook: a single locale subscription, both catalogs loaded in
  * parallel and lazily (code-split per locale). Falls back to English (for `en`
  * and until the catalogs load).
  */
@@ -39,7 +39,7 @@ export function useOutputTranslators(): { translateRole: RoleTranslator; transla
         }
       })
       .catch(() => {
-        // A locale chunk failed to load (e.g. stale deploy) — fall back to
+        // A locale chunk failed to load (e.g. stale deploy), so fall back to
         // English rather than leaving an unhandled rejection and a stuck UI.
         if (active) {
           setTranslators({ translateRole: DEFAULT_ROLE_TRANSLATOR, translateUi: DEFAULT_UI_TRANSLATOR });
