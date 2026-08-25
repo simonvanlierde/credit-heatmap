@@ -1,7 +1,8 @@
 import type { Author } from "@credit-generator/core";
-import { fromJson, toJson } from "@credit-generator/core";
+import { fromJson, MAX_IMPORT_BYTES, toJson } from "@credit-generator/core";
 
 const HASH_PREFIX = "#s=";
+const MAX_ENCODED_LENGTH = Math.ceil((MAX_IMPORT_BYTES * 4) / 3) + 4;
 
 /**
  * base64url encode/decode with a fallback: the TC39 Uint8Array.toBase64 /
@@ -30,6 +31,9 @@ function fromBase64Url(encoded: string): Uint8Array {
 /** Build a shareable absolute URL that encodes the author state in the fragment. */
 export function buildShareUrl(authors: Author[]): string {
   const bytes = new TextEncoder().encode(toJson(authors));
+  if (bytes.byteLength > MAX_IMPORT_BYTES) {
+    throw new Error("This draft is too large to share as a link.");
+  }
   const encoded = toBase64Url(bytes);
   const { origin, pathname } = window.location;
   return `${origin}${pathname}${HASH_PREFIX}${encoded}`;
@@ -41,8 +45,11 @@ export function buildShareUrl(authors: Author[]): string {
  */
 export function decodeShareHash(hash: string): Author[] | null {
   if (!hash.startsWith(HASH_PREFIX)) return null;
+  const encoded = hash.slice(HASH_PREFIX.length);
+  if (encoded.length > MAX_ENCODED_LENGTH) return null;
   try {
-    const bytes = fromBase64Url(hash.slice(HASH_PREFIX.length));
+    const bytes = fromBase64Url(encoded);
+    if (bytes.byteLength > MAX_IMPORT_BYTES) return null;
     return fromJson(new TextDecoder().decode(bytes));
   } catch {
     return null;

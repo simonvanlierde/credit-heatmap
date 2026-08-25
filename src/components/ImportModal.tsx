@@ -1,13 +1,21 @@
 "use client";
 
 import type { Author } from "@credit-generator/core";
-import { fromCsv, fromJats4rXml, fromJson, parseAuthorText } from "@credit-generator/core";
+import {
+  fromCsv,
+  fromJats4rXml,
+  fromJson,
+  MAX_AUTHORS,
+  MAX_IMPORT_BYTES,
+  parseAuthorText,
+} from "@credit-generator/core";
 import { FileUp, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { announce } from "@/lib/announce";
 
 interface Props {
   open: boolean;
+  existingContributorCount: number;
   onImport: (authors: Author[]) => void;
   onClose: () => void;
 }
@@ -51,10 +59,11 @@ const IMPORTERS: Record<
   names: { parse: parseAuthorText, emptyMessage: "No author names found. Enter one name per line." },
 };
 
-export function ImportModal({ open, onImport, onClose }: Props) {
+export function ImportModal({ open, existingContributorCount, onImport, onClose }: Props) {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [pendingAuthors, setPendingAuthors] = useState<Author[] | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -77,6 +86,10 @@ export function ImportModal({ open, onImport, onClose }: Props) {
   }, [open]);
 
   async function handleFileRead(file: File) {
+    if (file.size > MAX_IMPORT_BYTES) {
+      showError("That file is too large. Choose a file smaller than 1 MB.");
+      return;
+    }
     try {
       setText(await file.text());
       setError(null);
@@ -108,22 +121,40 @@ export function ImportModal({ open, onImport, onClose }: Props) {
     setError(null);
     if (format === "unknown") return;
     try {
+      if (new TextEncoder().encode(text).byteLength > MAX_IMPORT_BYTES) {
+        showError("That import is too large. Paste less than 1 MB of data.");
+        return;
+      }
       const { parse, emptyMessage } = IMPORTERS[format];
       const authors = parse(text.trim());
       if (authors.length === 0) {
         showError(emptyMessage);
         return;
       }
-      onImport(authors);
-      dialogRef.current?.close();
+      if (authors.length > MAX_AUTHORS) {
+        showError(`That import has too many contributors. The limit is ${MAX_AUTHORS}.`);
+        return;
+      }
+      if (existingContributorCount > 0) {
+        setPendingAuthors(authors);
+        return;
+      }
+      finishImport(authors);
     } catch (err) {
       showError(err instanceof Error ? err.message : "Could not parse the input. Check the format.");
     }
   }
 
+  function finishImport(authors: Author[]) {
+    onImport(authors);
+    setPendingAuthors(null);
+    dialogRef.current?.close();
+  }
+
   function handleClose() {
     setText("");
     setError(null);
+    setPendingAuthors(null);
     onClose();
   }
 
@@ -235,6 +266,32 @@ export function ImportModal({ open, onImport, onClose }: Props) {
           </div>
 
           {error && <p className="text-sm text-error bg-error-container/30 rounded px-4 py-2">{error}</p>}
+
+          {pendingAuthors && (
+            <div role="alert" className="rounded-lg bg-error-container/30 p-4 text-sm text-on-surface">
+              <p className="font-semibold">Replace the current workspace?</p>
+              <p className="mt-1 text-on-surface-variant">
+                Importing {pendingAuthors.length} contributor{pendingAuthors.length === 1 ? "" : "s"} will replace the
+                current {existingContributorCount}. This cannot be undone.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingAuthors(null)}
+                  className="rounded-lg border border-outline-variant px-4 py-2 font-semibold text-on-surface-variant hover:border-primary hover:text-primary"
+                >
+                  Keep current work
+                </button>
+                <button
+                  type="button"
+                  onClick={() => finishImport(pendingAuthors)}
+                  className="rounded-lg bg-error px-4 py-2 font-semibold text-on-error hover:opacity-90"
+                >
+                  Replace workspace
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-8 py-5 border-t border-outline-variant/10 bg-surface-container-low flex justify-end gap-3">
@@ -248,7 +305,7 @@ export function ImportModal({ open, onImport, onClose }: Props) {
           <button
             type="button"
             onClick={handleImport}
-            disabled={format === "unknown"}
+            disabled={format === "unknown" || pendingAuthors !== null}
             className="px-7 py-2 bg-primary text-on-primary text-sm font-bold rounded-lg shadow hover:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Import Data

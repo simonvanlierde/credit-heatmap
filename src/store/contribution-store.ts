@@ -5,6 +5,8 @@ import {
   DEFAULT_MONO_COLOR,
   deduplicateAuthorInitials,
   isValidOrcid,
+  MAX_AUTHORS,
+  normalizeOrcid,
   parseAuthorText,
 } from "@credit-generator/core";
 import { create } from "zustand";
@@ -31,8 +33,9 @@ interface ContributionState {
   /** Adds a contributor and returns its id; null when the name has no letters to parse. */
   addAuthor: (name: string, orcid?: string) => string | null;
   removeAuthor: (authorId: string) => void;
+  restoreAuthor: (author: Author, index: number) => void;
   moveAuthor: (fromIndex: number, toIndex: number) => void;
-  updateAuthorName: (authorId: string, name: string) => void;
+  updateAuthorName: (authorId: string, name: string) => boolean;
   updateAuthorOrcid: (authorId: string, orcid: string) => void;
   setAuthorType: (authorId: string, contributorType: Author["contributorType"]) => void;
   setAuthorScore: (authorId: string, roleIndex: number, score: number) => void;
@@ -89,6 +92,9 @@ function findAuthorIndex(authors: Author[], authorId: string): number {
 }
 
 function normalizeAuthors(authors: Author[]): Author[] {
+  if (authors.length > MAX_AUTHORS) {
+    throw new Error(`A draft can contain at most ${MAX_AUTHORS} contributors.`);
+  }
   return deduplicateAuthorInitials(
     authors.map((author) =>
       createAuthor(author.name, {
@@ -139,10 +145,13 @@ export const useContributionStore = create<ContributionState>()(
           // say). Reject it here rather than letting it throw through the caller.
           return null;
         }
+        let added = false;
         set((state) => {
+          if (state.authors.length >= MAX_AUTHORS) return;
           state.authors = normalizeAuthors([...state.authors, nextAuthor]);
+          added = true;
         });
-        return nextAuthor.id;
+        return added ? nextAuthor.id : null;
       },
 
       removeAuthor: (authorId) =>
@@ -150,6 +159,13 @@ export const useContributionStore = create<ContributionState>()(
           const index = findAuthorIndex(state.authors, authorId);
           if (index === -1) return;
           state.authors.splice(index, 1);
+          state.authors = normalizeAuthors(state.authors);
+        }),
+
+      restoreAuthor: (author, index) =>
+        set((state) => {
+          if (state.authors.some((candidate) => candidate.id === author.id)) return;
+          state.authors.splice(Math.max(0, Math.min(index, state.authors.length)), 0, author);
           state.authors = normalizeAuthors(state.authors);
         }),
 
@@ -170,20 +186,28 @@ export const useContributionStore = create<ContributionState>()(
           state.authors = normalizeAuthors(state.authors);
         }),
 
-      updateAuthorName: (authorId, name) =>
+      updateAuthorName: (authorId, name) => {
+        let updated = false;
         set((state) => {
           const index = findAuthorIndex(state.authors, authorId);
           const currentAuthor = state.authors[index];
           const trimmed = name.trim();
           if (!(currentAuthor && trimmed)) return;
-          state.authors[index] = createAuthor(trimmed, {
-            id: currentAuthor.id,
-            orcid: currentAuthor.orcid,
-            contributorType: currentAuthor.contributorType,
-            contributions: currentAuthor.contributions,
-          });
+          try {
+            state.authors[index] = createAuthor(trimmed, {
+              id: currentAuthor.id,
+              orcid: currentAuthor.orcid,
+              contributorType: currentAuthor.contributorType,
+              contributions: currentAuthor.contributions,
+            });
+          } catch {
+            return;
+          }
           state.authors = normalizeAuthors(state.authors);
-        }),
+          updated = true;
+        });
+        return updated;
+      },
 
       updateAuthorOrcid: (authorId, orcid) =>
         set((state) => {
@@ -194,7 +218,7 @@ export const useContributionStore = create<ContributionState>()(
           // Reject invalid values: an unvalidated iD here would make the next
           // normalizeAuthors() -> createAuthor() throw inside this reducer.
           if (trimmed && !isValidOrcid(trimmed)) return;
-          author.orcid = trimmed || undefined;
+          author.orcid = trimmed ? normalizeOrcid(trimmed) : undefined;
         }),
 
       setAuthorType: (authorId, contributorType) =>
