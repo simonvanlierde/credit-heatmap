@@ -18,7 +18,7 @@ export const MAX_IMPORT_BYTES = 1_000_000;
  *
  * Storing a continuous score (not just a boolean) lets us express
  * contribution levels without committing to a fixed tier count in
- * the data model — the UI input mode is a presentation concern only.
+ * the data model: the UI input mode is a presentation concern only.
  */
 export const ContributionSchema = z.object({
   role: z.enum(CREDIT_ROLES.map((r) => r.name) as [CreditRoleName, ...CreditRoleName[]]),
@@ -53,14 +53,38 @@ export function isValidOrcid(id: string): boolean {
   return digits[15] === (check === 10 ? "X" : String(check));
 }
 
+/**
+ * A name `createAuthor` can build a contributor from.
+ *
+ * Normally that means at least one letter. A bare ORCID iD is the deliberate
+ * exception: adding a contributor by iD seeds the row named after the iD and
+ * fills the real name from the registry afterwards, and a row whose lookup
+ * failed keeps that placeholder on purpose; so it has to survive validation,
+ * persistence and export.
+ */
+export function isUsableAuthorName(name: string): boolean {
+  return /[\p{L}\p{M}]/u.test(name) || ORCID_INPUT_REGEX.test(name.trim());
+}
+
 export const AuthorSchema = z.object({
   /** Stable unique identifier for UI state and persistence */
   id: z
     .string()
     .min(1)
     .default(() => globalThis.crypto.randomUUID()),
-  /** Display name as entered by the user (e.g. "Jane A. Smith") */
-  name: z.string().min(1).max(MAX_AUTHOR_NAME_LENGTH),
+  /**
+   * Display name as entered by the user (e.g. "Jane A. Smith").
+   *
+   * The letter check mirrors `createAuthor`, which throws on a name that keeps
+   * no letters once punctuation and digits are stripped. Without it the schema
+   * accepts names (e.g. "123") that every downstream `normalizeAuthors` call
+   * then throws on, turning a bad import into a crash instead of an error.
+   */
+  name: z
+    .string()
+    .min(1)
+    .max(MAX_AUTHOR_NAME_LENGTH)
+    .refine(isUsableAuthorName, "Author name must contain at least one letter."),
   /** Parsed first name */
   firstName: z.string().max(MAX_AUTHOR_NAME_LENGTH),
   /** Parsed middle name (may be empty) */
@@ -83,8 +107,14 @@ export const AuthorSchema = z.object({
    * the distinction drives the JATS `contrib-type`. Defaults to "author".
    */
   contributorType: z.enum(["author", "non-author"]).default("author"),
-  /** Scores for each of the 14 CRediT roles, keyed by role name */
-  contributions: z.array(ContributionSchema).max(CREDIT_ROLES.length),
+  /**
+   * Scores for each of the 14 CRediT roles, keyed by role name.
+   *
+   * Deliberately not capped at `CREDIT_ROLES.length`: an imported array may
+   * legally repeat a role, and `normalizeContributions` merges duplicates by
+   * keeping the highest score. A cap here rejects that payload outright.
+   */
+  contributions: z.array(ContributionSchema),
 });
 
 export type Author = z.infer<typeof AuthorSchema>;
@@ -111,7 +141,7 @@ export function hasContributions(author: Author): boolean {
 }
 
 /**
- * True when every contribution across all authors is binary (0 or 100) — i.e.
+ * True when every contribution across all authors is binary (0 or 100), i.e.
  * no intermediate levels exist, so a "show levels" control has nothing to show.
  * Treats an empty author list as binary.
  */

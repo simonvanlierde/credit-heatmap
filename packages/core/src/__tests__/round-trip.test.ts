@@ -87,7 +87,7 @@ describe("round-trip exports", () => {
     jane.orcid = "0000-0001-2345-6789";
     const xml = toJats4rXml(authors);
 
-    // Use fromJats4rXml path that throws if DOMParser absent — but in Node we'll parse
+    // Use fromJats4rXml path that throws if DOMParser absent, but in Node we'll parse
     // with linkedom and call fromXmlDocument instead
     const doc = new DOMParser().parseFromString(xml, "text/xml");
     const parsed = fromXmlDocument(doc as unknown as Document);
@@ -113,5 +113,25 @@ describe("round-trip exports", () => {
 
     expect(xml).toContain("<given-names>Marie</given-names>");
     expect(xml).toContain("<surname>Curie</surname>");
+  });
+
+  // Regression: the importer used to rejoin given + surname and re-parse the
+  // string, which cannot recover a multi-word surname. "van der Berg" came
+  // back as middle name "van" + surname "Berg", changing the initials too.
+  it.each([
+    ["van der Berg, Anne", "Anne", "", "van der Berg", "AV"],
+    ["de la Cruz, Maria", "Maria", "", "de la Cruz", "MD"],
+    ["Smith, John", "John", "", "Smith", "JS"],
+  ])("XML round-trip preserves the particle surname in %s", (input, first, middle, surname, initials) => {
+    const [author] = parseAuthorText(input);
+    if (!author) throw new Error("expected contributor");
+
+    const doc = new DOMParser().parseFromString(toJats4rXml([author]), "text/xml");
+    const [parsed] = fromXmlDocument(doc as unknown as Document);
+
+    expect(parsed?.firstName).toBe(first);
+    expect(parsed?.middleName).toBe(middle);
+    expect(parsed?.surname).toBe(surname);
+    expect(parsed?.initials).toBe(initials);
   });
 });

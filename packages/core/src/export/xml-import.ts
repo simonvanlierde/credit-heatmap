@@ -7,7 +7,7 @@ import { createAuthor, deduplicateAuthorInitials } from "../parse-authors.js";
  * Parse a JATS4R XML string (as produced by `toJats4rXml()` or the original
  * Python app) back into an Author array.
  *
- * Runs in both browser (DOMParser) and Node (requires a DOM — see note below).
+ * Runs in both browser (DOMParser) and Node (requires a DOM; see note below).
  *
  * Node note: this function uses the global `DOMParser`. In Node ≥ 19 there is
  * no built-in DOMParser, so callers that need server-side XML import should
@@ -35,7 +35,7 @@ export function fromJats4rXml(xmlString: string): Author[] {
 
 /**
  * Extract authors from a pre-parsed XML Document.
- * Works in any environment — pass the Document from whatever DOM library you use.
+ * Works in any environment: pass the Document from whatever DOM library you use.
  */
 export function fromXmlDocument(doc: Document): Author[] {
   const roleNames = new Set<string>(CREDIT_ROLES.map((r) => r.name));
@@ -51,11 +51,16 @@ export function fromXmlDocument(doc: Document): Author[] {
     const surname = surnameEl?.textContent?.trim() ?? "";
 
     const displayName = [givenNames, surname].filter(Boolean).join(" ");
+    // Split given names the same way `parseNameParts` does for its comma branch:
+    // first token is the first name, the second (if any) is the middle name.
+    const givenParts = givenNames.split(/\s+/).filter(Boolean);
+    const givenFirst = givenParts[0] ?? "";
+    const givenMiddle = givenParts[1] ?? "";
     // Skip nameless contribs (e.g. a <collab> group, or a malformed entry)
     // rather than throwing and discarding every other valid author.
     if (!displayName) return [];
 
-    // Parse role elements — `vocab-term` attribute is authoritative; fall back to text content
+    // Parse role elements. The `vocab-term` attribute is authoritative; fall back to text content
     const roleEls = Array.from(contrib.querySelectorAll("role"));
     const activeRoleNames = new Set(
       roleEls
@@ -63,7 +68,7 @@ export function fromXmlDocument(doc: Document): Author[] {
         .filter((name) => roleNames.has(name)),
     );
 
-    // JATS4R carries no score, only role presence — so every active role comes
+    // JATS4R carries no score, only role presence, so every active role comes
     // back as 100. A score of e.g. 50 exported to XML re-imports as 100; this
     // lossy round-trip is by design (the format has no field for it).
     const contributions: Contribution[] = CREDIT_ROLES.map((r) => ({
@@ -81,6 +86,10 @@ export function fromXmlDocument(doc: Document): Author[] {
       createAuthor(displayName, {
         contributions,
         contributorType,
+        // JATS already separates the parts, so hand them over instead of
+        // letting the parser re-split `displayName`, which would read a particle
+        // surname ("van der Berg") back as middle name "van" + surname "Berg".
+        ...(givenNames && surname ? { firstName: givenFirst, middleName: givenMiddle, surname } : {}),
         // Drop an unparseable ORCID rather than aborting the whole import.
         ...(orcid && isValidOrcid(orcid) ? { orcid } : {}),
       }),

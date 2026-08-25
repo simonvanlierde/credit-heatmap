@@ -1,5 +1,11 @@
 import type { Author, Contribution, ContributorType } from "./author.js";
-import { isValidOrcid, MAX_AUTHOR_NAME_LENGTH, normalizeOrcid, ORCID_INPUT_REGEX } from "./author.js";
+import {
+  isUsableAuthorName,
+  isValidOrcid,
+  MAX_AUTHOR_NAME_LENGTH,
+  normalizeOrcid,
+  ORCID_INPUT_REGEX,
+} from "./author.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
 
 /**
@@ -15,7 +21,7 @@ import { CREDIT_ROLES } from "./credit-roles.js";
  *  - Middle token → middleName (only when >2 tokens; first of any middle tokens)
  *
  * A single-token name (e.g. "Madonna") yields a firstName with empty
- * middleName and surname — that is intentional, not an error.
+ * middleName and surname. That is intentional, not an error.
  */
 export function parseNameParts(name: string): {
   firstName: string;
@@ -73,7 +79,7 @@ function buildInitials(firstName: string, middleName: string, surname: string): 
  * Given a list of raw name strings, parse them and assign unique initials.
  *
  * When two authors would share the same initials, we disambiguate by
- * appending lowercase characters from the surname — matching the original
+ * appending lowercase characters from the surname, matching the original
  * Python app's `generate_unique_initials()` strategy.
  */
 export function createAuthor(
@@ -83,11 +89,27 @@ export function createAuthor(
     orcid?: string;
     contributorType?: ContributorType;
     contributions?: Contribution[];
+    /**
+     * Pre-split name parts, for callers that already hold structured names
+     * (e.g. JATS `<surname>`/`<given-names>`). Re-parsing a joined string
+     * cannot recover a multi-word surname: "Anne van der Berg" parses back as
+     * surname "Berg" with "van" as a middle name, which also changes initials.
+     */
+    firstName?: string;
+    middleName?: string;
+    surname?: string;
   },
 ): Author {
-  const { firstName, middleName, surname } = parseNameParts(name);
+  const parsed = parseNameParts(name);
+  const firstName = overrides?.firstName ?? parsed.firstName;
+  const middleName = overrides?.middleName ?? parsed.middleName;
+  const surname = overrides?.surname ?? parsed.surname;
 
-  if (!(firstName || middleName || surname)) {
+  // Punctuation-only names ("-- --") survive cleanNamePart, which keeps hyphens
+  // and apostrophes. Share one predicate with AuthorSchema.name: a schema that
+  // accepts what this throws on turns a bad import into a crash, and the
+  // reverse silently admits a nameless contributor.
+  if (!isUsableAuthorName(name)) {
     throw new Error("Author name must contain at least one letter.");
   }
   if (name.length > MAX_AUTHOR_NAME_LENGTH) {
@@ -194,9 +216,9 @@ function isGivenNamePart(text: string): boolean {
 
 /**
  * Split typed or pasted text into contributor name tokens. Newlines and
- * semicolons always separate. A comma is ambiguous on its own — it separates
+ * semicolons always separate. A comma is ambiguous on its own: it separates
  * contributors ("Marie Curie, Jane Smith") or the halves of one inverted name
- * ("Curie, Marie") — so the choice is made per line, over the whole chunk list
+ * ("Curie, Marie"), so the choice is made per line, over the whole chunk list
  * rather than per comma: a line is read as inverted names only when its chunks
  * pair up cleanly as surname + given name. Anything else is a delimiter list.
  */
@@ -216,7 +238,7 @@ function splitCommaLine(line: string): string[] {
   if (chunks.length < 2 || chunks.length % 2 !== 0) return chunks;
 
   // NOTE: a comma-only list of mononyms ("Cher, Madonna") reads as one
-  // inverted name. Genuinely undecidable without a name database — use
+  // inverted name. Genuinely undecidable without a name database, so use
   // semicolons or newlines to force separation.
   const pairs: string[] = [];
   for (let i = 0; i < chunks.length; i += 2) {
