@@ -57,6 +57,7 @@ export function WelcomeCard() {
 
   return (
     <section
+      id="getting-started"
       aria-label="Getting started"
       className="animate-[welcome-in_0.4s_ease-out] border-b border-outline-variant/20 bg-surface-bright px-4 py-6 md:px-8 md:py-8"
     >

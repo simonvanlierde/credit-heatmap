@@ -11,15 +11,15 @@ export default function HomePage() {
           share the top row and the statement runs full-width below, so it is
           never squeezed into a narrow column by a long contributor list. */}
       <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[minmax(20rem,26rem)_minmax(0,1fr)] xl:items-start">
-        <section aria-label="Contributors">
+        <section aria-label="Contributors" className="min-w-0">
           <AuthorList />
         </section>
 
-        <section aria-label="Contribution grid">
+        <section aria-label="Contribution grid" className="min-w-0">
           <ContributionGrid />
         </section>
 
-        <section aria-label="Statement and export" className="xl:col-span-2">
+        <section aria-label="Statement and export" className="min-w-0 xl:col-span-2">
           <StatementOutput />
         </section>
       </div>

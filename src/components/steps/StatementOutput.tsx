@@ -139,7 +139,9 @@ export function StatementOutput() {
         style={{ fontFamily: "var(--font-headline)" }}
       >
         {statement ? (
-          <p className="whitespace-pre-line text-base italic leading-relaxed text-on-surface">{statement}</p>
+          <p className="whitespace-pre-line [overflow-wrap:anywhere] text-base italic leading-relaxed text-on-surface">
+            {statement}
+          </p>
         ) : (
           <p className="text-sm text-on-surface-variant not-italic">
             No contributions assigned yet — click cells in the grid to assign roles.

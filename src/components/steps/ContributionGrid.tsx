@@ -95,14 +95,14 @@ export function ContributionGrid() {
     const score = author.contributions[roleIndex]?.score ?? 0;
     const level = translateUi(graded ? scoreToLevel(score) : score > 0 ? "contributed" : "none");
     return (
-      <td key={`${author.id}-${role?.name}`} className="p-0">
+      <td key={`${author.id}-${role?.name}`} className="min-w-11 p-0">
         <button
           type="button"
           aria-pressed={score > 0}
           aria-label={`${role?.name} for ${author.name}: ${level}`}
           title={`${author.name} — ${role?.name}: ${level}`}
           onClick={() => handleCellClick(author, roleIndex, score)}
-          className="block h-6 w-full rounded transition-shadow hover:ring-2 hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="block h-6 min-w-11 w-full rounded transition-shadow hover:ring-2 hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           style={{
             backgroundColor:
               score > 0 ? heatCellColor(heatmapMonoColor, graded ? score : 100) : "var(--color-surface-container-high)",
@@ -113,7 +113,7 @@ export function ContributionGrid() {
   };
 
   return (
-    <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-4 md:p-5">
+    <div className="min-w-0 max-w-full bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <StepHeader n={2} title="Contributions" />
         <div className="flex flex-wrap items-center gap-3">
@@ -168,8 +168,8 @@ export function ContributionGrid() {
       </div>
 
       {/* Right padding reserves overhang room for angled column labels. */}
-      <div className={`overflow-x-auto ${transpose || !acronyms ? "pr-24" : ""}`}>
-        <table className="w-full table-fixed border-separate border-spacing-1">
+      <div className={`max-w-full overflow-x-auto ${transpose || !acronyms ? "pr-24" : ""}`}>
+        <table className="w-max min-w-full table-auto border-separate border-spacing-1">
           <thead>
             <tr>
               <th
@@ -289,7 +289,7 @@ function RoleInfo({ role }: { role: (typeof CREDIT_ROLES)[number] }) {
         <button
           type="button"
           aria-label={`About ${role.name}`}
-          className="shrink-0 rounded-full text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="flex size-6 shrink-0 items-center justify-center rounded-full text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Info className="h-4 w-4" />
         </button>

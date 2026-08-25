@@ -43,7 +43,7 @@ export function ColorPopover({
                 title={hex}
                 aria-label={`Set color ${hex}`}
                 aria-pressed={selected}
-                className="flex h-5 w-5 items-center justify-center rounded-full ring-offset-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="flex size-6 items-center justify-center rounded-full ring-offset-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 style={{ backgroundColor: hex }}
               >
                 {selected && <Check className="h-3 w-3" style={{ color: textColorOn(hex) }} />}
