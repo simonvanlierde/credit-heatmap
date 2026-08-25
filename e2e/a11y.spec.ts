@@ -1,9 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 /**
  * Automated accessibility scans. axe-core catches a subset of WCAG issues
- * (roughly a third) — a guardrail against regressions, not a conformance claim.
+ * (roughly a third). It is a guardrail against regressions, not a conformance claim.
  * We scan the app's main states; the heatmap SVG is aria-hidden (a text
  * alternative sits beside it) so axe correctly skips it.
  */
@@ -12,15 +12,41 @@ import { expect, type Page, test } from "@playwright/test";
 // documents, rather than tracking axe's shifting defaults (which also include
 // best-practice rules).
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
-const scan = (page: Page) => new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
+/**
+ * Panels scale in and rows fade up, and axe samples computed color; including
+ * the opacity of an element still mid-transition. Scanning before motion
+ * settles reports contrast failures that never reach the eye, and geometry
+ * reads ~4% small. Wait for every running animation, with a ceiling so an
+ * intentionally looping one can't hang the suite.
+ */
+async function settleMotion(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const done = Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined)));
+        const cap = new Promise<void>((r) => setTimeout(r, 2000));
+        Promise.race([done, cap]).then(() => resolve());
+      }),
+  );
+}
+
+const scan = async (page: Page) => {
+  await settleMotion(page);
+  return new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
+};
 
 /**
  * Most flows exercise the workspace, not the first-run welcome. That welcome is
  * now a modal dialog, so leaving it open would intercept every click. Seeding
- * the "returning visitor" flag keeps it closed — and only when nothing is
+ * the "returning visitor" flag keeps it closed, and only when nothing is
  * stored yet, so the persistence and migration flows still own their own state.
  * The first-run modal itself is covered by its own tests.
  */
+/** The contributor rows only; other lists exist (welcome steps, validation). */
+function contributorRows(page: Page) {
+  return page.locator("section[aria-label=Contributors]").getByRole("listitem");
+}
+
 async function asReturningVisitor(page: Page) {
   await page.addInitScript(() => {
     if (window.localStorage.getItem("credit-generator-state")) return;
@@ -71,7 +97,7 @@ test.describe("Accessibility (axe-core)", () => {
     // Imported names have no roles yet, so the validation notice renders.
     await page.getByRole("button", { name: "Import" }).click();
     await page.locator("#import-text").fill("Jane Smith\nBob White");
-    await page.getByRole("button", { name: "Import Data" }).click();
+    await page.getByRole("button", { name: "Import data" }).click();
     await expect(page.getByText(/has no assigned CRediT roles/).first()).toBeVisible();
     const results = await scan(page);
     expect(results.violations).toEqual([]);
@@ -126,18 +152,95 @@ test.describe("Accessibility (axe-core)", () => {
     await expect(page.locator("#getting-started")).toBeVisible();
   });
 
+  // axe cannot invoke a keyboard drag, so the dnd-kit reorder; the most
+  // complex custom widget here, it needs an explicit test.
+  test("the contributor list reorders by keyboard", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    const rows = contributorRows(page);
+    await expect(rows).toHaveCount(3);
+
+    const names = () =>
+      rows.locator("input[type=text]").evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
+    expect(await names()).toEqual(["Jane A. Smith", "Bob White", "Carol Davis"]);
+
+    // dnd-kit's KeyboardSensor needs a frame to register the pick-up before it
+    // will act on an arrow key; pressing all three keys back-to-back drops the
+    // row where it started.
+    await page.getByRole("button", { name: /Reorder Jane/ }).focus();
+    await page.keyboard.press("Space");
+    // dnd-kit fires onDragStart then onDragOver immediately, so the "Picked up"
+    // announcement is usually already replaced by the "is over" one. Either
+    // proves the drag is live, which is the signal we actually need.
+    await expect(page.getByText(/Picked up contributor|is over/)).toBeAttached();
+    await page.keyboard.press("ArrowDown");
+    // Drop only once the move has actually registered against the next row;
+    // pressing Space in the same tick drops the row where it started.
+    await expect(page.getByText(/is over Bob White/)).toBeAttached();
+    await page.keyboard.press("Space");
+
+    await expect.poll(names).toEqual(["Bob White", "Jane A. Smith", "Carol Davis"]);
+  });
+
+  test("the contributor list exposes its rows as a list", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    // Without list semantics a screen reader gets no item count or position.
+    await expect(contributorRows(page)).toHaveCount(3);
+  });
+
+  // Removing a row unmounts the button that was just activated. Focus must not
+  // fall back to <body>, which sends a keyboard user to the top of the page.
+  test("keeps focus in the contributor list after removing a row", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(contributorRows(page)).toHaveCount(3);
+
+    await page
+      .getByRole("button", { name: /^Remove / })
+      .first()
+      .click();
+    await expect(contributorRows(page)).toHaveCount(2);
+
+    const focused = await page.evaluate(() => ({
+      tag: document.activeElement?.tagName ?? "",
+      label: document.activeElement?.getAttribute("aria-label") ?? "",
+    }));
+    expect(focused.tag, "focus fell back to the body").not.toBe("BODY");
+    expect(focused.label).toMatch(/^Remove /);
+  });
+
+  test("the assigned-cell checkmark stays legible on every grid color", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await page.getByText("Heatmap options", { exact: true }).click();
+    await page.getByRole("button", { name: "Grid color" }).click();
+    // The Okabe-Ito yellow is the worst case: a white glyph vanishes on it.
+    await page.getByRole("button", { name: "Set color #f0e442" }).click();
+    await page.keyboard.press("Escape");
+
+    const glyph = page
+      .getByRole("button", { name: /Conceptualization for Jane A\. Smith: (Contributed|Lead)/ })
+      .locator("svg");
+    const color = await glyph.evaluate((el) => getComputedStyle(el).color);
+    // Dark ink, not white; onColor picks by measured contrast.
+    expect(color).toBe("rgb(22, 24, 28)");
+  });
+
   test("compact icon controls meet the minimum target size", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
 
-    const reorder = await page.getByRole("button", { name: /Reorder Jane/ }).boundingBox();
-    const roleInfo = await page.getByRole("button", { name: "About Conceptualization" }).boundingBox();
+    const settled = async (target: Locator) => {
+      await settleMotion(page);
+      return target.boundingBox();
+    };
+
+    const reorder = await settled(page.getByRole("button", { name: /Reorder Jane/ }));
+    const roleInfo = await settled(page.getByRole("button", { name: "About Conceptualization" }));
     await page.getByText("Heatmap options", { exact: true }).click();
     await page.getByRole("button", { name: "Grid color" }).click();
-    const swatch = await page
-      .getByRole("button", { name: /Set color/ })
-      .first()
-      .boundingBox();
+    const swatch = await settled(page.getByRole("button", { name: /Set color/ }).first());
 
     for (const box of [reorder, roleInfo, swatch]) {
       expect(box).not.toBeNull();

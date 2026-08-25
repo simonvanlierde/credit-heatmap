@@ -1,4 +1,4 @@
-# CRediT generator
+# CRediT Generator
 
 [![CI](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/simonvanlierde/credit-heatmap/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/credit-heatmap)
@@ -10,7 +10,7 @@
 A web app for drafting [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) contribution
 statements for scholarly publications.
 
-Add contributors, assign the 14 roles, and copy a manuscript-ready statement. It also builds a
+Add contributors, assign the 14 roles, and copy a manuscript-ready statement. The app also builds a
 contribution heatmap and exports for journal submission systems: JATS4R XML, CSV, JSON, and
 Markdown.
 
@@ -23,15 +23,15 @@ Markdown.
 - **Contributors**: add, rename, reorder, paste a whole author list, or paste an ORCID iD or URL to
   look up the name
 - **Contribution grid**: click cells to assign the 14 roles as yes/no values or as contribution
-  levels. The grid is the heatmap — transpose it, swap initials for full names, and recolor it in
+  levels. The grid is the heatmap, so you can transpose it, swap initials for full names, and recolor
   place
-- **Statements**: render by role or by author, with full names or initials and optional level labels
+- **Statements**: render by role or by author, with full names or initials, and optional level labels
 - **Localized output**: translate role names in statements, Markdown tables, and heatmaps (via
   [credit-translation](https://github.com/contributorshipcollaboration/credit-translation)).
   Machine-readable exports keep the canonical English CRediT terms
 - **Heatmap**: download the grid as SVG or PNG
 - **Exports**: copy or download JATS4R XML, CSV, JSON, and Markdown
-- **Sharing & import**: encode a draft in a URL, paste names, or import JSON, CSV, or JATS4R XML
+- **Sharing and import**: encode a draft in a URL, paste names, or import JSON, CSV, or JATS4R XML
 
 | First run | Statement & export |
 |---|---|
@@ -51,7 +51,7 @@ TypeScript 6 throughout, on pnpm workspaces (app at the root, reusable `packages
 | Styling | Tailwind CSS v4 | Design tokens via `@theme`; no runtime CSS |
 | State | Zustand + immer + persist | Survives a refresh via localStorage |
 | Validation | Zod | Schema checks at trust boundaries |
-| Heatmap | @nivo/heatmap + hand-crafted SVG (`core`) | One SVG source feeds both download and canvas PNG |
+| Heatmap | Hand-crafted SVG (`core`) | One SVG source feeds both download and canvas PNG |
 
 ### Project structure
 
@@ -64,16 +64,16 @@ Browser
        └─ /api/orcid  (route handler) ──→ pub.orcid.org    ← the only server-side call
 ```
 
-Nearly everything runs in the browser. [`packages/core`](packages/core/README.md) holds the domain
-logic — statements, exports, validation, XML import (native `DOMParser`), and the heatmap SVG — as
-pure TypeScript with one runtime dependency, `zod`. The PNG download is drawn from that same SVG
-onto a `<canvas>`.
+Nearly everything runs in the browser. [`packages/core`](packages/core/README.md) holds that domain
+logic as pure TypeScript, with one runtime dependency: `zod`. XML import uses the native
+`DOMParser`, and the PNG download is drawn from the heatmap SVG onto a `<canvas>`.
 
-The one server-side call is the ORCID lookup: the ORCID public API sends no CORS headers, so
-`/api/orcid` proxies it through a small Next.js route handler. (`/health` backs uptime monitors.)
+The one server-side call is the ORCID lookup. The ORCID public API sends no CORS headers, so
+`/api/orcid` proxies it through a small Next.js route handler. A `/health` route backs uptime
+monitors.
 
-Contributions are stored as a 0–100 integer `score` rather than a boolean, so the UI can switch
-between binary and level-based editing without changing the stored model. See
+Contributions are stored as a 0–100 integer `score` rather than a boolean. The UI can switch between
+binary and level-based editing without touching the stored model. See
 [`packages/core/README.md`](packages/core/README.md#domain-model) for the score-to-level boundaries.
 
 ---
@@ -89,19 +89,19 @@ pnpm install
 pnpm dev            # → http://localhost:3000
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full command list, dev workflow, and the
-lint/typecheck/test checklist. Run `just` to list the watch/fix recipes layered on the pnpm scripts.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the full command list and the lint/typecheck/test checklist.
+Run `just` to list the watch/fix recipes layered on the pnpm scripts.
 
 ### Deployment
 
 The live demo runs on Cloudflare Workers via
 [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), which adapts the Next.js build.
 
-**Pipeline:** push to `main` → Cloudflare
-[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/) builds and deploys to
-[credit.duinlab.nl](https://credit.duinlab.nl). The trigger is configured in the Cloudflare
-dashboard (settings mirrored in [wrangler.jsonc](wrangler.jsonc)); non-`main` branches and PR
-previews are disabled. [CI](.github/workflows/ci.yml) only lints, tests, and build-checks.
+**Pipeline:** a push to `main` triggers Cloudflare
+[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/), which builds and deploys
+to [credit.duinlab.nl](https://credit.duinlab.nl). The trigger lives in the Cloudflare dashboard,
+mirrored in [wrangler.jsonc](wrangler.jsonc); non-`main` branches and PR previews are turned off.
+[CI](.github/workflows/ci.yml) only lints, tests, and build-checks.
 
 **Manual deploy** (needs Cloudflare credentials):
 
@@ -110,7 +110,7 @@ pnpm preview        # build + run the Worker locally
 pnpm deploy         # build + deploy to Cloudflare
 ```
 
-Config lives in [wrangler.jsonc](wrangler.jsonc) and [open-next.config.ts](open-next.config.ts)
+Config lives in [wrangler.jsonc](wrangler.jsonc) and [open-next.config.ts](open-next.config.ts).
 
 ## Roadmap
 
@@ -121,13 +121,15 @@ Config lives in [wrangler.jsonc](wrangler.jsonc) and [open-next.config.ts](open-
   is vendored under
   [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations);
   refresh them with `node packages/core/scripts/fetch-credit-translations.mjs`.
-- **Smooth onboarding.** Better empty states and a gentler path from a blank workspace to a finished
-  statement.
+- **Keep smoothing onboarding.** The first-run card and empty states landed in 0.2.0. The path from
+  a blank workspace to a finished statement can still lose fewer people.
 
 ## Contributing
 
-Bug reports and small features are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
-testing, and the accessibility checks. Design decisions are recorded as [ADRs](docs/adr/).
+Bug reports and small features are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup,
+testing, and the accessibility checks. [PRODUCT.md](PRODUCT.md) states what the app is for and who
+it serves; [DESIGN.md](DESIGN.md) is the design system that UI changes are held to. Design decisions
+are recorded as [ADRs](docs/adr/).
 
 ## Acknowledgements
 
@@ -138,8 +140,8 @@ The CRediT Generator builds on prior tools and scholarship on contributorship:
   inspired this app.
 - Role translations from
   [credit-translation](https://github.com/contributorshipcollaboration/credit-translation).
-- The **contribution matrix** proposed by Nick Steinmetz (2019), the visual form this app's heatmap
-  descends from, as surveyed in *Nature Index*,
+- The **contribution matrix** proposed by Nick Steinmetz (2019), which this app's heatmap descends
+  from. *Nature Index* surveys it in
   ["Researchers are embracing visual tools to give fair credit…"](https://www.nature.com/nature-index/news/researchers-embracing-visual-tools-contribution-matrix-give-fair-credit-authors-scientific-papers).
 
 ### Related work
@@ -163,7 +165,7 @@ from it. The archived, versioned release is on Zenodo:
 
 > van Lierde, S. *CRediT Generator* [Computer software]. Zenodo.
 > <https://doi.org/10.5281/zenodo.21213659>
->
+
 ## License
 
 [MIT](LICENSE) © Simon van Lierde

@@ -1,4 +1,6 @@
 ---
+# Mirrors the tokens defined in src/app/globals.css, which is the source of
+# truth for anything the app renders. Change a value there first, then here.
 name: CRediT Generator
 description: A precise editorial workspace for scholarly contribution statements.
 colors:
@@ -63,23 +65,24 @@ components:
     rounded: "{rounded.lg}"
     padding: "16px"
   contributor-chip:
-    backgroundColor: "{colors.ink-blue-soft}"
+    # A 10% tint of ink-blue rather than the flat ink-blue-soft token, so the
+    # chip keeps its relationship to the chosen grid color. Height is fixed and
+    # the glyph is centred, so only the inline padding is specified.
+    backgroundColor: "{colors.ink-blue} @ 10%"
     textColor: "{colors.ink-blue}"
     rounded: "{rounded.md}"
-    padding: "4px 8px"
+    padding: "0 6px"
 ---
 
 # Design System: CRediT Generator
 
 ## Overview
 
-**Creative North Star: "The Editorial Research Desk"**
-
 The interface resembles a prepared working document: scholarly, compact, and quiet. Editorial type
-gives manuscript output authority. The sans-serif interface keeps controls practical.
+gives manuscript output authority, and the sans-serif interface keeps controls practical.
 
 This is a workspace, not a marketing page. Its character comes from the visible flow from
-contributors through the matrix to manuscript output.
+contributors, through the matrix, to manuscript output.
 
 ## Colors
 
@@ -97,44 +100,44 @@ explanations. Use IBM Plex Mono for contributor initials and compact data labels
 Follow the task order: contributors, contributions, then statement and export.
 
 Use one column on small screens. From `xl`, give all three steps their own column, so the workflow
-reads left to right. Never give the statement a full-width row: its prose is capped at 75ch for
-readability, so a 1200px row wraps the text at half its width and leaves the rest empty. Size the
-matrix column to the matrix, and let the statement absorb the space the matrix doesn't need.
+reads left to right. Never give the statement a full-width row. Its prose is capped at 75ch, so a
+1200px row wraps the text at half its width and leaves the rest empty. Size the matrix column to the
+matrix, and let the statement absorb the space the matrix doesn't need.
 
 Let the page use the screen it's given, up to `100rem`. A cap that holds until a late breakpoint
-letterboxes the very laptops this workspace is built for.
+letterboxes the laptops this workspace is built for.
 
 On a desktop-sized window the workspace is height-locked to the viewport. The page itself doesn't
 scroll; each pane scrolls its own content. The `desk` variant carries that rule (≥80rem wide **and**
-≥45rem tall). The height guard matters: a short window, a zoomed page, or a phone in landscape falls
-back to ordinary document flow instead of trapping the app in a nested scroller.
+≥45rem tall). Keep the height half of that guard. Without it, a short window, a zoomed page, or a
+phone in landscape traps the app in a nested scroller instead of ordinary document flow.
 
 Give a pane that scrolls but holds no focusable content a tab stop, or keyboard users can't reach
 its overflow.
 
-Panels that hang off a control belong in a popover, not a hand-placed absolute box. A popover
-dismisses on an outside click and on Escape, portals out of any scrolling ancestor, and reports its
-open state so the control that opened it can show it.
+A panel anchored to a control belongs in a popover, not a hand-placed absolute box. A popover
+dismisses on an outside click and on Escape, and portals out of any scrolling ancestor. It also
+reports its open state, so the control that opened it can show that state.
 
-A row whose content changes with a mode must not reflow when it does. Pin the elements that anchor
-to an edge, let the variable-length part wrap inside its own share of the row, and keep a row whose
-width varies out of a `max-content` column's intrinsic sizing (`w-0 min-w-full`). Otherwise flipping
-a mode moves controls the visitor was about to click.
+A row whose content changes with a mode must not reflow when it does. Otherwise flipping the mode
+moves controls the visitor was about to click. Pin the elements that anchor to an edge. Let the
+variable-length part wrap inside its own share of the row. Keep a row of varying width out of a
+`max-content` column's intrinsic sizing, with `w-0 min-w-full`.
 
 Use a contributor-focused role list on narrow screens. Keep the desktop matrix in a bounded viewport
 with sticky row and column labels.
 
 ## Density
 
-This is a working surface, not a reading one: on a standard 1080p desktop viewport the whole
+This is a working surface, not a reading one. On a standard 1080p desktop viewport the whole
 workflow should be visible at once, with no page scroll. Spend vertical space on contributor rows
-and matrix rows, and take it back from chrome. Prefer bounding a list that grows without limit
-(contributors, validation checks) over letting it push the rest of the workflow below the fold.
+and matrix rows, and take it back from chrome. Bound a list that grows without limit (contributors,
+validation checks) rather than letting it push the workflow below the fold.
 
-First-run guidance overlays the workspace rather than sitting above it. An inline band costs the
-height permanently, and reflows the whole page on dismissal.
+First-run guidance overlays the workspace rather than sitting over it in the flow. An inline band
+costs that height permanently, and reflows the whole page when dismissed.
 
-## Elevation & Depth
+## Elevation and depth
 
 Use tonal paper surfaces and fine neutral rules. Give work cards a low shadow and the generated
 result a slightly stronger one.
@@ -149,24 +152,24 @@ status, segmented controls, switches, and identity markers.
 ### Buttons
 
 Primary buttons use ink blue with bright paper text. Secondary buttons use quiet outlines and paper
-or transparent fills. Give every control visible keyboard focus and an appropriate touch target.
+or transparent fills. Give every control visible keyboard focus and an adequate tap target.
 
-### Cards / Containers
+### Cards and containers
 
 Cards use bright paper, 8px corners, a fine outline, and low elevation. Use spacing or a divider
 instead of nested cards.
 
-### Inputs / Fields
+### Inputs and fields
 
 Fields use bright or muted paper with quiet rules. Use a visible focus style. Keep error and
-disabled text readable, and explain how to recover.
+inactive text readable, and explain how to recover.
 
 ### Navigation
 
 Keep identity and global actions in the fixed header. On narrow screens, use labeled icons without
 clipping or hiding accessible names.
 
-### Contribution Matrix
+### Contribution matrix
 
 Use the matrix on larger screens and a contributor-focused role list on narrow screens. Keep role
 and contributor labels visible during scrolling. Show each selected value with color, a mark, an
@@ -179,7 +182,7 @@ accessible label, and exported data. Keep bulk assignment behind a disclosure.
 - **Do** preserve the visible relationship between input, assignment, and output.
 - **Do** use semantic tokens across light and dark themes.
 - **Do** define specialist terminology at the decision point.
-- **Do** budget for long names, translations, keyboards, and touch.
+- **Do** budget for long names, translations, keyboards, and tap targets.
 - **Do** keep the desktop workflow inside one viewport, and let each pane scroll its own overflow.
 - **Do** ask which level a bulk action assigns. Defaulting to the strongest one overstates the claim.
 
@@ -187,7 +190,7 @@ accessible label, and exported data. Keep bulk assignment behind a disclosure.
 
 - **Don't** add ornamental gradients, glass effects, oversized marketing type, or unrelated accents.
 - **Don't** use serif typography for dense controls or data labels.
-- **Don't** hide core contribution functionality on small screens.
+- **Don't** hide core contribution features on small screens.
 - **Don't** make color the only way to distinguish a matrix value.
 - **Don't** height-lock the workspace without a viewport-height guard. A zoomed or short window
   needs ordinary document flow.

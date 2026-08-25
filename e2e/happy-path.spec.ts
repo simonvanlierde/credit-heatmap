@@ -1,11 +1,12 @@
 // biome-ignore lint/correctness/noNodejsModules: Playwright tests run in Node.
+
 import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
 
 /**
  * Most flows exercise the workspace, not the first-run welcome. That welcome is
  * now a modal dialog, so leaving it open would intercept every click. Seeding
- * the "returning visitor" flag keeps it closed — and only when nothing is
+ * the "returning visitor" flag keeps it closed, and only when nothing is
  * stored yet, so the persistence and migration flows still own their own state.
  * The first-run modal itself is covered by its own tests.
  */
@@ -93,7 +94,7 @@ test.describe("Happy path UI flows", () => {
 
     await page.getByRole("button", { name: "Import" }).click();
     await page.locator("#import-text").fill("Marie Curie");
-    await page.getByRole("button", { name: "Import Data" }).click();
+    await page.getByRole("button", { name: "Import data" }).click();
     await expect(page.getByText("Replace the current workspace?", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Replace workspace" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(1);
@@ -109,7 +110,7 @@ test.describe("Happy path UI flows", () => {
     await textarea.waitFor({ state: "visible" });
     await textarea.fill("Jane Smith\nBob White");
 
-    await page.getByRole("button", { name: "Import Data" }).click();
+    await page.getByRole("button", { name: "Import data" }).click();
 
     // The contributor name is rendered in an editable input.
     await expect(page.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Jane Smith");
@@ -125,7 +126,7 @@ test.describe("Happy path UI flows", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Import" }).click();
     await page.locator("#import-text").fill("Curie, Marie");
-    await page.getByRole("button", { name: "Import Data" }).click();
+    await page.getByRole("button", { name: "Import data" }).click();
 
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(1);
     await expect(page.getByLabel("Name or ORCID iD", { exact: true })).toHaveValue("Curie, Marie");
@@ -166,7 +167,7 @@ test.describe("Happy path UI flows", () => {
       await expect(
         page.getByText(`Detected: ${format === "XML" ? "JATS4R XML" : format === "JSON" ? "JSON export" : "CSV"}`),
       ).toBeVisible();
-      await page.getByRole("button", { name: "Import Data" }).click();
+      await page.getByRole("button", { name: "Import data" }).click();
       await expect(page.getByLabel("Name or ORCID iD", { exact: true })).toHaveValue(expectedName);
     });
   }
@@ -175,7 +176,7 @@ test.describe("Happy path UI flows", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Import" }).click();
     await page.locator("#import-text").fill("<a><b>");
-    await page.getByRole("button", { name: "Import Data" }).click();
+    await page.getByRole("button", { name: "Import data" }).click();
 
     await expect(page.locator("dialog").getByText(/^XML parse error:/)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
@@ -244,6 +245,42 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
   });
 
+  // A draft saved before MAX_AUTHOR_NAME_LENGTH existed can hold a longer name.
+  // It rehydrates fine, but every later mutation then throws inside
+  // createAuthor; so adding, removing or renaming anything bricked the
+  // workspace. The v5 migration trims on the way in.
+  test("keeps a pre-limit draft with an over-long name usable", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    await page.evaluate(() => {
+      const raw = window.localStorage.getItem("credit-generator-state");
+      if (!raw) throw new Error("expected persisted state");
+      const persisted = JSON.parse(raw) as { version: number; state: { authors: { name: string }[] } };
+      persisted.version = 4;
+      const first = persisted.state.authors[0];
+      if (!first) throw new Error("expected an author");
+      first.name = "A".repeat(600);
+      window.localStorage.setItem("credit-generator-state", JSON.stringify(persisted));
+    });
+    await page.reload();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    // The operation that used to throw: mutate the list at all.
+    await page
+      .getByRole("button", { name: /^Remove / })
+      .last()
+      .click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(2);
+
+    const stored = await page.evaluate(() => {
+      const raw = window.localStorage.getItem("credit-generator-state") ?? "{}";
+      return (JSON.parse(raw) as { state?: { authors?: { name: string }[] } }).state?.authors?.[0]?.name ?? "";
+    });
+    expect(stored.length).toBeLessThanOrEqual(500);
+  });
+
   test("handles invalid contributor names and ORCID checksums without losing input", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
@@ -279,7 +316,7 @@ test.describe("Happy path UI flows", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Import" }).click();
     await page.locator("#import-text").fill(payload);
-    await page.getByRole("button", { name: "Import Data" }).click();
+    await page.getByRole("button", { name: "Import data" }).click();
 
     await expect(page.getByRole("link", { name: /0000-0002-1825-0097/ })).toHaveAttribute(
       "href",
@@ -350,7 +387,7 @@ test.describe("Happy path UI flows", () => {
       await trigger.click();
       await expect(trigger).toHaveAttribute("data-state", "open");
 
-      // Clicking away dismisses it — a plain <details> never did.
+      // Clicking away dismisses it; a plain <details> never did.
       await page.getByRole("heading", { name: "Contributors" }).click();
       await expect(trigger).toHaveAttribute("data-state", "closed");
     }
@@ -402,7 +439,7 @@ test.describe("Happy path UI flows", () => {
     const card = page.locator("section[aria-label='Contribution grid'] > div");
     const before = { x: (await exports.boundingBox())?.x, w: (await card.boundingBox())?.width };
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByText("Click to cycle", { exact: true })).toBeVisible();
+    await expect(page.getByText("Click to cycle up", { exact: true })).toBeVisible();
     expect((await exports.boundingBox())?.x).toBe(before.x);
     expect((await card.boundingBox())?.width).toBe(before.w);
 
@@ -427,11 +464,11 @@ test.describe("Happy path UI flows", () => {
     const table = page.locator("table");
     const beforeY = (await table.boundingBox())?.y;
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByText("Click to cycle", { exact: true })).toBeVisible();
+    await expect(page.getByText("Click to cycle up", { exact: true })).toBeVisible();
     expect((await table.boundingBox())?.y).toBe(beforeY);
 
     // Enough contributors that the 14 role columns are squeezed to their minimum
-    // width — the condition that used to clip every angled label.
+    // width, the condition that used to clip every angled label.
     const longName = "Maximiliana Featherstonehaugh-Wentworth";
     const adder = page.getByLabel("New author names or ORCID iD");
     await adder.fill(`${longName}, Dmitri Ivanov, Elena Fischer, Farid Haddad, Grace Okoro`);
@@ -475,6 +512,51 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: "Conceptualization for Jane A. Smith: Contributed" })).toBeVisible();
   });
 
+  // The "One role" panel (setRoleScores) had no coverage at any level, so a
+  // wrong role index or a silent no-op would have shipped green.
+  test("bulk assigns and clears one role across every contributor", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    const everyoneOnSoftware = [
+      page.getByRole("button", { name: "Software for Jane A. Smith: Contributed" }),
+      page.getByRole("button", { name: "Software for Bob White: Contributed" }),
+      page.getByRole("button", { name: "Software for Carol Davis: Contributed" }),
+    ];
+
+    await page.getByText("Bulk assign", { exact: true }).click();
+    await page.getByRole("combobox", { name: "Role for bulk assignment" }).click();
+    await page.getByRole("option", { name: "Software", exact: true }).click();
+    await page.getByRole("button", { name: "Assign to all" }).click();
+    for (const cell of everyoneOnSoftware) await expect(cell).toBeVisible();
+
+    // A different role must be untouched; catches a wrong-index write.
+    await expect(page.getByRole("button", { name: "Supervision for Bob White: None" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Clear role" }).click();
+    await expect(page.getByRole("button", { name: "Software for Jane A. Smith: None" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Software for Carol Davis: None" })).toBeVisible();
+  });
+
+  // Regression: a failed lookup on a bare ORCID added through the main field
+  // must leave no row named after the raw iD.
+  test("removes the seeded row when a bare ORCID lookup fails", async ({ page }) => {
+    await asReturningVisitor(page);
+    await page.route("**/api/orcid", (route) => route.fulfill({ status: 404, json: { error: "ORCID not found" } }));
+    await page.goto("/");
+
+    const field = page.getByLabel("New author names or ORCID iD");
+    await field.fill("0000-0002-1825-0097");
+    await field.press("Enter");
+
+    // The stub controls this text, so it is deterministic.
+    await expect(page.getByText("ORCID not found")).toBeVisible();
+    // No contributor row at all, and specifically none named after the iD.
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
+    await expect(page.locator("section[aria-label=Contributors]").getByRole("listitem")).toHaveCount(0);
+  });
+
   test("uses a contributor-focused role list on mobile", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
@@ -510,7 +592,7 @@ test.describe("Happy path UI flows", () => {
     await importButton.click();
     const names = Array.from({ length: 12 }, (_, index) => `Contributor${index} Surname${index}`).join("\n");
     await page.locator("#import-text").fill(names);
-    await page.getByRole("button", { name: "Import Data" }).click();
+    await page.getByRole("button", { name: "Import data" }).click();
     const cell = page.getByRole("button", { name: /Conceptualization for Contributor0/ });
     expect((await cell.boundingBox())?.width).toBeGreaterThanOrEqual(44);
     expect((await cell.boundingBox())?.height).toBeGreaterThanOrEqual(44);
@@ -527,7 +609,9 @@ test.describe("Happy path UI flows", () => {
   test("rejects malformed ORCID API requests before upstream lookup", async ({ request }) => {
     const response = await request.post("/api/orcid", { data: { id: "0000-0002-1825-0098" } });
     expect(response.status()).toBe(400);
-    await expect(response.json()).resolves.toEqual({ error: "Invalid ORCID iD format" });
+    await expect(response.json()).resolves.toEqual({
+      error: "That is not a valid ORCID iD. Check the digits and try again.",
+    });
   });
 
   test("XML export downloads client-side (no API round-trip)", async ({ page }) => {
