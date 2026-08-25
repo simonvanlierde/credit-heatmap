@@ -19,6 +19,7 @@ import { StepHeader } from "@/components/ui/step-header";
 import { Switch } from "@/components/ui/switch";
 import { useCopyStatus } from "@/lib/use-copy-status";
 import { useOutputTranslators } from "@/lib/use-output-translators";
+import { useSettled } from "@/lib/use-settled";
 import { download } from "@/lib/utils";
 import { useContributionStore } from "@/store/contribution-store";
 
@@ -34,7 +35,7 @@ const DATA_FORMATS: Record<
     mime: string;
   }
 > = {
-  // XML/JSON/CSV are machine round-trip formats — kept in canonical English.
+  // XML/JSON/CSV are machine round-trip formats, kept in canonical English.
   // Only Markdown (a human-facing paste artifact) follows the output language.
   xml: { label: "XML (JATS4R)", serialize: toJats4rXml, filename: "credit-contributors.xml", mime: "application/xml" },
   json: { label: "JSON", serialize: toJson, filename: "credit_result.json", mime: "application/json" },
@@ -50,6 +51,8 @@ const DATA_FORMATS: Record<
 export function StatementOutput() {
   const { authors } = useContributionStore();
   const { translateRole, translateUi } = useOutputTranslators();
+  // Last beat of the population sequence; see .enter-fade in globals.css.
+  const settled = useSettled();
   const [copyStatus, copyText] = useCopyStatus();
   // Separate status for the data-format Copy button, so feedback appears on
   // the button that was clicked rather than on the main statement copy.
@@ -94,7 +97,7 @@ export function StatementOutput() {
   }
 
   return (
-    <div className="bg-surface-bright rounded-lg shadow-md border border-outline-variant/10 p-3 md:p-4 flex flex-col gap-3 desk:h-full">
+    <div className="bg-surface-bright rounded-lg shadow-md border border-outline-variant/10 p-3 md:p-4 flex flex-col gap-3 desk:h-full desk:overflow-y-auto">
       {/* One left-aligned wrapping row: a conditional toggle extends the row
           instead of reflowing a justified cluster, so nothing jumps around. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -118,7 +121,7 @@ export function StatementOutput() {
             <Switch
               checked={showLevels}
               onCheckedChange={setShowLevels}
-              aria-label="Show levels — annotate roles with contribution levels"
+              aria-label="Show levels: annotate roles with contribution levels"
             />
             Show levels
           </span>
@@ -128,7 +131,7 @@ export function StatementOutput() {
             <Switch
               checked={separateAck}
               onCheckedChange={setSeparateAck}
-              aria-label="Separate acknowledgements — credit non-author contributors on their own line"
+              aria-label="Separate acknowledgements: credit non-author contributors on their own line"
             />
             Separate acknowledgements
           </span>
@@ -145,7 +148,7 @@ export function StatementOutput() {
             ) : (
               <Info className="size-4" aria-hidden="true" />
             )}
-            {isReady ? "Ready to export" : `${issues.length} ${issues.length === 1 ? "check" : "checks"} before export`}
+            {isReady ? "Ready to export" : `${issues.length} ${issues.length === 1 ? "note" : "notes"} to review`}
           </span>
           <span>
             {authors.length} contributor{authors.length === 1 ? "" : "s"}
@@ -156,7 +159,7 @@ export function StatementOutput() {
       )}
 
       {/* Statement preview */}
-      {/* Sized to the statement, not to the pane — a short statement should not
+      {/* Sized to the statement, not to the pane: a short statement should not
           render as a tall empty box. It shrinks and scrolls only once the card
           runs out of room. tabIndex makes that overflow keyboard-reachable:
           the pane holds no focusable content of its own. */}
@@ -167,24 +170,34 @@ export function StatementOutput() {
         className="relative z-10 min-h-[3.5rem] border-l border-primary bg-surface-container-low p-3 rounded-r focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary desk:min-h-0 desk:overflow-y-auto"
         style={{ fontFamily: "var(--font-headline)" }}
       >
+        {/* The keys are load-bearing, not React hygiene: both branches render a
+            <p>, so without them React reconciles the placeholder into the
+            statement in place and the element is never *newly* rendered —
+            which is the one condition @starting-style needs to fire. */}
         {statement ? (
-          <p className="max-w-[75ch] whitespace-pre-line [overflow-wrap:anywhere] text-base leading-relaxed text-on-surface">
+          <p
+            key="statement"
+            style={{ transitionDelay: "200ms" }}
+            className={`max-w-[75ch] whitespace-pre-line [overflow-wrap:anywhere] text-base leading-relaxed text-on-surface ${
+              settled ? "enter-fade" : ""
+            }`}
+          >
             {statement}
           </p>
         ) : (
-          <p className="text-sm text-on-surface-variant not-italic">
-            No contributions assigned yet — click cells in the grid to assign roles.
+          <p key="placeholder" className="text-sm text-on-surface-variant not-italic">
+            No contributions assigned yet. Click cells in the grid to assign roles.
           </p>
         )}
       </section>
 
-      {/* Validation notices — a live region so changes are announced as authors edit. */}
+      {/* Validation notices: a live region so changes are announced as authors edit. */}
       {issues.length > 0 && (
         <ul
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: same as the statement pane — the bounded checks list scrolls and holds no focusable content.
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: same as the statement pane; the bounded notes list scrolls and holds no focusable content.
           tabIndex={0}
           className="relative z-10 flex max-h-40 flex-col gap-1.5 overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          aria-label="Statement checks"
+          aria-label="Statement notes"
           aria-live="polite"
         >
           {issues.map((issue) => (

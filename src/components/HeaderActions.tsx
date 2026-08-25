@@ -36,13 +36,23 @@ export function HeaderActions() {
   useEffect(() => {
     const fromHash = decodeShareHash(window.location.hash);
     if (fromHash && fromHash.length > 0) {
-      loadAuthors(fromHash);
+      // decodeShareHash validates against the schema, but loadAuthors rebuilds
+      // every author through createAuthor, which can still reject one. Throwing
+      // here would take down the whole page render on a bad link, so degrade to
+      // the persisted draft and say why.
+      try {
+        loadAuthors(fromHash);
+      } catch {
+        announce("That shared link could not be opened. Your own draft was kept.", { assertive: true });
+        return;
+      }
       // Drop only the fragment; keep any query string intact.
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
   }, [loadAuthors]);
 
   function handleImport(importedAuthors: Author[]) {
+    // Errors surface in ImportModal, which keeps the dialog open on failure.
     loadAuthors(importedAuthors);
   }
 
@@ -51,7 +61,7 @@ export function HeaderActions() {
       await copyShareUrl(buildShareUrl(authors));
       setShareOpen(false);
     } catch {
-      announce("This draft is too large to share as a link.", { assertive: true });
+      announce("This draft is too large to share as a link. Export it as JSON instead.", { assertive: true });
     }
   }
 
@@ -63,8 +73,8 @@ export function HeaderActions() {
             <button
               type="button"
               disabled={authors.length === 0}
-              aria-label="Share"
-              title="Copy a link containing all contributor data"
+              aria-label="Share a link containing all contributor data"
+              title="Share a link containing all contributor data"
               className="flex size-9 items-center justify-center gap-2 rounded-lg border border-primary/30 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-4"
             >
               {shareStatus === "copied" ? (
@@ -80,7 +90,7 @@ export function HeaderActions() {
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 max-w-[calc(100vw-1.5rem)]">
-            <p className="text-sm font-semibold text-on-surface">Copy a data-bearing link?</p>
+            <p className="text-sm font-semibold text-on-surface">This link carries your data</p>
             <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">
               Anyone with this link can read every contributor name, ORCID iD, contributor type, and role assignment.
             </p>

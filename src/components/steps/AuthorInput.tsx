@@ -3,6 +3,7 @@
 import {
   type Author,
   isValidOrcid,
+  MAX_AUTHOR_NAME_LENGTH,
   MAX_AUTHORS,
   normalizeOrcid,
   ORCID_REGEX,
@@ -42,6 +43,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { StepHeader } from "@/components/ui/step-header";
 import { announce } from "@/lib/announce";
+import { useSettled } from "@/lib/use-settled";
 import { useContributionStore } from "@/store/contribution-store";
 
 const ORCID_EXTRACT_REGEX = /(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/i;
@@ -51,6 +53,9 @@ function detectOrcid(text: string): string | null {
   const candidate = text.trim().match(ORCID_EXTRACT_REGEX)?.[1]?.toUpperCase() ?? "";
   return ORCID_REGEX.test(candidate) ? candidate : null;
 }
+
+/** Written once: the same advice is reachable from the add field and from a row. */
+const ORCID_CHECKSUM_ERROR = "That ORCID iD has an invalid checksum. Check the digits and try again.";
 
 interface OrcidLookupResult {
   firstName: string;
@@ -74,15 +79,20 @@ async function fetchOrcidName(orcid: string): Promise<{ displayName: string } | 
         "error" in data &&
         typeof (data as Record<string, unknown>).error === "string"
           ? ((data as Record<string, unknown>).error as string)
-          : "Lookup failed";
+          : "The ORCID lookup failed. Try again, or type the name.";
       return { error: message };
     }
     const result = (await res.json()) as OrcidLookupResult;
-    if (!result.displayName.trim()) return { error: "ORCID record has no name" };
+    if (!result.displayName.trim()) return { error: "That ORCID record lists no name. Type the name instead." };
     return { displayName: result.displayName };
   } catch {
-    return { error: "Network error" };
+    return { error: "Could not reach ORCID. Check your connection and try again." };
   }
+}
+
+/** `plural(1, "entry", "entries")`: the counted noun, matched to its count. */
+function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
+  return count === 1 ? singular : pluralForm;
 }
 
 async function forEachWithConcurrency<T>(items: T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
@@ -115,6 +125,13 @@ export function AuthorList() {
   const [addError, setAddError] = useState<string | null>(null);
   const [removed, setRemoved] = useState<{ author: Author; index: number } | null>(null);
   const [clearPending, setClearPending] = useState(false);
+  const [focusAfterRemove, setFocusAfterRemove] = useState<number | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const addInputRef = useRef<HTMLInputElement>(null);
+  const clearDraftRef = useRef<HTMLButtonElement>(null);
+  const cancelClearRef = useRef<HTMLButtonElement>(null);
+  // Rows that arrive after the app has settled animate in; a restored draft does not.
+  const settled = useSettled();
 
   useEffect(() => {
     if (!removed) return;
@@ -122,9 +139,41 @@ export function AuthorList() {
     return () => window.clearTimeout(timer);
   }, [removed]);
 
+  // The "Clear local draft" button is replaced by the Cancel/Clear draft pair,
+  // so activating it unmounts the focused element. Carry focus across the swap
+  // in both directions instead of letting it fall back to <body>.
+  const clearWasPending = useRef(false);
+  useEffect(() => {
+    if (clearPending === clearWasPending.current) return;
+    clearWasPending.current = clearPending;
+    if (clearPending) {
+      cancelClearRef.current?.focus();
+      return;
+    }
+    // After an actual clear the list is empty, which disables the trigger;
+    // focusing it would silently do nothing, so fall through to the add field.
+    const trigger = clearDraftRef.current;
+    if (trigger && !trigger.disabled) trigger.focus();
+    else addInputRef.current?.focus();
+  }, [clearPending]);
+
+  // Runs after the removed row has left the DOM, so the buttons queried here
+  // are the surviving ones. Falls back to the add field when the list empties.
+  useEffect(() => {
+    if (focusAfterRemove === null) return;
+    const buttons = listRef.current?.querySelectorAll<HTMLButtonElement>("[data-remove-author]");
+    const target = buttons?.length ? buttons[Math.min(focusAfterRemove, buttons.length - 1)] : undefined;
+    (target ?? addInputRef.current)?.focus();
+    setFocusAfterRemove(null);
+  }, [focusAfterRemove]);
+
   function handleRemove(author: Author, index: number) {
     removeAuthor(author.id);
     setRemoved({ author, index });
+    // The button that was just activated is unmounting, which drops focus to
+    // <body> and sends a keyboard user back to the top of the document. Hand
+    // focus to the row that takes its place instead.
+    setFocusAfterRemove(index);
     announce(`${author.name} removed. Undo is available.`);
   }
 
@@ -183,15 +232,24 @@ export function AuthorList() {
     const acceptedTokens = tokens.slice(0, capacity);
     const skippedForLimit = tokens.length - acceptedTokens.length;
 
+    // An iD with the right shape but a bad check digit used to fall through to
+    // addAuthor, throw inside createAuthor, and land in `rejected`; reported
+    // as "no name in them", which is the wrong diagnosis. The single-add path
+    // already checks the checksum, so bucket it the same way here.
+    const badChecksum: string[] = [];
     for (const token of acceptedTokens) {
       const orcid = detectOrcid(token);
+      if (orcid && !isValidOrcid(orcid)) {
+        badChecksum.push(orcid);
+        continue;
+      }
       const id = addAuthor(orcid ?? token, orcid ?? undefined);
       if (!id) rejected.push(token);
       else if (orcid) pending.push({ id, orcid });
     }
 
     // Keep the row on a failed lookup (named after its iD) so one bad token
-    // doesn't silently vanish from a pasted list — but say which ones failed,
+    // doesn't silently vanish from a pasted list, but say which ones failed,
     // so the rows still named after an iD aren't mistaken for real names.
     const failed: string[] = [];
     await forEachWithConcurrency(pending, 4, async ({ id, orcid }) => {
@@ -200,13 +258,17 @@ export function AuthorList() {
       else updateAuthorName(id, result.displayName);
     });
 
-    const addedCount = acceptedTokens.length - rejected.length;
-    const added = `Added ${addedCount} contributors.`;
+    const addedCount = acceptedTokens.length - rejected.length - badChecksum.length;
+    const added = `Added ${addedCount} ${plural(addedCount, "contributor")}.`;
     const problems = [
-      rejected.length > 0 && `Skipped ${rejected.length} entries with no name in them (${rejected.join(", ")}).`,
+      rejected.length > 0 &&
+        `Skipped ${rejected.length} ${plural(rejected.length, "entry", "entries")} with no name (${rejected.join(", ")}).`,
+      badChecksum.length > 0 &&
+        `Skipped ${badChecksum.length} ORCID ${plural(badChecksum.length, "iD")} with an invalid check digit (${badChecksum.join(", ")}).`,
       failed.length > 0 &&
-        `Could not look up ${failed.length} ORCID iDs (${failed.join(", ")}). Those rows are named after their iD — rename them by hand.`,
-      skippedForLimit > 0 && `Skipped ${skippedForLimit} contributors because a draft is limited to ${MAX_AUTHORS}.`,
+        `Could not look up ${failed.length} ORCID ${plural(failed.length, "iD")} (${failed.join(", ")}). Those rows are named after their iD; rename them by hand.`,
+      skippedForLimit > 0 &&
+        `Skipped ${skippedForLimit} ${plural(skippedForLimit, "contributor")}: a draft holds at most ${MAX_AUTHORS}.`,
     ].filter(Boolean);
 
     if (problems.length === 0) {
@@ -223,6 +285,16 @@ export function AuthorList() {
     const trimmed = newName.trim();
     if (!trimmed) return;
     setAddError(null);
+    // addAuthor returns null both for an unparseable name and for a full list,
+    // so check the cap here. Without it, adding at the limit either reported
+    // "that doesn't look like a name" (false) or, for an ORCID, cleared the
+    // input and silently did nothing. addMany already reports this separately.
+    if (authors.length >= MAX_AUTHORS) {
+      const message = `A draft holds at most ${MAX_AUTHORS} contributors. Remove one to add another.`;
+      setAddError(message);
+      announce(message, { assertive: true });
+      return;
+    }
     const tokens = splitNameList(trimmed);
     if (tokens.length > 1) {
       setNewName("");
@@ -232,9 +304,8 @@ export function AuthorList() {
     const orcid = detectOrcid(trimmed);
     if (orcid) {
       if (!isValidOrcid(orcid)) {
-        const message = "That ORCID iD has an invalid checksum. Check the digits and try again.";
-        setAddError(message);
-        announce(message, { assertive: true });
+        setAddError(ORCID_CHECKSUM_ERROR);
+        announce(ORCID_CHECKSUM_ERROR, { assertive: true });
         return;
       }
       setNewName("");
@@ -249,7 +320,7 @@ export function AuthorList() {
     } else if (addAuthor(trimmed)) {
       setNewName("");
     } else {
-      setAddError("That doesn’t look like a name — it needs at least one letter.");
+      setAddError("That doesn’t look like a name. It needs at least one letter.");
     }
   }
 
@@ -274,16 +345,17 @@ export function AuthorList() {
   }
 
   return (
-    <div className="flex flex-col bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4 desk:h-full">
+    <div className="flex flex-col bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4 desk:h-full desk:overflow-y-auto">
       <StepHeader n={1} title="Contributors" className="mb-3" />
 
       {authors.length === 0 && !welcomeOpen && (
         <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
           <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
           <p className="text-sm text-on-surface-variant">
-            No contributors yet. Add or paste names or an ORCID below, or use <strong>Import</strong> in the header.
+            No contributors yet. Add a name or an ORCID iD below, paste a whole author list, or use{" "}
+            <strong>Import</strong> in the header.
           </p>
-          {/* Only for returning/dismissed users (welcomeSeen) with the card closed —
+          {/* Only for returning/dismissed users (welcomeSeen) with the card closed:
               on a first run the welcome card owns this action, so the button is never
               duplicated and never flashes during hydration before the card opens. */}
           {welcomeSeen && !welcomeOpen && (
@@ -306,27 +378,36 @@ export function AuthorList() {
         accessibility={{ announcements }}
       >
         <SortableContext items={authors.map((a) => a.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-1 desk:min-h-0 desk:flex-1 desk:overflow-y-auto">
+          {/* A real list, so assistive tech announces the item count and each
+              row's position; the ordering a sighted user reads straight off
+              the layout. Tailwind's preflight already strips the markers. */}
+          <ul ref={listRef} className="space-y-1 desk:min-h-0 desk:flex-1 desk:overflow-y-auto">
             {authors.map((author, index) => (
-              <AuthorRow key={author.id} index={index} onRemove={handleRemove} />
+              <AuthorRow key={author.id} index={index} onRemove={handleRemove} enter={settled} />
             ))}
-          </div>
+          </ul>
         </SortableContext>
       </DndContext>
 
+      {/* The two wrappers are the height transition, not layout: the grid row
+          opens from 0fr and the inner div clips what overflows while it does. */}
       {removed && (
-        <div
-          role="status"
-          className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-surface-container px-3 py-2 text-sm text-on-surface"
-        >
-          <span className="min-w-0 truncate">Removed {removed.author.name}</span>
-          <button
-            type="button"
-            onClick={undoRemove}
-            className="shrink-0 rounded-md px-2 py-1 font-semibold text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            Undo
-          </button>
+        <div className="undo-enter grid">
+          <div className="overflow-hidden">
+            <div
+              role="status"
+              className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-surface-container px-3 py-2 text-sm text-on-surface"
+            >
+              <span className="min-w-0 truncate">Removed {removed.author.name}</span>
+              <button
+                type="button"
+                onClick={undoRemove}
+                className="shrink-0 rounded-md px-2 py-1 font-semibold text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                Undo
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -334,7 +415,9 @@ export function AuthorList() {
 
       <div className="mt-3 flex gap-2 items-center">
         <input
+          ref={addInputRef}
           type="text"
+          maxLength={MAX_AUTHOR_NAME_LENGTH}
           value={newName}
           onChange={(event) => {
             setNewName(event.target.value);
@@ -363,6 +446,7 @@ export function AuthorList() {
           <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
             <span className="text-on-surface">Clear all saved contributor data?</span>
             <button
+              ref={cancelClearRef}
               type="button"
               onClick={() => setClearPending(false)}
               className="min-h-6 rounded px-2 font-medium text-on-surface-variant hover:text-on-surface"
@@ -379,6 +463,7 @@ export function AuthorList() {
           </div>
         ) : (
           <button
+            ref={clearDraftRef}
             type="button"
             onClick={() => setClearPending(true)}
             disabled={authors.length === 0}
@@ -394,7 +479,15 @@ export function AuthorList() {
 }
 
 /** A single draggable contributor row. ORCID UI state is local to the row. */
-function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Author, index: number) => void }) {
+function AuthorRow({
+  index,
+  onRemove,
+  enter,
+}: {
+  index: number;
+  onRemove: (author: Author, index: number) => void;
+  enter: boolean;
+}) {
   const { authors, updateAuthorName, updateAuthorOrcid, setAuthorType } = useContributionStore();
   const author = authors[index];
 
@@ -412,7 +505,7 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
   const mounted = useRef(true);
   useEffect(() => {
     // Set on mount, not just at creation: React re-runs effects on a StrictMode
-    // remount, and the cleanup would otherwise leave this false for good — every
+    // remount, and the cleanup would otherwise leave this false for good, so every
     // later lookup would bail out before clearing "Looking up…".
     mounted.current = true;
     return () => {
@@ -420,9 +513,13 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
     };
   }, []);
 
+  // Keyed on the stored name, not the author object: normalizeAuthors rebuilds
+  // every author on any list mutation, so an identity-keyed effect overwrote
+  // whatever the user was typing whenever an unrelated ORCID lookup resolved.
+  const storedName = author?.name;
   useEffect(() => {
-    if (author) setNameDraft(author.name);
-  }, [author]);
+    if (storedName !== undefined) setNameDraft(storedName);
+  }, [storedName]);
 
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: author?.id ?? index,
@@ -456,7 +553,7 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
     setLoading(false);
     if ("error" in result) {
       setLookupError(result.error);
-      announce(`ORCID lookup failed: ${result.error}`, { assertive: true });
+      announce(result.error, { assertive: true });
     } else {
       updateAuthorName(authorId, result.displayName);
       setLookedUp(orcid);
@@ -464,19 +561,20 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
     }
   }
 
-  function applyOrcid(orcid: string) {
+  /** Returns true when the iD was accepted and the editor closed. */
+  function applyOrcid(orcid: string): boolean {
     if (!isValidOrcid(orcid)) {
-      const message = "That ORCID iD has an invalid checksum. Check the digits and try again.";
-      setLookupError(message);
-      announce(message, { assertive: true });
+      setLookupError(ORCID_CHECKSUM_ERROR);
+      announce(ORCID_CHECKSUM_ERROR, { assertive: true });
       setEditingOrcid(true);
-      return;
+      return false;
     }
     updateAuthorOrcid(authorId, orcid);
     setEditingOrcid(false);
     setLookupError(null);
     setLookedUp(null);
     void lookup(orcid);
+    return true;
   }
 
   function clearOrcid() {
@@ -484,6 +582,9 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
     setLookupError(null);
     setLookedUp(null);
     setEditingOrcid(false);
+    // This unmounts the whole ORCID line, including the button that was just
+    // activated. Put focus on the row's name field rather than losing it.
+    nameInputRef.current?.focus();
   }
 
   function handleSmartPaste(event: React.ClipboardEvent<HTMLInputElement>) {
@@ -506,189 +607,197 @@ function AuthorRow({ index, onRemove }: { index: number; onRemove: (author: Auth
   }
 
   return (
-    <div
+    <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`group rounded-lg border border-transparent px-2 py-0.5 hover:border-outline-variant/30 hover:bg-surface-container-low transition-colors duration-150 ${
         isDragging ? "relative z-10 bg-surface shadow-md" : ""
       }`}
     >
-      {/* Identity line: everything that is one-per-contributor and short. */}
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          ref={setActivatorNodeRef}
-          {...attributes}
-          {...listeners}
-          aria-label={`Reorder ${author.name}`}
-          className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-outline-variant transition-colors hover:text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+      {/* The entrance lives on this wrapper, not on the row: @dnd-kit owns the
+          sortable node's inline transform and transition, and an inline
+          transition beats anything a class can say. The stagger is capped so a
+          pasted list of thirty names still finishes in a fifth of a second. */}
+      <div className={enter ? "enter-rise" : undefined} style={{ transitionDelay: `${Math.min(index, 5) * 40}ms` }}>
+        {/* Identity line: everything that is one-per-contributor and short. */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            aria-label={`Reorder ${author.name}`}
+            className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-outline-variant transition-colors hover:text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
 
-        <span
-          title={author.name}
-          className="shrink-0 inline-flex items-center justify-center min-w-[2.5rem] h-6 px-1.5 rounded-md font-mono text-[11px] font-semibold bg-primary/10 text-primary"
-        >
-          {author.initials}
-        </span>
+          <span
+            title={author.name}
+            className="shrink-0 inline-flex items-center justify-center min-w-[2.5rem] h-6 px-1.5 rounded-md font-mono text-[11px] font-semibold bg-primary/10 text-primary"
+          >
+            {author.initials}
+          </span>
 
-        <div className="flex-1 min-w-0">
-          <input
-            ref={nameInputRef}
-            id={`author-name-${author.id}`}
-            type="text"
-            aria-label="Name or ORCID iD"
-            value={nameDraft}
-            onChange={(event) => {
-              setNameDraft(event.target.value);
-              setNameError(null);
-            }}
-            onBlur={commitName}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") event.currentTarget.blur();
-              if (event.key === "Escape") {
-                setNameDraft(author.name);
+          <div className="flex-1 min-w-0">
+            <input
+              ref={nameInputRef}
+              id={`author-name-${author.id}`}
+              type="text"
+              maxLength={MAX_AUTHOR_NAME_LENGTH}
+              aria-label="Name or ORCID iD"
+              value={nameDraft}
+              onChange={(event) => {
+                setNameDraft(event.target.value);
                 setNameError(null);
-                event.currentTarget.blur();
-              }
-            }}
-            onPaste={handleSmartPaste}
-            aria-invalid={nameError !== null}
-            aria-describedby={nameError ? `author-name-error-${author.id}` : undefined}
-            className="w-full text-ellipsis bg-transparent border-none p-0 focus:ring-0 text-on-surface font-medium border-b border-primary/20 focus:border-primary outline-none text-sm"
-          />
-          {nameError && (
-            <span id={`author-name-error-${author.id}`} className="mt-1 block text-[11px] text-error">
-              {nameError}
-            </span>
-          )}
+              }}
+              onBlur={commitName}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+                if (event.key === "Escape") {
+                  setNameDraft(author.name);
+                  setNameError(null);
+                  event.currentTarget.blur();
+                }
+              }}
+              onPaste={handleSmartPaste}
+              aria-invalid={nameError !== null}
+              aria-describedby={nameError ? `author-name-error-${author.id}` : undefined}
+              className="w-full text-ellipsis bg-transparent border-none p-0 focus:ring-0 text-on-surface font-medium border-b border-primary/20 focus:border-primary outline-none text-sm"
+            />
+            {nameError && (
+              <span id={`author-name-error-${author.id}`} className="mt-1 block text-[11px] text-error">
+                {nameError}
+              </span>
+            )}
 
-          {/* Type badge, plus the ORCID trigger while there is nothing to show. */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setAuthorType(author.id, isNonAuthor ? "author" : "non-author")}
-              aria-pressed={isNonAuthor}
-              title={
-                isNonAuthor
-                  ? "Acknowledged (non-author) contributor — click to mark as author"
-                  : "Author — click to mark as acknowledged (non-author) contributor"
-              }
-              className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant hover:text-primary transition-colors"
-            >
-              {isNonAuthor ? <UserMinus className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
-              {isNonAuthor ? "Contributor" : "Author"}
-            </button>
-            {!hasOrcid && !editingOrcid && (
-              // Short label: the trigger is hover-revealed but still occupies its
-              // width, and "ORCID iD" pushed this row onto a second line in the
-              // narrow contributors column.
+            {/* Type badge, plus the ORCID trigger while there is nothing to show. */}
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => setEditingOrcid(true)}
-                aria-label="Add ORCID iD"
-                className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-[color,opacity] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+                onClick={() => setAuthorType(author.id, isNonAuthor ? "author" : "non-author")}
+                aria-pressed={isNonAuthor}
+                title={
+                  isNonAuthor
+                    ? "Acknowledged (non-author) contributor. Click to mark as author."
+                    : "Author. Click to mark as acknowledged (non-author) contributor."
+                }
+                className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant hover:text-primary transition-colors"
               >
-                <Plus className="h-3 w-3" />
-                ORCID
+                {isNonAuthor ? <UserMinus className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
+                {isNonAuthor ? "Contributor" : "Author"}
               </button>
-            )}
+              {!hasOrcid && !editingOrcid && (
+                // Short label: the trigger is hover-revealed but still occupies its
+                // width, and "ORCID iD" pushed this row onto a second line in the
+                // narrow contributors column.
+                <button
+                  type="button"
+                  onClick={() => setEditingOrcid(true)}
+                  aria-label="Add ORCID iD"
+                  className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-[color,opacity] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+                >
+                  <Plus className="h-3 w-3" />
+                  ORCID
+                </button>
+              )}
+            </div>
           </div>
+
+          <button
+            type="button"
+            data-remove-author=""
+            onClick={() => onRemove(author, index)}
+            className="touch-target shrink-0 flex items-center justify-center size-8 rounded text-on-surface-variant hover:bg-error-container/30 hover:text-error transition-colors"
+            aria-label={`Remove ${author.name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onRemove(author, index)}
-          className="touch-target shrink-0 flex items-center justify-center size-8 rounded text-on-surface-variant hover:bg-error-container/30 hover:text-error transition-colors"
-          aria-label={`Remove ${author.name}`}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* ORCID line. A 19-character iD never fits beside the type badge in this
+        {/* ORCID line. A 19-character iD never fits beside the type badge in this
           column, so it gets a line of its own, indented to the name column so it
           shares a left edge with the type badge above it, and with its actions on
           the same line instead of wrapping into a ragged fourth one. */}
-      {(hasOrcid || editingOrcid || lookupError !== null) && (
-        <div className="mt-1 flex items-center gap-1.5 pl-20">
-          {hasOrcid ? (
-            <>
-              <a
-                href={`https://orcid.org/${bareOrcid}`}
-                target="_blank"
-                rel="noreferrer"
-                title={bareOrcid}
-                className="inline-flex min-w-0 items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 font-mono text-[11px] text-on-surface-variant transition-colors hover:text-primary"
-              >
-                <Fingerprint className="h-3 w-3 shrink-0" />
-                <span className="truncate">{bareOrcid}</span>
-                {!orcidValid && (
-                  <span className="shrink-0 text-error">
-                    <span aria-hidden="true">✗</span>
-                    <span className="sr-only">(invalid ORCID iD)</span>
-                  </span>
+        {(hasOrcid || editingOrcid || lookupError !== null) && (
+          <div className="mt-1 flex items-center gap-1.5 pl-20">
+            {hasOrcid ? (
+              <>
+                <a
+                  href={`https://orcid.org/${bareOrcid}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={bareOrcid}
+                  className="inline-flex min-w-0 items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 font-mono text-[11px] text-on-surface-variant transition-colors hover:text-primary"
+                >
+                  <Fingerprint className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{bareOrcid}</span>
+                  {!orcidValid && (
+                    <span className="shrink-0 text-error">
+                      <span aria-hidden="true">✗</span>
+                      <span className="sr-only">(invalid ORCID iD)</span>
+                    </span>
+                  )}
+                  <span className="sr-only">(opens in new tab)</span>
+                </a>
+                {orcidValid && lookedUp !== bareOrcid && (
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => void lookup(bareOrcid)}
+                    aria-label="Look up name from ORCID"
+                    title="Look up name from ORCID"
+                    className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] text-primary transition-opacity hover:underline disabled:opacity-50 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                  >
+                    <UserSearch className="h-3.5 w-3.5" />
+                    {loading && "Looking up…"}
+                  </button>
                 )}
-                <span className="sr-only">(opens in new tab)</span>
-              </a>
-              {orcidValid && lookedUp !== bareOrcid && (
                 <button
                   type="button"
-                  disabled={loading}
-                  onClick={() => void lookup(bareOrcid)}
-                  aria-label="Look up name from ORCID"
-                  title="Look up name from ORCID"
-                  className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] text-primary transition-opacity hover:underline disabled:opacity-50 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                  onClick={clearOrcid}
+                  aria-label="Remove ORCID iD"
+                  className="ml-auto shrink-0 text-on-surface-variant transition-colors hover:text-error"
                 >
-                  <UserSearch className="h-3.5 w-3.5" />
-                  {loading && "Looking up…"}
+                  <X className="h-3.5 w-3.5" />
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={clearOrcid}
-                aria-label="Remove ORCID iD"
-                className="ml-auto shrink-0 text-on-surface-variant transition-colors hover:text-error"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-              {lookedUp === bareOrcid && (
-                <span className="shrink-0 text-[10px] leading-tight text-primary">Name updated</span>
-              )}
-            </>
-          ) : editingOrcid ? (
-            <input
-              // biome-ignore lint/a11y/noAutofocus: revealed on explicit user action, so focusing it is expected.
-              autoFocus
-              type="text"
-              aria-label="ORCID iD"
-              placeholder="0000-0000-0000-0000"
-              title="Type an ORCID iD, or paste one as an iD or an orcid.org URL"
-              onPaste={handleSmartPaste}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter") return;
-                const orcid = detectOrcid(event.currentTarget.value);
-                if (orcid) {
-                  committedRef.current = true;
-                  applyOrcid(orcid);
-                }
-              }}
-              onBlur={(event) => {
-                if (committedRef.current) {
-                  committedRef.current = false;
-                  return;
-                }
-                const orcid = detectOrcid(event.currentTarget.value);
-                if (orcid) applyOrcid(orcid);
-                else setEditingOrcid(false);
-              }}
-              className="w-full min-w-0 border-b border-outline-variant/40 bg-transparent p-0 font-mono text-xs text-on-surface-variant outline-none focus:border-primary focus:ring-0"
-            />
-          ) : null}
-        </div>
-      )}
-      {lookupError !== null && <p className="mt-1 pl-20 text-[10px] leading-tight text-error">{lookupError}</p>}
-    </div>
+                {lookedUp === bareOrcid && (
+                  <span className="shrink-0 text-[10px] leading-tight text-primary">Name updated</span>
+                )}
+              </>
+            ) : editingOrcid ? (
+              <input
+                // biome-ignore lint/a11y/noAutofocus: revealed on explicit user action, so focusing it is expected.
+                autoFocus
+                type="text"
+                aria-label="ORCID iD"
+                placeholder="0000-0000-0000-0000"
+                title="Type an ORCID iD, or paste one as an iD or an orcid.org URL"
+                onPaste={handleSmartPaste}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  const orcid = detectOrcid(event.currentTarget.value);
+                  // Only suppress the follow-up blur when the apply actually
+                  // took. On a checksum failure the input stays mounted, and a
+                  // latched ref made the next blur discard the corrected iD.
+                  if (orcid) committedRef.current = applyOrcid(orcid);
+                }}
+                onBlur={(event) => {
+                  if (committedRef.current) {
+                    committedRef.current = false;
+                    return;
+                  }
+                  const orcid = detectOrcid(event.currentTarget.value);
+                  if (orcid) applyOrcid(orcid);
+                  else setEditingOrcid(false);
+                }}
+                className="w-full min-w-0 border-b border-outline-variant/40 bg-transparent p-0 font-mono text-xs text-on-surface-variant outline-none focus:border-primary focus:ring-0"
+              />
+            ) : null}
+          </div>
+        )}
+        {lookupError !== null && <p className="mt-1 pl-20 text-[10px] leading-tight text-error">{lookupError}</p>}
+      </div>
+    </li>
   );
 }

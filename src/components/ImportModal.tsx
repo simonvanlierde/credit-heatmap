@@ -40,6 +40,9 @@ function detect(text: string): DetectedFormat {
   return "unknown";
 }
 
+/** The import size cap, written the way the messages below say it. */
+const MAX_IMPORT_MB = `${Math.round(MAX_IMPORT_BYTES / 1_000_000)} MB`;
+
 const FORMAT_LABEL: Record<DetectedFormat, string> = {
   csv: "CSV",
   json: "JSON export",
@@ -87,7 +90,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
 
   async function handleFileRead(file: File) {
     if (file.size > MAX_IMPORT_BYTES) {
-      showError("That file is too large. Choose a file smaller than 1 MB.");
+      showError(`That file is too large. Choose a file smaller than ${MAX_IMPORT_MB}.`);
       return;
     }
     try {
@@ -122,7 +125,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
     if (format === "unknown") return;
     try {
       if (new TextEncoder().encode(text).byteLength > MAX_IMPORT_BYTES) {
-        showError("That import is too large. Paste less than 1 MB of data.");
+        showError(`That import is too large. Paste less than ${MAX_IMPORT_MB} of data.`);
         return;
       }
       const { parse, emptyMessage } = IMPORTERS[format];
@@ -146,7 +149,16 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
   }
 
   function finishImport(authors: Author[]) {
-    onImport(authors);
+    // `onImport` runs the authors back through the store's normalizeAuthors,
+    // which throws on anything createAuthor cannot rebuild. On the confirm
+    // path this sits outside handleImport's try, so an unguarded throw here
+    // escaped the click handler instead of showing as an import error.
+    try {
+      onImport(authors);
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Could not import those contributors.");
+      return;
+    }
     setPendingAuthors(null);
     dialogRef.current?.close();
   }
@@ -177,10 +189,11 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
             className="text-2xl italic font-semibold text-primary"
             style={{ fontFamily: "var(--font-headline)" }}
           >
-            Import Contributors
+            Import contributors
           </h2>
           <p id="import-description" className="text-sm text-on-surface-variant mt-1">
-            Paste author names, or upload a JSON export / JATS4R XML file from a previous session.
+            Paste author names, or upload a CSV, JSON, or JATS4R XML file from a previous session. A JSON or XML import
+            restores contribution scores as well as names.
           </p>
           <button
             type="button"
@@ -196,7 +209,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
           {/* Drop zone */}
           <div>
             <p className="text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-3">
-              Structured File Upload
+              Structured file upload
             </p>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop is a mouse-only progressive enhancement; the Browse button + file input below provide the accessible path. */}
             {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: same as above. */}
@@ -238,7 +251,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
                 htmlFor="import-text"
                 className="block text-xs uppercase tracking-widest font-bold text-on-surface-variant"
               >
-                Paste Raw Data
+                Paste raw data
               </label>
               {format !== "unknown" && (
                 <span className="text-[10px] text-primary font-medium italic">Detected: {FORMAT_LABEL[format]}</span>
@@ -251,18 +264,10 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
                 setText(e.target.value);
                 setError(null);
               }}
-              placeholder={"Jane A. Smith\nBob White\nCarol Davis\n\n— or paste a .json / .xml export —"}
+              placeholder={"Jane A. Smith\nBob White\nCarol Davis\n\nor paste a .csv / .json / .xml export"}
               rows={6}
               className="w-full bg-surface-container-low border-0 border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none text-sm font-mono p-4 text-on-surface rounded-t resize-none transition-colors"
             />
-          </div>
-
-          {/* Tip */}
-          <div className="bg-surface-container-high border-l-2 border-primary p-4">
-            <p className="text-sm italic text-primary" style={{ fontFamily: "var(--font-headline)" }}>
-              "Paste a comma- or newline-separated list and initials will be assigned automatically. Or upload a
-              JSON/XML file from a previous session to restore all contribution scores."
-            </p>
           </div>
 
           {error && <p className="text-sm text-error bg-error-container/30 rounded px-4 py-2">{error}</p>}
@@ -271,8 +276,8 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
             <div role="alert" className="rounded-lg bg-error-container/30 p-4 text-sm text-on-surface">
               <p className="font-semibold">Replace the current workspace?</p>
               <p className="mt-1 text-on-surface-variant">
-                Importing {pendingAuthors.length} contributor{pendingAuthors.length === 1 ? "" : "s"} will replace the
-                current {existingContributorCount}. This cannot be undone.
+                Importing {pendingAuthors.length} contributor{pendingAuthors.length === 1 ? "" : "s"} will replace the{" "}
+                {existingContributorCount} already in this workspace. This cannot be undone.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
@@ -308,7 +313,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
             disabled={format === "unknown" || pendingAuthors !== null}
             className="px-7 py-2 bg-primary text-on-primary text-sm font-bold rounded-lg shadow hover:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Import Data
+            Import data
           </button>
         </div>
       </div>
