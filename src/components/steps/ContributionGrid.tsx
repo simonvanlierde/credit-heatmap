@@ -9,11 +9,12 @@ import {
   type UiKey,
   type UiTranslator,
 } from "@credit-generator/core";
-import { Columns3, Download, ExternalLink, Info, Rows3, UserPlus } from "lucide-react";
-import { useState } from "react";
+import { Check, Columns3, Download, ExternalLink, Info, ListChecks, Rows3, Settings2, UserPlus } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { ColorPopover } from "@/components/ui/color-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StepHeader } from "@/components/ui/step-header";
 import { Switch } from "@/components/ui/switch";
 import { announce } from "@/lib/announce";
@@ -36,7 +37,7 @@ const FLAT_KEY: { key: UiKey; score: number }[] = [
 ];
 
 const INPUT_MODE_OPTIONS: { value: InputMode; label: string }[] = [
-  { value: "toggle", label: "Binary" },
+  { value: "toggle", label: "Yes / no" },
   { value: "levels", label: "Levels" },
 ];
 
@@ -53,11 +54,17 @@ export function ContributionGrid() {
     heatmapMonoColor,
     setHeatmapMonoColor,
     setAuthorScore,
+    setAllAuthorScores,
+    setRoleScores,
     toggleContribution,
+    welcomeOpen,
   } = useContributionStore();
   const { translateUi } = useOutputTranslators();
   const [transpose, setTranspose] = useState(false);
   const [acronyms, setAcronyms] = useState(true);
+  const [selectedAuthorId, setSelectedAuthorId] = useState("");
+  const [bulkAuthorId, setBulkAuthorId] = useState("");
+  const [bulkRoleIndex, setBulkRoleIndex] = useState("0");
 
   // Graded (level) colors and labels follow the input mode, so the legend and
   // cells always match the way clicks behave.
@@ -80,15 +87,25 @@ export function ContributionGrid() {
     return (
       <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-4 md:p-5">
         <StepHeader n={2} title="Contributions" className="mb-3" />
-        <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
-          <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
-          <p className="text-sm text-on-surface-variant">
-            Add contributors to start assigning the 14 CRediT roles in this grid.
-          </p>
-        </div>
+        {welcomeOpen ? (
+          <p className="text-sm text-on-surface-variant">Your contribution workspace will appear here.</p>
+        ) : (
+          <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
+            <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
+            <p className="text-sm text-on-surface-variant">
+              Add contributors to start assigning the 14 CRediT roles in this grid.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
+
+  const firstAuthor = authors[0];
+  if (!firstAuthor) return null;
+  const selectedAuthor = authors.find((author) => author.id === selectedAuthorId) ?? firstAuthor;
+  const bulkAuthor = authors.find((author) => author.id === bulkAuthorId) ?? firstAuthor;
+  const parsedBulkRoleIndex = Number.parseInt(bulkRoleIndex, 10);
 
   const renderCell = (author: Author, roleIndex: number) => {
     const role = CREDIT_ROLES[roleIndex];
@@ -102,12 +119,20 @@ export function ContributionGrid() {
           aria-label={`${role?.name} for ${author.name}: ${level}`}
           title={`${author.name} — ${role?.name}: ${level}`}
           onClick={() => handleCellClick(author, roleIndex, score)}
-          className="block h-6 min-w-11 w-full rounded transition-shadow hover:ring-2 hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="contribution-cell flex h-7 w-full items-center justify-center rounded transition-shadow hover:ring-2 hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           style={{
             backgroundColor:
               score > 0 ? heatCellColor(heatmapMonoColor, graded ? score : 100) : "var(--color-surface-container-high)",
           }}
-        />
+        >
+          {score > 0 && (
+            <Check
+              aria-hidden="true"
+              className="size-3.5 text-white [filter:drop-shadow(0_1px_1px_rgb(0_0_0/0.8))]"
+              strokeWidth={3}
+            />
+          )}
+        </button>
       </td>
     );
   };
@@ -116,71 +141,183 @@ export function ContributionGrid() {
     <div className="min-w-0 max-w-full bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-4 md:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <StepHeader n={2} title="Contributions" />
-        <div className="flex flex-wrap items-center gap-3">
-          <ColorPopover
-            value={heatmapMonoColor}
-            onChange={setHeatmapMonoColor}
-            label="Grid color"
-            trigger={
+        <div className="flex flex-wrap items-start gap-2">
+          <div>
+            <SegmentedControl
+              ariaLabel="Role assignment mode"
+              options={INPUT_MODE_OPTIONS}
+              value={inputMode}
+              onChange={setInputMode}
+            />
+            <p className="mt-1 max-w-56 text-xs leading-snug text-on-surface-variant">
+              {graded ? "Click repeatedly: None → Supporting → Equal → Lead." : "Click a cell to mark a contribution."}
+            </p>
+          </div>
+          <details className="group relative">
+            <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <ListChecks className="size-3.5" aria-hidden="true" />
+              Bulk assign
+            </summary>
+            <div className="absolute right-0 z-30 mt-2 hidden w-72 max-w-[calc(100vw-2rem)] gap-4 rounded-lg border border-outline-variant/30 bg-surface-bright p-3 shadow-lg group-open:grid">
+              <fieldset className="grid gap-2">
+                <legend className="mb-1 text-xs font-semibold text-on-surface">One contributor</legend>
+                <Select value={bulkAuthor?.id} onValueChange={setBulkAuthorId}>
+                  <SelectTrigger className="w-full text-xs" aria-label="Contributor for bulk assignment">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {authors.map((author) => (
+                      <SelectItem key={author.id} value={author.id}>
+                        {author.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="grid grid-cols-2 gap-2">
+                  <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, 100)}>Assign all</BulkButton>
+                  <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, 0)}>Clear all</BulkButton>
+                </div>
+              </fieldset>
+              <fieldset className="grid gap-2 border-t border-outline-variant/30 pt-3">
+                <legend className="mb-1 text-xs font-semibold text-on-surface">One role</legend>
+                <Select value={bulkRoleIndex} onValueChange={setBulkRoleIndex}>
+                  <SelectTrigger className="w-full text-xs" aria-label="Role for bulk assignment">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CREDIT_ROLES.map((role, roleIndex) => (
+                      <SelectItem key={role.name} value={String(roleIndex)}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="grid grid-cols-2 gap-2">
+                  <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, 100)}>Assign to all</BulkButton>
+                  <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, 0)}>Clear role</BulkButton>
+                </div>
+              </fieldset>
+            </div>
+          </details>
+          <details className="group relative">
+            <summary className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <Settings2 className="size-3.5" aria-hidden="true" />
+              Heatmap options
+            </summary>
+            <div className="absolute right-0 z-30 mt-2 hidden w-64 flex-wrap items-center gap-3 rounded-lg border border-outline-variant/30 bg-surface-bright p-3 shadow-lg group-open:flex">
+              <ColorPopover
+                value={heatmapMonoColor}
+                onChange={setHeatmapMonoColor}
+                label="Grid color"
+                trigger={
+                  <button
+                    type="button"
+                    aria-label="Grid color"
+                    title="Grid color"
+                    className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    Color
+                    <span
+                      className="h-3 w-3 rounded-full border border-outline-variant/50"
+                      style={{ backgroundColor: heatmapMonoColor }}
+                    />
+                  </button>
+                }
+              />
               <button
                 type="button"
-                aria-label="Grid color"
-                title="Grid color"
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-outline-variant/60 text-[11px] font-medium text-on-surface-variant hover:text-primary hover:border-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-pressed={transpose}
+                onClick={() => setTranspose(!transpose)}
+                title="Swap the row and column axes"
+                className={`flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
+                  transpose
+                    ? "border-primary text-primary"
+                    : "border-outline-variant/60 text-on-surface-variant hover:border-primary hover:text-primary"
+                }`}
               >
-                Color
-                <span
-                  className="h-3 w-3 rounded-full border border-outline-variant/50"
-                  style={{ backgroundColor: heatmapMonoColor }}
-                />
+                Transpose
+                {transpose ? <Columns3 className="h-3.5 w-3.5" /> : <Rows3 className="h-3.5 w-3.5" />}
               </button>
-            }
-          />
-          <button
-            type="button"
-            aria-pressed={transpose}
-            onClick={() => setTranspose(!transpose)}
-            title="Transpose — swap the row and column axes"
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors ${
-              transpose
-                ? "border-primary text-primary"
-                : "border-outline-variant/60 text-on-surface-variant hover:text-primary hover:border-primary"
-            }`}
-          >
-            Transpose
-            {transpose ? <Columns3 className="h-3.5 w-3.5" /> : <Rows3 className="h-3.5 w-3.5" />}
-          </button>
-          <span className="flex items-center gap-1.5 text-[11px] text-on-surface-variant">
-            <Switch
-              checked={acronyms}
-              onCheckedChange={setAcronyms}
-              aria-label="Acronyms — label contributors with initials"
-            />
-            Acronyms
-          </span>
-          <SegmentedControl
-            ariaLabel="Role input mode"
-            options={INPUT_MODE_OPTIONS}
-            value={inputMode}
-            onChange={setInputMode}
-          />
+              <span className="flex min-h-9 items-center gap-1.5 text-xs text-on-surface-variant">
+                <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label="Use contributor initials" />
+                Use initials
+              </span>
+            </div>
+          </details>
         </div>
       </div>
 
-      {/* Right padding reserves overhang room for angled column labels. */}
-      <div className={`max-w-full overflow-x-auto ${transpose || !acronyms ? "pr-24" : ""}`}>
+      <div className="md:hidden">
+        <div className="sticky top-16 z-20 -mx-1 mb-2 bg-surface-bright px-1 py-2">
+          <label className="mb-1.5 block text-xs font-semibold text-on-surface" htmlFor="mobile-contributor">
+            Contributor to assign
+          </label>
+          <Select value={selectedAuthor.id} onValueChange={setSelectedAuthorId}>
+            <SelectTrigger id="mobile-contributor" className="w-full" aria-label="Contributor to assign">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {authors.map((author) => (
+                <SelectItem key={author.id} value={author.id}>
+                  {author.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <ul className="divide-y divide-outline-variant/25" aria-label={`Roles for ${selectedAuthor.name}`}>
+          {CREDIT_ROLES.map((role, roleIndex) => {
+            const score = selectedAuthor.contributions[roleIndex]?.score ?? 0;
+            const level = translateUi(graded ? scoreToLevel(score) : score > 0 ? "contributed" : "none");
+            return (
+              <li key={role.name} className="flex min-h-14 items-center gap-2 py-1.5">
+                <span className="flex min-w-0 flex-1 items-center gap-1">
+                  <span className="text-sm font-medium text-on-surface">{role.name}</span>
+                  <RoleInfo role={role} />
+                </span>
+                <button
+                  type="button"
+                  aria-pressed={score > 0}
+                  aria-label={`${role.name} for ${selectedAuthor.name}: ${level}`}
+                  onClick={() => handleCellClick(selectedAuthor, roleIndex, score)}
+                  className={`flex min-h-11 min-w-24 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    score > 0 ? "text-white shadow-sm" : "bg-surface-container-high text-on-surface-variant"
+                  }`}
+                  style={
+                    score > 0 ? { backgroundColor: heatCellColor(heatmapMonoColor, graded ? score : 100) } : undefined
+                  }
+                >
+                  {score > 0 && <Check aria-hidden="true" className="size-4" strokeWidth={3} />}
+                  {level}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* A bounded viewport makes both sticky axes persistent during long desktop matrices. */}
+      <div
+        className={`hidden max-h-[min(70vh,44rem)] max-w-full overflow-auto md:block ${
+          transpose || !acronyms ? "pr-24" : ""
+        }`}
+      >
         <table className="w-max min-w-full table-auto border-separate border-spacing-1">
           <thead>
             <tr>
               <th
                 scope="col"
-                className="w-40 md:w-48 text-left align-bottom text-[10px] font-mono uppercase tracking-wider font-medium text-on-surface-variant pb-1"
+                className="sticky left-0 top-0 z-30 min-w-40 bg-surface-bright pb-1 text-left align-bottom font-mono text-xs font-medium uppercase tracking-wider text-on-surface-variant md:min-w-48"
               >
                 {transpose ? "Contributor" : "Role"}
               </th>
               {transpose
                 ? CREDIT_ROLES.map((role) => (
-                    <th key={role.name} scope="col" className="min-w-[2rem] pb-1 align-bottom">
+                    <th
+                      key={role.name}
+                      scope="col"
+                      className="sticky top-0 z-20 min-w-[2rem] bg-surface-bright pb-1 align-bottom"
+                    >
                       <span className="flex flex-col items-center gap-1">
                         <AngledLabel text={role.name} />
                         <RoleInfo role={role} />
@@ -188,7 +325,11 @@ export function ContributionGrid() {
                     </th>
                   ))
                 : authors.map((author) => (
-                    <th key={author.id} scope="col" className="min-w-[2.75rem] pb-1 align-bottom">
+                    <th
+                      key={author.id}
+                      scope="col"
+                      className="sticky top-0 z-20 min-w-[2.75rem] bg-surface-bright pb-1 align-bottom"
+                    >
                       {acronyms ? (
                         <>
                           <InitialsChip author={author} />
@@ -205,7 +346,7 @@ export function ContributionGrid() {
             {transpose
               ? authors.map((author) => (
                   <tr key={author.id}>
-                    <th scope="row" className="text-left py-0">
+                    <th scope="row" className="sticky left-0 z-10 bg-surface-bright py-0 text-left">
                       <span className="flex items-center gap-1.5 min-w-0">
                         <InitialsChip author={author} />
                         {!acronyms && (
@@ -221,7 +362,10 @@ export function ContributionGrid() {
                 ))
               : CREDIT_ROLES.map((role, roleIndex) => (
                   <tr key={role.name}>
-                    <th scope="row" className="text-left font-medium text-[13px] text-on-surface py-0">
+                    <th
+                      scope="row"
+                      className="sticky left-0 z-10 bg-surface-bright py-0 text-left font-medium text-[13px] text-on-surface"
+                    >
                       <span className="flex items-center gap-1.5 min-w-0">
                         <span className="truncate" title={role.name}>
                           {role.name}
@@ -247,6 +391,18 @@ export function ContributionGrid() {
         />
       </div>
     </div>
+  );
+}
+
+function BulkButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="min-h-9 rounded-lg border border-outline-variant/60 px-2 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      {children}
+    </button>
   );
 }
 
@@ -289,7 +445,7 @@ function RoleInfo({ role }: { role: (typeof CREDIT_ROLES)[number] }) {
         <button
           type="button"
           aria-label={`About ${role.name}`}
-          className="flex size-6 shrink-0 items-center justify-center rounded-full text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="touch-target flex size-8 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Info className="h-4 w-4" />
         </button>
@@ -322,8 +478,8 @@ function GridLegend({
   translateUi: UiTranslator;
 }) {
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-on-surface-variant">
-      <span className="font-mono uppercase tracking-wider text-[10px]">{graded ? "Level" : "Key"}</span>
+    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant">
+      <span className="font-mono text-xs uppercase tracking-wider">{graded ? "Level" : "Key"}</span>
       {(graded ? LEVEL_KEY : FLAT_KEY).map(({ key, score }) => (
         <span key={key} className="inline-flex items-center gap-1.5">
           <span

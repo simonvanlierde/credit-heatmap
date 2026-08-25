@@ -71,7 +71,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(optionValue)}
             className={cn(
               "flex items-center justify-center gap-1.5 rounded font-bold uppercase tracking-wider transition-all",
-              size === "sm" ? "px-2.5 py-1 text-[10px]" : "px-3 py-1.5 text-[11px]",
+              size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-xs",
               active ? "bg-surface-bright text-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface",
             )}
           >

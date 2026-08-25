@@ -72,8 +72,7 @@ export function WelcomeCard() {
         </button>
 
         <div className="max-w-2xl pr-10">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Getting started</p>
-          <h2 className="mt-2 font-headline text-2xl italic font-semibold text-primary md:text-3xl">
+          <h2 className="font-headline text-2xl italic font-semibold text-primary md:text-3xl">
             Draft a manuscript-ready contribution statement in three steps.
           </h2>
         </div>

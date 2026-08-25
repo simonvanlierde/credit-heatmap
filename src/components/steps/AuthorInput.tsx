@@ -277,7 +277,7 @@ export function AuthorList() {
     <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-4 md:p-5">
       <StepHeader n={1} title="Contributors" className="mb-3" />
 
-      {authors.length === 0 && (
+      {authors.length === 0 && !welcomeOpen && (
         <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
           <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
           <p className="text-sm text-on-surface-variant">

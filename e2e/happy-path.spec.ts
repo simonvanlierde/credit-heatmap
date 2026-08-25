@@ -10,14 +10,15 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
 
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
-    // The name also appears in the generated statement, so match the first.
-    await expect(page.getByText("Jane A. Smith", { exact: true }).first()).toBeVisible();
+    await expect(page.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Jane A. Smith");
 
     // The contribution grid renders one editable cell per role × author. In
-    // the default Binary mode, assigned cells read as "Contributed"; switching
+    // the default Yes / no mode, assigned cells read as "Contributed"; switching
     // to Levels surfaces the sample's graded scores.
     const cell = page.getByRole("button", { name: "Conceptualization for Jane A. Smith: Contributed" });
     await expect(cell).toHaveAttribute("aria-pressed", "true");
+    await expect(cell.locator("svg")).toBeVisible();
+    await expect(page.getByText("Ready to export", { exact: true })).toBeVisible();
     await page.getByRole("radio", { name: "Levels" }).click();
     await expect(page.getByRole("button", { name: "Conceptualization for Jane A. Smith: Lead" })).toBeVisible();
 
@@ -35,6 +36,24 @@ test.describe("Happy path UI flows", () => {
     await cell.click();
     await expect(cell).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByText(/^CRediT:/)).toContainText("Data curation");
+  });
+
+  test("undoes contributor removal and confirms destructive imports", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+
+    await page.getByRole("button", { name: "Remove Jane A. Smith" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(2);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    await page.getByRole("button", { name: "Import" }).click();
+    await page.locator("#import-text").fill("Marie Curie");
+    await page.getByRole("button", { name: "Import Data" }).click();
+    await expect(page.getByText("Replace the current workspace?", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Replace workspace" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(1);
+    await expect(page.getByLabel("Name or ORCID iD", { exact: true })).toHaveValue("Marie Curie");
   });
 
   test("Import names and see the heatmap", async ({ page }) => {
@@ -114,7 +133,7 @@ test.describe("Happy path UI flows", () => {
     await page.locator("#import-text").fill("<a><b>");
     await page.getByRole("button", { name: "Import Data" }).click();
 
-    await expect(page.getByText(/^XML parse error:/)).toBeVisible();
+    await expect(page.locator("dialog").getByText(/^XML parse error:/)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
     await expect(page.locator("#import-text")).toBeVisible();
   });
@@ -151,7 +170,7 @@ test.describe("Happy path UI flows", () => {
     await fresh.addInitScript(() => window.localStorage.clear());
     await fresh.goto(shareUrl);
     await expect(fresh.getByRole("button", { name: /^Remove / })).toHaveCount(3);
-    await expect(fresh.getByText("Jane A. Smith", { exact: true }).first()).toBeVisible();
+    await expect(fresh.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Jane A. Smith");
     // The share hash is cleared after loading.
     expect(new URL(fresh.url()).hash).toBe("");
   });
@@ -246,6 +265,28 @@ test.describe("Happy path UI flows", () => {
     await expect(statement).not.toContainText("Acknowledgements:");
   });
 
+  test("bulk assigns one contributor without obscuring direct grid editing", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await page.getByText("Bulk assign", { exact: true }).click();
+
+    await page.getByRole("button", { name: "Clear all" }).click();
+    await expect(page.getByRole("button", { name: "Conceptualization for Jane A. Smith: None" })).toBeVisible();
+    await page.getByRole("button", { name: "Assign all", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Conceptualization for Jane A. Smith: Contributed" })).toBeVisible();
+  });
+
+  test("uses a contributor-focused role list on mobile", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+
+    await page.getByRole("combobox", { name: "Contributor to assign" }).click();
+    await page.getByRole("option", { name: "Bob White" }).click();
+    await expect(page.getByRole("button", { name: "Conceptualization for Bob White: None" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Conceptualization for Jane A\. Smith/ })).toBeHidden();
+  });
+
   test("downloads a browser-generated PNG heatmap", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
@@ -261,6 +302,7 @@ test.describe("Happy path UI flows", () => {
   test("keeps header, grid cells, and long statements usable on a narrow viewport", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 700 });
     await page.goto("/");
+    await expect(page.getByRole("button", { name: "Load sample data" })).toBeVisible();
     const importButton = page.getByRole("button", { name: "Import" });
     const importBox = await importButton.boundingBox();
     expect(importBox).not.toBeNull();
@@ -271,7 +313,8 @@ test.describe("Happy path UI flows", () => {
     await page.locator("#import-text").fill(names);
     await page.getByRole("button", { name: "Import Data" }).click();
     const cell = page.getByRole("button", { name: /Conceptualization for Contributor0/ });
-    expect((await cell.boundingBox())?.width).toBeGreaterThanOrEqual(24);
+    expect((await cell.boundingBox())?.width).toBeGreaterThanOrEqual(44);
+    expect((await cell.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     await cell.click();
 
     const firstName = page.getByLabel("Name or ORCID iD", { exact: true }).first();

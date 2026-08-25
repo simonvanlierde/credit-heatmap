@@ -39,6 +39,8 @@ interface ContributionState {
   updateAuthorOrcid: (authorId: string, orcid: string) => void;
   setAuthorType: (authorId: string, contributorType: Author["contributorType"]) => void;
   setAuthorScore: (authorId: string, roleIndex: number, score: number) => void;
+  setAllAuthorScores: (authorId: string, score: number) => void;
+  setRoleScores: (roleIndex: number, score: number) => void;
   toggleContribution: (authorId: string, roleIndex: number) => void;
   setInputMode: (mode: InputMode) => void;
   setHeatmapMonoColor: (color: string) => void;
@@ -234,6 +236,26 @@ export const useContributionStore = create<ContributionState>()(
           const contribution = state.authors[index]?.contributions[roleIndex];
           if (contribution) {
             contribution.score = clampScore(score);
+          }
+        }),
+
+      setAllAuthorScores: (authorId, score) =>
+        set((state) => {
+          const author = state.authors[findAuthorIndex(state.authors, authorId)];
+          if (!author) return;
+          const nextScore = clampScore(score);
+          for (const contribution of author.contributions) {
+            contribution.score = nextScore;
+          }
+        }),
+
+      setRoleScores: (roleIndex, score) =>
+        set((state) => {
+          if (roleIndex < 0 || roleIndex >= ROLE_NAMES.length) return;
+          const nextScore = clampScore(score);
+          for (const author of state.authors) {
+            const contribution = author.contributions[roleIndex];
+            if (contribution) contribution.score = nextScore;
           }
         }),
 

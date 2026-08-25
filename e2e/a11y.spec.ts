@@ -104,6 +104,7 @@ test.describe("Accessibility (axe-core)", () => {
 
     const reorder = await page.getByRole("button", { name: /Reorder Jane/ }).boundingBox();
     const roleInfo = await page.getByRole("button", { name: "About Conceptualization" }).boundingBox();
+    await page.getByText("Heatmap options", { exact: true }).click();
     await page.getByRole("button", { name: "Grid color" }).click();
     const swatch = await page
       .getByRole("button", { name: /Set color/ })

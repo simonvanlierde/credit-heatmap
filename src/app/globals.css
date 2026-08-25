@@ -227,6 +227,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+@media (pointer: coarse), (max-width: 47.999rem) {
+  .contribution-cell,
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+}
+
 html,
 body {
   max-width: 100%;

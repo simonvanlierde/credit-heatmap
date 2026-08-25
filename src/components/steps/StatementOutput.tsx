@@ -10,7 +10,7 @@ import {
   toMarkdown,
   validateContributions,
 } from "@credit-generator/core";
-import { Copy, Download, Info, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Copy, Download, Info, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { CreditBadge } from "@/components/ui/credit-badge";
 import { SegmentedControl } from "@/components/ui/segmented";
@@ -76,6 +76,12 @@ export function StatementOutput() {
   });
   const issues = validateContributions(authors);
   const hasAuthors = authors.length > 0;
+  const assignedRoleCount = new Set(
+    authors.flatMap((author) =>
+      author.contributions.filter((contribution) => contribution.score > 0).map((item) => item.role),
+    ),
+  ).size;
+  const isReady = Boolean(statement) && issues.length === 0;
   // Levels only mean something when contributions aren't purely binary.
   const canShowLevels = !isAllBinary(authors);
   // The split control only matters once someone is marked a non-author contributor.
@@ -104,12 +110,8 @@ export function StatementOutput() {
           ]}
         />
         <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-          <Switch
-            checked={acronyms}
-            onCheckedChange={setAcronyms}
-            aria-label="Acronyms — use initials instead of names"
-          />
-          Acronyms
+          <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label="Use initials instead of names" />
+          Use initials
         </span>
         {canShowLevels && (
           <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
@@ -133,13 +135,33 @@ export function StatementOutput() {
         )}
       </div>
 
+      {hasAuthors && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant" role="status">
+          <span
+            className={`inline-flex items-center gap-1.5 font-medium ${isReady ? "text-primary" : "text-on-surface"}`}
+          >
+            {isReady ? (
+              <CheckCircle2 className="size-4" aria-hidden="true" />
+            ) : (
+              <Info className="size-4" aria-hidden="true" />
+            )}
+            {isReady ? "Ready to export" : `${issues.length} ${issues.length === 1 ? "check" : "checks"} before export`}
+          </span>
+          <span>
+            {authors.length} contributor{authors.length === 1 ? "" : "s"}
+          </span>
+          <span>{assignedRoleCount} of 14 roles used</span>
+          <span>Saved in this browser</span>
+        </div>
+      )}
+
       {/* Statement preview */}
       <div
-        className="relative z-10 min-h-[3.5rem] bg-surface-container-low border-l-2 border-primary p-3 rounded-r"
+        className="relative z-10 min-h-[3.5rem] border-l border-primary bg-surface-container-low p-3 rounded-r"
         style={{ fontFamily: "var(--font-headline)" }}
       >
         {statement ? (
-          <p className="whitespace-pre-line [overflow-wrap:anywhere] text-base italic leading-relaxed text-on-surface">
+          <p className="max-w-[75ch] whitespace-pre-line [overflow-wrap:anywhere] text-base leading-relaxed text-on-surface">
             {statement}
           </p>
         ) : (
@@ -189,9 +211,7 @@ export function StatementOutput() {
 
         {/* Secondary: pick a data format, then copy or download it */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant mr-1">
-            Export data
-          </span>
+          <span className="mr-1 text-xs font-bold uppercase tracking-widest text-on-surface-variant">Export data</span>
           <Select value={dataFormat} onValueChange={(value) => setDataFormat(value as DataFormat)}>
             <SelectTrigger className="w-32 py-1.5 text-xs" aria-label="Export format">
               <SelectValue />
