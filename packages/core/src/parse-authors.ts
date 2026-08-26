@@ -89,6 +89,10 @@ export function createAuthor(
     orcid?: string;
     contributorType?: ContributorType;
     contributions?: Contribution[];
+    /** Shares first authorship. Outside the CRediT taxonomy; see AuthorSchema. */
+    equalContribution?: boolean;
+    /** Is a corresponding author. Outside the CRediT taxonomy; see AuthorSchema. */
+    corresponding?: boolean;
     /**
      * Pre-split name parts, for callers that already hold structured names
      * (e.g. JATS `<surname>`/`<given-names>`). Re-parsing a joined string
@@ -130,6 +134,8 @@ export function createAuthor(
     ...(overrides?.orcid ? { orcid: normalizeOrcid(overrides.orcid) } : {}),
     contributorType: overrides?.contributorType ?? "author",
     contributions: normalizeContributions(overrides?.contributions),
+    equalContribution: overrides?.equalContribution ?? false,
+    corresponding: overrides?.corresponding ?? false,
   };
 }
 

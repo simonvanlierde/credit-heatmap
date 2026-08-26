@@ -115,6 +115,14 @@ export const AuthorSchema = z.object({
    * keeping the highest score. A cap here rejects that payload outright.
    */
   contributions: z.array(ContributionSchema),
+  /**
+   * Whether this person shares first authorship with others so marked. Not a
+   * CRediT role — the taxonomy has no slot for it — but journals ask for it in
+   * the same paragraph, so it travels with the contributions.
+   */
+  equalContribution: z.boolean().default(false),
+  /** Whether this person is a corresponding author. Also outside CRediT. */
+  corresponding: z.boolean().default(false),
 });
 
 export type Author = z.infer<typeof AuthorSchema>;

@@ -5,7 +5,6 @@ import {
   DEFAULT_MONO_COLOR,
   deduplicateAuthorInitials,
   isValidOrcid,
-  MAX_AUTHOR_NAME_LENGTH,
   MAX_AUTHORS,
   normalizeOrcid,
   parseAuthorText,
@@ -18,6 +17,8 @@ export type InputMode = "toggle" | "levels";
 
 interface ContributionState {
   authors: Author[];
+  /** The work's title, filled by a DOI import. Draft data, so `reset` clears it. */
+  title: string;
   inputMode: InputMode;
   heatmapMonoColor: string;
   /** Language for the generated statement + human-facing exports (role names only). */
@@ -35,6 +36,7 @@ interface ContributionState {
    *  "How it works" re-open never survives a reload as a fake first run. */
   welcomeOpen: boolean;
   loadAuthors: (authors: Author[]) => void;
+  setTitle: (title: string) => void;
   loadSample: () => void;
   setAuthorsFromText: (text: string) => void;
   /** Adds a contributor and returns its id; null when the name has no letters to parse. */
@@ -45,6 +47,8 @@ interface ContributionState {
   updateAuthorName: (authorId: string, name: string) => boolean;
   updateAuthorOrcid: (authorId: string, orcid: string) => void;
   setAuthorType: (authorId: string, contributorType: Author["contributorType"]) => void;
+  /** Toggle one of the two markers that sit outside the CRediT taxonomy. */
+  setAuthorMarker: (authorId: string, marker: "equalContribution" | "corresponding", value: boolean) => void;
   setAuthorScore: (authorId: string, roleIndex: number, score: number) => void;
   setAllAuthorScores: (authorId: string, score: number) => void;
   setRoleScores: (roleIndex: number, score: number) => void;
@@ -59,6 +63,10 @@ interface ContributionState {
 }
 
 export const ROLE_NAMES = CREDIT_ROLES.map((role) => role.name);
+
+/** Cap on the stored work title. Long enough for any real one, short enough
+ *  that a pasted document cannot bloat the persisted draft. */
+const MAX_TITLE_LENGTH = 500;
 
 function clampScore(score: number): number {
   return Math.max(0, Math.min(100, score));
@@ -112,6 +120,8 @@ function normalizeAuthors(authors: Author[]): Author[] {
         orcid: author.orcid,
         contributorType: author.contributorType,
         contributions: author.contributions,
+        equalContribution: author.equalContribution,
+        corresponding: author.corresponding,
       }),
     ),
   );
@@ -121,6 +131,7 @@ export const useContributionStore = create<ContributionState>()(
   persist(
     immer((set) => ({
       authors: [],
+      title: "",
       inputMode: "toggle",
       heatmapMonoColor: DEFAULT_MONO_COLOR,
       outputLocale: "en",
@@ -131,6 +142,11 @@ export const useContributionStore = create<ContributionState>()(
       loadAuthors: (authors) =>
         set((state) => {
           state.authors = normalizeAuthors(authors);
+        }),
+
+      setTitle: (title) =>
+        set((state) => {
+          state.title = title.trim().slice(0, MAX_TITLE_LENGTH);
         }),
 
       loadSample: () =>
@@ -214,6 +230,8 @@ export const useContributionStore = create<ContributionState>()(
               orcid: currentAuthor.orcid,
               contributorType: currentAuthor.contributorType,
               contributions: currentAuthor.contributions,
+              equalContribution: currentAuthor.equalContribution,
+              corresponding: currentAuthor.corresponding,
             });
           } catch {
             return;
@@ -241,6 +259,13 @@ export const useContributionStore = create<ContributionState>()(
           const author = state.authors[findAuthorIndex(state.authors, authorId)];
           if (!author) return;
           author.contributorType = contributorType;
+        }),
+
+      setAuthorMarker: (authorId, marker, value) =>
+        set((state) => {
+          const author = state.authors[findAuthorIndex(state.authors, authorId)];
+          if (!author) return;
+          author[marker] = value;
         }),
 
       setAuthorScore: (authorId, roleIndex, score) =>
@@ -322,6 +347,7 @@ export const useContributionStore = create<ContributionState>()(
       reset: () =>
         set((state) => {
           state.authors = [];
+          state.title = "";
           state.inputMode = "toggle";
           state.heatmapMonoColor = DEFAULT_MONO_COLOR;
           state.outputLocale = "en";
@@ -332,44 +358,19 @@ export const useContributionStore = create<ContributionState>()(
     })),
     {
       name: "credit-generator-state",
-      version: 5,
+      // No `migrate`: the app has no users yet, so a persisted draft in an
+      // older shape is discarded on load rather than carried forward. Bump this
+      // whenever the persisted shape changes.
+      version: 6,
       // Don't read localStorage during store creation: the server renders the
       // empty initial state, so a synchronous rehydrate here would desync the
       // first client render (hydration mismatch). A client effect calls
       // rehydrate() after mount instead; see HeaderActions.
       skipHydration: true,
-      // v0 persisted a now-removed "slider" input mode; fold it into "levels".
-      // (Removed keys, heatmapColorMode and selectedAuthorId as of v4, are
-      // simply ignored if present.)
-      migrate: (persisted) => {
-        const state = persisted as Partial<ContributionState> | undefined;
-        if (state && (state.inputMode as string) === "slider") {
-          state.inputMode = "levels";
-        }
-        if (state && "selectedAuthorId" in state) {
-          delete (state as Record<string, unknown>).selectedAuthorId;
-        }
-        // Returning users have already used the app; don't greet them with the
-        // first-run welcome card.
-        if (state && state.welcomeSeen === undefined) {
-          state.welcomeSeen = true;
-        }
-        // v5 introduced MAX_AUTHOR_NAME_LENGTH. A draft saved before it can
-        // hold a longer pasted name, which rehydrates fine but then makes
-        // every later mutation throw inside createAuthor. Trim on the way in
-        // and drop the ones that carry no name at all, so an old draft stays
-        // usable instead of bricking the workspace.
-        if (state && Array.isArray(state.authors)) {
-          state.authors = state.authors
-            .filter((author) => typeof author?.name === "string" && /[\p{L}\p{M}]/u.test(author.name))
-            .slice(0, MAX_AUTHORS)
-            .map((author) => ({ ...author, name: author.name.slice(0, MAX_AUTHOR_NAME_LENGTH) }));
-        }
-        return state as ContributionState;
-      },
       // spell-checker: ignore partialize
       partialize: (state) => ({
         authors: state.authors,
+        title: state.title,
         inputMode: state.inputMode,
         heatmapMonoColor: state.heatmapMonoColor,
         outputLocale: state.outputLocale,

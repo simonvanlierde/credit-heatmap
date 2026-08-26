@@ -81,11 +81,16 @@ export function fromXmlDocument(doc: Document): Author[] {
     const orcidEl = contrib.querySelector('contrib-id[contrib-id-type="orcid"]');
     const orcid = orcidEl?.textContent?.trim() ?? "";
     const contributorType = contrib.getAttribute("contrib-type") === "contributor" ? "non-author" : "author";
+    // JATS spells both markers "yes"; anything else, including absence, is no.
+    const equalContribution = contrib.getAttribute("equal-contrib") === "yes";
+    const corresponding = contrib.getAttribute("corresp") === "yes";
 
     return [
       createAuthor(displayName, {
         contributions,
         contributorType,
+        equalContribution,
+        corresponding,
         // JATS already separates the parts, so hand them over instead of
         // letting the parser re-split `displayName`, which would read a particle
         // surname ("van der Berg") back as middle name "van" + surname "Berg".

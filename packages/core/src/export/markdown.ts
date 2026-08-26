@@ -2,6 +2,7 @@ import type { Author } from "../author.js";
 import { activeContributions, scoreToLevel } from "../author.js";
 import { DEFAULT_ROLE_TRANSLATOR, type RoleTranslator } from "../credit-i18n/index.js";
 import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "../credit-i18n/ui-strings.js";
+import { markerNotes } from "../markers.js";
 import { GENERATOR_NOTE } from "./generator-note.js";
 
 /** Render untrusted text literally inside a Markdown table cell. */
@@ -46,6 +47,9 @@ export function toMarkdown(
     return `| ${escapeCell(author.name)} | ${escapeCell(roles)} |`;
   });
 
+  // Notes sit under the table as plain sentences, the way a journal prints them.
+  const notes = markerNotes(authors, { translateUi }).map((note) => escapeCell(note));
+
   // An HTML comment: invisible in every Markdown renderer, readable in the source.
-  return [header, ...rows, "", `<!-- ${GENERATOR_NOTE} -->`].join("\n");
+  return [header, ...rows, ...(notes.length > 0 ? ["", ...notes] : []), "", `<!-- ${GENERATOR_NOTE} -->`].join("\n");
 }

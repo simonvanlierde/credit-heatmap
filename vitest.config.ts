@@ -1,3 +1,4 @@
+// biome-ignore lint/correctness/noNodejsModules: this config runs in Node, not the browser bundle.
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 

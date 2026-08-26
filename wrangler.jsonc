@@ -20,7 +20,7 @@
   "name": "credit-heatmap",
   "ratelimits": [
     {
-      "name": "ORCID_RATE_LIMITER",
+      "name": "API_RATE_LIMITER",
       "namespace_id": "1001",
       "simple": { "limit": 30, "period": 60 }
     }

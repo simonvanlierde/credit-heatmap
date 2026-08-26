@@ -59,6 +59,41 @@ describe("contribution store", () => {
     });
   });
 
+  describe("markers", () => {
+    it("toggles each marker independently", () => {
+      const id = store().addAuthor("Jane Smith");
+      if (!id) throw new Error("expected an author");
+
+      store().setAuthorMarker(id, "equalContribution", true);
+      expect(store().authors[0]?.equalContribution).toBe(true);
+      expect(store().authors[0]?.corresponding).toBe(false);
+
+      store().setAuthorMarker(id, "corresponding", true);
+      store().setAuthorMarker(id, "equalContribution", false);
+      expect(store().authors[0]?.equalContribution).toBe(false);
+      expect(store().authors[0]?.corresponding).toBe(true);
+    });
+
+    it("keeps the markers through an unrelated edit", () => {
+      // Every mutation rebuilds the list through `normalizeAuthors`; a field it
+      // forgets to carry is silently lost on the next keystroke.
+      const id = store().addAuthor("Jane Smith");
+      if (!id) throw new Error("expected an author");
+      store().setAuthorMarker(id, "corresponding", true);
+
+      store().addAuthor("Bob White");
+      store().updateAuthorName(id, "Jane A. Smith");
+
+      expect(store().authors[0]?.corresponding).toBe(true);
+    });
+
+    it("ignores a marker set on an unknown contributor", () => {
+      store().addAuthor("Jane Smith");
+      expect(() => store().setAuthorMarker("no-such-id", "corresponding", true)).not.toThrow();
+      expect(store().authors[0]?.corresponding).toBe(false);
+    });
+  });
+
   describe("persistence", () => {
     it("persists draft data and the interface language, but nothing ephemeral", () => {
       // `welcomeOpen` is deliberately absent: a re-opened "How it works" must

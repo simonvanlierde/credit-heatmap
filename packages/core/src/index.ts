@@ -36,6 +36,8 @@ export type { UiCatalog, UiKey, UiTranslator } from "./credit-i18n/ui-strings.js
 export { DEFAULT_UI_TRANSLATOR, loadUiCatalog, makeUiTranslator } from "./credit-i18n/ui-strings.js";
 export type { CreditRoleName } from "./credit-roles.js";
 export { CREDIT_ROLES, getRoleByName } from "./credit-roles.js";
+export type { DoiAuthor, DoiErrorCode, DoiLookupResult } from "./doi-lookup.js";
+export { DOI_INPUT_REGEX, lookupDoiWork, normalizeDoi } from "./doi-lookup.js";
 export { fromCsv, toCsv } from "./export/csv.js";
 export { GENERATOR_NOTE } from "./export/generator-note.js";
 export type { HeatmapSvgOptions } from "./export/heatmap-svg.js";
@@ -47,6 +49,7 @@ export { toJats4rXml } from "./export/xml.js";
 export { fromJats4rXml, fromXmlDocument } from "./export/xml-import.js";
 export type { StatementFormat, StatementOptions } from "./generate-statement.js";
 export { generateStatement } from "./generate-statement.js";
+export { markerNotes } from "./markers.js";
 export type { OrcidErrorCode, OrcidLookupResult } from "./orcid-lookup.js";
 export { lookupOrcidPerson } from "./orcid-lookup.js";
 export {

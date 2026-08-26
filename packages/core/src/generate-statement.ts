@@ -3,6 +3,7 @@ import { activeContributions, scoreToLevel } from "./author.js";
 import { DEFAULT_ROLE_TRANSLATOR, type RoleTranslator } from "./credit-i18n/index.js";
 import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "./credit-i18n/ui-strings.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
+import { markerNotes } from "./markers.js";
 
 export type StatementFormat = "by-role" | "by-role-short" | "by-author" | "by-author-short";
 
@@ -116,9 +117,13 @@ export function generateStatement(authors: Author[], options: StatementOptions):
       : generateByAuthor(people, useInitials, showLevels, translateRole, translateUi, fmt);
 
   // Combined: everyone (authors and non-authors) on one CRediT line.
+  // The marker notes are appended to whichever lines the statement produces,
+  // and suppressed entirely when there is no statement to annotate.
+  const notes = markerNotes(authors, { useInitials, translateUi }).map(fmt.text);
+
   if (!separateAcknowledgements) {
     const allBody = body(authors);
-    return allBody ? fmt.join([`${fmt.strong("CRediT:")} ${allBody}`]) : "";
+    return allBody ? fmt.join([`${fmt.strong("CRediT:")} ${allBody}`, ...notes]) : "";
   }
 
   // Split: named authors on the CRediT line, non-authors on Acknowledgements.
@@ -130,7 +135,8 @@ export function generateStatement(authors: Author[], options: StatementOptions):
   if (creditBody) lines.push(`${fmt.strong("CRediT:")} ${creditBody}`);
   const ackBody = body(nonAuthors);
   if (ackBody) lines.push(`${fmt.strong(`${translateUi("acknowledgements")}:`)} ${ackBody}`);
-  return fmt.join(lines);
+  if (lines.length === 0) return "";
+  return fmt.join([...lines, ...notes]);
 }
 
 /** Annotate a role or contributor label with its non-lead level: "label (Equal)". */

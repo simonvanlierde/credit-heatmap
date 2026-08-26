@@ -6,8 +6,26 @@ import { createAuthor, deduplicateAuthorInitials } from "../parse-authors.js";
 const NAME_HEADER = "Name";
 const ORCID_HEADER = "ORCID";
 const TYPE_HEADER = "Type";
+const EQUAL_HEADER = "Equal contribution";
+const CORRESPONDING_HEADER = "Corresponding";
 
-const CSV_HEADERS = [NAME_HEADER, ORCID_HEADER, TYPE_HEADER, ...CREDIT_ROLES.map((role) => role.name)];
+const CSV_HEADERS = [
+  NAME_HEADER,
+  ORCID_HEADER,
+  TYPE_HEADER,
+  EQUAL_HEADER,
+  CORRESPONDING_HEADER,
+  ...CREDIT_ROLES.map((role) => role.name),
+];
+
+/** Markers are written as yes/no, which reads in a spreadsheet and parses back. */
+function yesNo(value: boolean): string {
+  return value ? "yes" : "no";
+}
+
+function readYesNo(value: string | undefined): boolean {
+  return value?.trim().toLowerCase() === "yes";
+}
 
 /** Leading characters a spreadsheet may interpret as the start of a formula. */
 const FORMULA_PREFIX = /^[=+\-@\t\r]/;
@@ -89,6 +107,8 @@ export function toCsv(authors: Author[]): string {
         author.name,
         author.orcid ?? "",
         author.contributorType,
+        yesNo(author.equalContribution),
+        yesNo(author.corresponding),
         ...CREDIT_ROLES.map((role) => String(contributionByRole.get(role.name) ?? 0)),
       ]
         .map(escapeCsvValue)
@@ -114,6 +134,10 @@ export function fromCsv(csv: string): Author[] {
 
   const orcidIndex = headers.indexOf(ORCID_HEADER);
   const typeIndex = headers.indexOf(TYPE_HEADER);
+  // Absent in a CSV written before these columns existed; `indexOf` returns -1
+  // and the lookup below reads as "no", which is the right default.
+  const equalIndex = headers.indexOf(EQUAL_HEADER);
+  const correspondingIndex = headers.indexOf(CORRESPONDING_HEADER);
   const roleIndexByHeader = new Map(headers.map((header, index) => [header, index]));
 
   const authors = records.slice(1).map((cells) => {
@@ -139,6 +163,8 @@ export function fromCsv(csv: string): Author[] {
       orcid: orcid && isValidOrcid(orcid) ? orcid : undefined,
       contributorType,
       contributions,
+      equalContribution: readYesNo(cells[equalIndex]),
+      corresponding: readYesNo(cells[correspondingIndex]),
     });
   });
 

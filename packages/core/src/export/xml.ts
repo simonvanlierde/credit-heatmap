@@ -64,7 +64,12 @@ function authorToXml(author: Author): string {
   // is an open vocabulary).
   const contribType = author.contributorType === "non-author" ? "contributor" : "author";
 
-  return `<contrib contrib-type="${contribType}">${orcidEl}
+  // JATS carries both markers as attributes on <contrib>, outside the CRediT
+  // vocabulary: the taxonomy has no term for either.
+  const equalAttr = author.equalContribution ? ' equal-contrib="yes"' : "";
+  const correspAttr = author.corresponding ? ' corresp="yes"' : "";
+
+  return `<contrib contrib-type="${contribType}"${equalAttr}${correspAttr}>${orcidEl}
       <string-name>
         <given-names>${escapeXml(givenNames)}</given-names>
         <surname>${escapeXml(author.surname)}</surname>
