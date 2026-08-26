@@ -1,7 +1,8 @@
-import { createAuthor } from "@credit-generator/core";
+import { createAuthor, type LocaleCode } from "@credit-generator/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requestStorageFullAnnouncement } from "@/lib/announce";
-import { MAX_DRAFTS, useContributionStore } from "./contribution-store";
+import { type Draft, MAX_DRAFTS, ROLE_NAMES, useContributionStore } from "./contribution-store";
+import { PERSIST_KEY, PERSIST_VERSION } from "./persist-meta";
 
 vi.mock("@/lib/announce", () => ({ requestStorageFullAnnouncement: vi.fn() }));
 
@@ -56,6 +57,28 @@ describe("contribution store", () => {
       expect(store().authors[0]?.orcid).toBe("0000-0002-1825-0097");
     });
 
+    it("seeds the sample with the translated names it is given, one role set each", () => {
+      store().loadSample(["Marie Curie", "Ada Lovelace", "Rosalind Franklin", "Dropped Name"]);
+
+      const authors = store().authors;
+      // Three positional role sets: a fourth name has no scores to seed, so it
+      // would land as an empty row rather than an example.
+      expect(authors.map((a) => a.name)).toEqual(["Marie Curie", "Ada Lovelace", "Rosalind Franklin"]);
+      expect(authors[0]?.contributions.find((c) => c.role === "Conceptualization")?.score).toBe(100);
+      expect(authors[1]?.contributions.find((c) => c.role === "Investigation")?.score).toBe(100);
+      expect(authors[2]?.contributions.find((c) => c.role === "Conceptualization")?.score).toBe(0);
+    });
+
+    it("refuses the sample under a claim, like every other whole-roster write", () => {
+      store().addAuthor("Jane Smith");
+      const jane = store().authors[0];
+      if (!jane) throw new Error("expected an author");
+      store().setClaim({ contributorId: jane.id, sourceDraftId: "src-1" });
+
+      store().loadSample(["Marie Curie"]);
+      expect(store().authors.map((a) => a.name)).toEqual(["Jane Smith"]);
+    });
+
     it("rejects a load of more contributors than a draft can hold", () => {
       const authors = Array.from({ length: 201 }, (_, i) => createAuthor(`Author ${i}`));
       expect(() => store().loadAuthors(authors)).toThrow(/at most/);
@@ -94,6 +117,228 @@ describe("contribution store", () => {
       store().addAuthor("Jane Smith");
       expect(() => store().setAuthorMarker("no-such-id", "corresponding", true)).not.toThrow();
       expect(store().authors[0]?.corresponding).toBe(false);
+    });
+  });
+
+  describe("contributor edits", () => {
+    /** Two contributors, in list order, with their ids. */
+    function pair() {
+      store().addAuthor("Jane Smith");
+      store().addAuthor("Bob White");
+      const [jane, bob] = store().authors;
+      if (!(jane && bob)) throw new Error("expected two authors");
+      return { jane, bob };
+    }
+
+    it("refuses a name with no letter in it, at add and at rename alike", () => {
+      const { jane } = pair();
+      expect(store().addAuthor("123")).toBeNull();
+      expect(store().authors).toHaveLength(2);
+      expect(store().updateAuthorName(jane.id, "123")).toBe(false);
+      expect(store().authors[0]?.name).toBe("Jane Smith");
+    });
+
+    it("renames in place, keeping the id and everything hanging off it", () => {
+      const { jane } = pair();
+      store().setAuthorMarker(jane.id, "corresponding", true);
+      store().setAuthorScore(jane.id, 0, 66);
+
+      expect(store().updateAuthorName(jane.id, "  Jane A. Smith  ")).toBe(true);
+      const renamed = store().authors[0];
+      expect(renamed?.id).toBe(jane.id);
+      expect(renamed?.name).toBe("Jane A. Smith");
+      expect(renamed?.corresponding).toBe(true);
+      expect(renamed?.contributions[0]?.score).toBe(66);
+
+      // An empty rename is a cleared input, not a request to blank the row.
+      expect(store().updateAuthorName(jane.id, "   ")).toBe(false);
+      expect(store().updateAuthorName("no-such-id", "Ghost Author")).toBe(false);
+      expect(store().authors[0]?.name).toBe("Jane A. Smith");
+    });
+
+    it("takes a valid ORCID iD, normalizes it, and clears it on an empty value", () => {
+      const { jane } = pair();
+
+      store().updateAuthorOrcid(jane.id, " https://orcid.org/0000-0002-1825-0097 ");
+      expect(store().authors[0]?.orcid).toBe("0000-0002-1825-0097");
+
+      // An unvalidated iD here would make the next list edit throw in the reducer.
+      store().updateAuthorOrcid(jane.id, "0000-0002-1825-0098");
+      expect(store().authors[0]?.orcid).toBe("0000-0002-1825-0097");
+
+      store().updateAuthorOrcid(jane.id, "  ");
+      expect(store().authors[0]?.orcid).toBeUndefined();
+      expect(() => store().updateAuthorOrcid("no-such-id", "0000-0002-1825-0097")).not.toThrow();
+    });
+
+    it("marks a contributor as acknowledged rather than an author, and ignores an unknown row", () => {
+      const { jane } = pair();
+      store().setAuthorType(jane.id, "non-author");
+      expect(store().authors[0]?.contributorType).toBe("non-author");
+      expect(() => store().setAuthorType("no-such-id", "non-author")).not.toThrow();
+    });
+
+    it("removes a contributor and restores it at the index undo asks for", () => {
+      const { jane, bob } = pair();
+      store().addAuthor("Carol Davis");
+
+      store().removeAuthor(bob.id);
+      expect(store().authors.map((a) => a.name)).toEqual(["Jane Smith", "Carol Davis"]);
+      store().removeAuthor("no-such-id");
+      expect(store().authors).toHaveLength(2);
+
+      expect(store().restoreAuthor(bob, 1)).toBe(true);
+      expect(store().authors.map((a) => a.name)).toEqual(["Jane Smith", "Bob White", "Carol Davis"]);
+      // Already back: a double undo must not duplicate the row.
+      expect(store().restoreAuthor(bob, 1)).toBe(false);
+      expect(store().authors).toHaveLength(3);
+      expect(store().authors.map((a) => a.id)).toContain(jane.id);
+    });
+
+    it("clamps a restore index that no longer exists onto the list", () => {
+      const { bob } = pair();
+      store().removeAuthor(bob.id);
+
+      expect(store().restoreAuthor(bob, 99)).toBe(true);
+      expect(store().authors.map((a) => a.name)).toEqual(["Jane Smith", "Bob White"]);
+    });
+
+    it("refuses a restore into a list that refilled to the cap", () => {
+      const spare = createAuthor("Spare Author");
+      store().loadAuthors(Array.from({ length: 200 }, (_, i) => createAuthor(`Author ${i}`)));
+
+      // Without the guard the splice pushes past the cap and the reducer throws.
+      expect(store().restoreAuthor(spare, 0)).toBe(false);
+      expect(store().authors).toHaveLength(200);
+      expect(store().addAuthor("One Too Many")).toBeNull();
+    });
+
+    it("reorders by index and ignores a drag that lands nowhere", () => {
+      pair();
+      store().addAuthor("Carol Davis");
+
+      store().moveAuthor(0, 2);
+      expect(store().authors.map((a) => a.name)).toEqual(["Bob White", "Carol Davis", "Jane Smith"]);
+
+      for (const [from, to] of [
+        [-1, 0],
+        [0, -1],
+        [3, 0],
+        [0, 3],
+        [1, 1],
+      ]) {
+        store().moveAuthor(from ?? 0, to ?? 0);
+      }
+      expect(store().authors.map((a) => a.name)).toEqual(["Bob White", "Carol Davis", "Jane Smith"]);
+    });
+
+    it("re-derives initials on every list edit, so two J. Smiths stay distinct", () => {
+      store().addAuthor("Jane Smith");
+      store().addAuthor("John Smith");
+      const [jane, john] = store().authors;
+      expect(jane?.initials).not.toBe(john?.initials);
+    });
+  });
+
+  describe("scores", () => {
+    function jane() {
+      const author = store().authors[0];
+      if (!author) throw new Error("expected an author");
+      return author;
+    }
+
+    beforeEach(() => {
+      store().addAuthor("Jane Smith");
+      store().addAuthor("Bob White");
+    });
+
+    it("clamps a score to the 0-100 range rather than storing it out of band", () => {
+      store().setAuthorScore(jane().id, 0, 500);
+      expect(jane().contributions[0]?.score).toBe(100);
+      store().setAuthorScore(jane().id, 0, -20);
+      expect(jane().contributions[0]?.score).toBe(0);
+    });
+
+    it("ignores a score set on a role or contributor that is not there", () => {
+      store().setAuthorScore(jane().id, 99, 100);
+      store().setAuthorScore("no-such-id", 0, 100);
+      expect(jane().contributions.every((c) => c.score === 0)).toBe(true);
+    });
+
+    it("fills or clears a whole row at once", () => {
+      store().setAllAuthorScores(jane().id, 66);
+      expect(jane().contributions.every((c) => c.score === 66)).toBe(true);
+      store().setAllAuthorScores(jane().id, 0);
+      expect(jane().contributions.every((c) => c.score === 0)).toBe(true);
+      expect(() => store().setAllAuthorScores("no-such-id", 100)).not.toThrow();
+    });
+
+    it("fills a whole column at once, and refuses a column that is not there", () => {
+      store().setRoleScores(0, 150);
+      expect(store().authors.map((a) => a.contributions[0]?.score)).toEqual([100, 100]);
+
+      store().setRoleScores(-1, 100);
+      store().setRoleScores(ROLE_NAMES.length, 100);
+      expect(store().authors.map((a) => a.contributions[1]?.score)).toEqual([0, 0]);
+    });
+
+    it("toggles between none and full, whatever the level was", () => {
+      store().toggleContribution(jane().id, 0);
+      expect(jane().contributions[0]?.score).toBe(100);
+      store().toggleContribution(jane().id, 0);
+      expect(jane().contributions[0]?.score).toBe(0);
+
+      store().setAuthorScore(jane().id, 0, 33);
+      store().toggleContribution(jane().id, 0);
+      expect(jane().contributions[0]?.score).toBe(0);
+
+      expect(() => store().toggleContribution(jane().id, 99)).not.toThrow();
+    });
+  });
+
+  describe("preferences", () => {
+    it("keeps the input mode and heatmap colour as draft data", () => {
+      store().setInputMode("levels");
+      store().setHeatmapMonoColor("#123456");
+      expect(store().inputMode).toBe("levels");
+      expect(store().heatmapMonoColor).toBe("#123456");
+
+      store().reset();
+      expect(store().inputMode).toBe("toggle");
+      expect(store().heatmapMonoColor).not.toBe("#123456");
+    });
+
+    it("normalizes both language choices, and keeps them independent", () => {
+      store().setOutputLocale("pt" as LocaleCode);
+      store().setUiLocale("zh" as LocaleCode);
+      expect(store().outputLocale).toBe("pt-PT");
+      expect(store().uiLocale).toBe("zh-Hans");
+
+      store().setOutputLocale("xx" as LocaleCode);
+      expect(store().outputLocale).toBe("en");
+      expect(store().uiLocale).toBe("zh-Hans");
+
+      // The interface language belongs to the person, not the paper.
+      store().reset();
+      expect(store().uiLocale).toBe("zh-Hans");
+    });
+
+    it("marks the welcome seen whether it is opened or dismissed", () => {
+      expect(store().welcomeSeen).toBe(false);
+      store().openWelcome();
+      expect(store().welcomeOpen).toBe(true);
+      expect(store().welcomeSeen).toBe(true);
+
+      store().closeWelcome();
+      expect(store().welcomeOpen).toBe(false);
+      expect(store().welcomeSeen).toBe(true);
+    });
+
+    it("dismisses an open welcome card on reset, so it cannot undo the reset", () => {
+      store().openWelcome();
+      store().reset();
+      expect(store().welcomeOpen).toBe(false);
+      expect(store().welcomeSeen).toBe(true);
     });
   });
 
@@ -272,6 +517,36 @@ describe("contribution store", () => {
       store().setClaim({ contributorId: store().authors[0]?.id ?? "", sourceDraftId: "src-1" });
       store().loadAuthors([createAuthor("Carol Davis")]);
       expect(store().authors.map((a) => a.name)).toEqual(["Bob White"]);
+    });
+
+    it("clearClaimFor reaches a draft you are not looking at", () => {
+      store().addAuthor("Jane Smith");
+      const jane = store().authors[0];
+      if (!jane) throw new Error("expected an author");
+      store().setClaim({ contributorId: jane.id, sourceDraftId: "src-1" });
+      const claimed = store().activeDraftId;
+
+      store().createDraft();
+      store().clearClaimFor(claimed);
+      expect(() => store().clearClaimFor("no-such-draft")).not.toThrow();
+
+      store().switchDraft(claimed);
+      expect(store().claim).toBeNull();
+    });
+
+    it("ends the reply highlight on the way out of the draft it belongs to", () => {
+      store().addAuthor("Jane Smith");
+      const jane = store().authors[0];
+      if (!jane) throw new Error("expected an author");
+      const home = store().activeDraftId;
+      store().setRecentReply(jane.id);
+      expect(store().recentReply).toBe(jane.id);
+
+      // The highlight describes a moment, not the draft.
+      store().createDraft();
+      expect(store().recentReply).toBeNull();
+      store().switchDraft(home);
+      expect(store().recentReply).toBeNull();
     });
 
     it("clearClaimFor unlocks the active draft", () => {
@@ -468,6 +743,95 @@ describe("contribution store", () => {
       expect(merged.authors[0]?.orcid).toBeUndefined();
       expect(merged.authors[1]?.contributions).toEqual([]);
       expect(merged.authors[2]?.contributions).toEqual([{ role: "Software", score: 100 }]);
+    });
+
+    it("drops a hand-edited claim or ask entry rather than trusting it", () => {
+      const merge = useContributionStore.persist.getOptions().merge;
+      const merged = merge?.(
+        {
+          activeDraftId: "d1",
+          drafts: {
+            d1: {
+              // A claim is a lock: an id that a URL fragment would mangle, or a
+              // half-written one, must not be honoured.
+              claim: { contributorId: "not a valid id", sourceDraftId: "src-1" },
+              asked: { "bad id": 1, "good-id": 2, "another-good-id": "yesterday" },
+            },
+          },
+        },
+        initial,
+      ) as typeof initial;
+
+      expect(merged.claim).toBeNull();
+      expect(merged.asked).toEqual({ "good-id": 2 });
+    });
+
+    it("keeps a well-formed claim through the repair pass", () => {
+      const merge = useContributionStore.persist.getOptions().merge;
+      const claim = { contributorId: "contributor-1", sourceDraftId: "draft-2" };
+      const merged = merge?.({ activeDraftId: "d1", drafts: { d1: { claim } } }, initial) as typeof initial;
+      expect(merged.claim).toEqual(claim);
+    });
+
+    it("parks each held draft in its own key, and reads the shelf back as one map", () => {
+      const storage = useContributionStore.persist.getOptions().storage;
+      if (!storage) throw new Error("expected a storage adapter");
+      const hydrated = vi.spyOn(useContributionStore.persist, "hasHydrated").mockReturnValue(true);
+      globalThis.localStorage.clear();
+
+      const draft = (id: string, title: string): Draft => ({
+        id,
+        title,
+        authors: [],
+        inputMode: "toggle",
+        heatmapMonoColor: "#2563eb",
+        outputLocale: "en",
+        updatedAt: 0,
+        claim: null,
+        asked: {},
+      });
+      const state = {
+        drafts: { a: draft("a", "Active paper"), b: draft("b", "Held paper") },
+        activeDraftId: "a",
+        uiLocale: "en" as const,
+        welcomeSeen: true,
+      };
+      storage.setItem(PERSIST_KEY, { state, version: PERSIST_VERSION });
+
+      // The active draft rides in the main key; only the shelf gets its own,
+      // so a grid click does not re-serialize every held paper.
+      expect(globalThis.localStorage.getItem(`${PERSIST_KEY}:draft:a`)).toBeNull();
+      expect(globalThis.localStorage.getItem(`${PERSIST_KEY}:draft:b`)).toContain("Held paper");
+
+      const read = storage.getItem(PERSIST_KEY) as { state: typeof state } | null;
+      expect(Object.keys(read?.state.drafts ?? {}).sort()).toEqual(["a", "b"]);
+      expect(read?.state.drafts.b?.title).toBe("Held paper");
+
+      // A deleted draft's key would otherwise resurrect it on the next load.
+      storage.setItem(PERSIST_KEY, { state: { ...state, drafts: { a: state.drafts.a } }, version: PERSIST_VERSION });
+      expect(globalThis.localStorage.getItem(`${PERSIST_KEY}:draft:b`)).toBeNull();
+
+      storage.removeItem(PERSIST_KEY);
+      expect(storage.getItem(PERSIST_KEY)).toBeNull();
+      hydrated.mockRestore();
+      globalThis.localStorage.clear();
+    });
+
+    it("loads an old single-key value, from before the shelf was split out", () => {
+      const storage = useContributionStore.persist.getOptions().storage;
+      if (!storage) throw new Error("expected a storage adapter");
+      globalThis.localStorage.clear();
+      globalThis.localStorage.setItem(
+        PERSIST_KEY,
+        JSON.stringify({
+          state: { activeDraftId: "d1", drafts: { d1: { id: "d1", title: "One key" } } },
+          version: PERSIST_VERSION,
+        }),
+      );
+
+      const read = storage.getItem(PERSIST_KEY) as { state: { drafts: Record<string, { title: string }> } } | null;
+      expect(read?.state.drafts.d1?.title).toBe("One key");
+      globalThis.localStorage.clear();
     });
 
     it("leaves a persisted draft alone when nothing is wrong with it", () => {

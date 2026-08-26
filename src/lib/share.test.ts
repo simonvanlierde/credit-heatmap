@@ -1,8 +1,8 @@
 // biome-ignore lint/correctness/noNodejsModules: tests run in Node; zlib hand-builds hostile payloads
 import { deflateRawSync } from "node:zlib";
 import { createAuthor, toSharePayload } from "@credit-generator/core";
-import { describe, expect, it } from "vitest";
-import { buildShareUrl, decodeShareHash } from "./share";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { buildShareUrl, decodeShareHash, shareFailureKey } from "./share";
 
 function draft() {
   return [
@@ -74,5 +74,45 @@ describe("share links", () => {
 
   it("returns null for a v1 payload", async () => {
     expect(await decodeShareHash(compressedHash(JSON.stringify({ v: 1, a: [{ n: "Jane Smith", s: [] }] })))).toBeNull();
+  });
+
+  it("round-trips through btoa/atob on an engine without Uint8Array.toBase64", async () => {
+    // The TC39 methods only landed in browsers from late 2024; the fallback is
+    // what an older engine takes, and it has to produce the same link.
+    const { toBase64 } = Uint8Array.prototype;
+    const { fromBase64 } = Uint8Array;
+    // Deleted, not set to undefined: the feature detection is `typeof x === "function"`.
+    delete (Uint8Array.prototype as { toBase64?: unknown }).toBase64;
+    delete (Uint8Array as { fromBase64?: unknown }).fromBase64;
+
+    try {
+      const authors = draft();
+      const url = await buildShareUrl({ authors, title: "Eel cognition" });
+      expect(url).toContain("#s=");
+      // base64url, not base64: `+/=` would be mangled in a fragment.
+      expect(hashOf(url)).toMatch(/^#s=[\w-]+$/);
+
+      const decoded = await decodeShareHash(hashOf(url));
+      expect(decoded?.title).toBe("Eel cognition");
+      expect(decoded?.authors.map((a) => a.name)).toEqual(authors.map((a) => a.name));
+    } finally {
+      Object.assign(Uint8Array.prototype, { toBase64 });
+      Object.assign(Uint8Array, { fromBase64 });
+    }
+  });
+});
+
+describe("shareFailureKey", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("blames the browser, not the draft, when there is no CompressionStream", () => {
+    expect(shareFailureKey()).toBe("errShareTooLarge");
+
+    // A pre-2023 browser cannot build any link; telling that user to trim their
+    // roster sends them fixing something that was never the problem.
+    vi.stubGlobal("CompressionStream", undefined);
+    expect(shareFailureKey()).toBe("errShareUnsupported");
   });
 });
