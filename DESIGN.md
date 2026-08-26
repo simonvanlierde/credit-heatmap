@@ -97,7 +97,7 @@ explanations. Use IBM Plex Mono for contributor initials and compact data labels
 
 ## Brand
 
-The mark is a 3x3 crop of the contribution matrix, lead on the diagonal, drawn on a 32px grid with
+The mark is a 3×3 crop of the contribution matrix, lead on the diagonal, drawn on a 32px grid with
 8px cells and 1px gaps. Its fills are the heatmap's real intensity tiers, not decorative tints, so
 the mark and the product's data speak the same language.
 
@@ -121,9 +121,11 @@ Let the page use the screen it's given, up to `100rem`. A cap that holds until a
 letterboxes the laptops this workspace is built for.
 
 On a desktop-sized window the workspace is height-locked to the viewport. The page itself doesn't
-scroll; each pane scrolls its own content. The `desk` variant carries that rule (≥80rem wide **and**
-≥45rem tall). Keep the height half of that guard. Without it, a short window, a zoomed page, or a
-phone in landscape traps the app in a nested scroller instead of ordinary document flow.
+scroll; each pane scrolls its own content.
+
+Height-lock only behind both halves of the `desk` guard: ≥80rem wide **and** ≥45rem tall. Without
+the height half, a short window, a zoomed page, or a phone in landscape traps the app in a nested
+scroller instead of ordinary document flow.
 
 Give a pane that scrolls but holds no focusable content a tab stop, or keyboard users can't reach
 its overflow.
@@ -147,8 +149,8 @@ workflow should be visible at once, with no page scroll. Spend vertical space on
 and matrix rows, and take it back from chrome. Bound a list that grows without limit (contributors,
 validation checks) rather than letting it push the workflow below the fold.
 
-First-run guidance overlays the workspace rather than sitting over it in the flow. An inline band
-costs that height permanently, and reflows the whole page when dismissed.
+First-run guidance overlays the workspace rather than taking a band in the layout flow. An inline
+band costs that height permanently, and reflows the whole page when dismissed.
 
 ## Elevation and depth
 
@@ -188,7 +190,7 @@ Use the matrix on larger screens and a contributor-focused role list on narrow s
 and contributor labels visible during scrolling. Show each selected value with color, a mark, an
 accessible label, and exported data. Keep bulk assignment behind a disclosure.
 
-## Do's and Don'ts
+## Do and don't
 
 ### Do
 
@@ -197,7 +199,8 @@ accessible label, and exported data. Keep bulk assignment behind a disclosure.
 - **Do** define specialist terminology at the decision point.
 - **Do** budget for long names, translations, keyboards, and tap targets.
 - **Do** keep the desktop workflow inside one viewport, and let each pane scroll its own overflow.
-- **Do** ask which level a bulk action assigns. Defaulting to the strongest one overstates the claim.
+- **Do** ask which level a bulk action assigns. Defaulting to the strongest one overstates the
+  claim.
 
 ### Don't
 

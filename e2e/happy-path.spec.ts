@@ -531,7 +531,7 @@ test.describe("Happy path UI flows", () => {
     const name = page.getByLabel("Name or ORCID iD", { exact: true }).first();
     await name.fill("123");
     await name.press("Tab");
-    await expect(page.getByText(/Enter a name with at least one letter/)).toBeVisible();
+    await expect(page.getByText(/It needs at least one letter/)).toBeVisible();
 
     const add = page.getByLabel("New author names or ORCID iD");
     await add.fill("0000-0002-1825-0098");
@@ -691,7 +691,7 @@ test.describe("Happy path UI flows", () => {
     const card = page.locator("section[aria-label='Contribution grid'] > div");
     const before = { x: (await exports.boundingBox())?.x, w: (await card.boundingBox())?.width };
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByText("Click to cycle")).toBeVisible();
+    await expect(page.getByText("Select to cycle")).toBeVisible();
     // ±1px, not exact: sub-pixel layout shifts with font/rendering changes
     // (a Chromium bump, a runner-image update) and is not the regression
     // this guards against.
@@ -717,7 +717,7 @@ test.describe("Happy path UI flows", () => {
     const table = page.locator("table");
     const beforeY = (await table.boundingBox())?.y;
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByText("Click to cycle")).toBeVisible();
+    await expect(page.getByText("Select to cycle")).toBeVisible();
     expect(Math.abs(((await table.boundingBox())?.y ?? 0) - (beforeY ?? 0))).toBeLessThanOrEqual(1);
 
     // Enough contributors that the 14 role columns are squeezed to their minimum

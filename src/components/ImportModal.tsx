@@ -417,8 +417,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
               </label>
               {format !== "unknown" && (
                 <span className="text-[11px] text-primary font-medium italic">
-                  {t("detectedFormat")}
-                  {FORMAT_LABEL[format](t)}
+                  {t("detectedFormat", { format: FORMAT_LABEL[format](t) })}
                 </span>
               )}
             </div>

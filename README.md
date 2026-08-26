@@ -18,7 +18,7 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
 
 **Try it:** [credit.duinlab.nl](https://credit.duinlab.nl)
 
-![The CRediT Matrix workspace: a titled draft with its contributors on the left, one row hovered to show its authorship markers and the button that asks that person to fill in their own roles, an editable contribution grid in the middle, and the generated statement with export controls on the right](docs/screenshots/hero.png)
+![The CRediT Matrix workspace in three columns: contributors on the left, an editable contribution grid in the middle, and the generated statement with export controls on the right. One contributor row is hovered, showing its authorship markers and the button that asks that person to fill in their own roles](docs/screenshots/hero.png)
 
 ## What it does
 
@@ -32,7 +32,7 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
   names, and recolor it
 - **Statements**: group by role or by author, with full names or initials, and optional level labels.
   Copy as rich text or plain, and mark shared first authorship and corresponding authors
-- **Eight languages**: the interface and the generated statement each pick their own language, so a
+- **Nine languages**: the interface and the generated statement each pick their own language, so a
   Dutch interface can produce an English statement. Role names come from
   [credit-translation](https://github.com/contributorshipcollaboration/credit-translation);
   machine-readable exports keep the canonical English CRediT terms
@@ -77,8 +77,10 @@ logic as pure TypeScript, with `zod` as its only runtime dependency. XML import 
 
 The ORCID and DOI lookups are the exceptions, proxied by `/api/orcid` and `/api/doi`: ORCID's public
 API sends no CORS headers, and Crossref's polite-pool contact address belongs on the server rather
-than in every client bundle. Contributions store a 0–100 integer `score` rather than a boolean, so the UI switches
-between binary and level-based editing without changing the stored model. See
+than in every client bundle.
+
+Contributions store a 0–100 integer `score` rather than a boolean, so the UI switches between
+binary and level-based editing without changing the stored model. See
 [`packages/core/README.md`](packages/core/README.md#domain-model) for the score-to-level boundaries.
 
 **No accounts, no server-side storage.** This is a deliberate constraint, not a missing feature. A
@@ -126,11 +128,13 @@ invocation log. After changing the binding, check the first deploy's logs for
 
 ## Roadmap
 
-- **Review the translations.** The interface ships in eight languages, machine-translated and
-  checked for consistency, ICU correctness, and CRediT terminology. Japanese and Chinese in
-  particular still want a native speaker: the term for a contribution *statement* is unsettled.
-- **Widen locale coverage.** Eight locales ship today (de, es, fr, it, ja, nl, pt-PT, zh-Hans), a curated
-  subset of
+- **Review the translations.** Beside English, the interface ships in eight machine-translated
+  languages. `e2e/messages.spec.ts` checks each catalog for key parity, balanced ICU braces, intact
+  placeholders, and untranslated product and format names. No native speaker has reviewed the prose,
+  though, and Japanese and Chinese need one most: the term for a contribution *statement* is
+  unsettled.
+- **Widen locale coverage.** Eight translated locales ship today (de, es, fr, it, ja, nl, pt-PT,
+  zh-Hans), a curated subset of
   [credit-translation](https://github.com/contributorshipcollaboration/credit-translation), vendored
   under [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations).
   Refresh them with `node packages/core/scripts/fetch-credit-translations.mjs`.

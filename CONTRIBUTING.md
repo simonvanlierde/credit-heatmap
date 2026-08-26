@@ -20,7 +20,7 @@ pnpm dev            # → http://localhost:3000
 - `packages/core`: pure, framework-agnostic domain logic (statements, exports,
   validation, heatmap SVG). No React/Next/Node APIs at import time. Most changes
   and most tests belong here.
-- `src/`: the Next.js UI and the single `/api/orcid` route handler.
+- `src/`: the Next.js UI and the `/api/orcid` and `/api/doi` route handlers.
 
 [ADR&nbsp;0001](docs/adr/0001-client-side-architecture.md) records why it's split
 this way.
@@ -31,7 +31,7 @@ this way.
 pnpm lint           # Biome (format + lint); append :fix to auto-fix
 pnpm typecheck      # TypeScript across all packages
 pnpm test           # Vitest unit tests
-pnpm test:e2e       # Playwright (optional locally; label a PR `e2e` for the full run)
+pnpm test:e2e       # Playwright (optional locally)
 ```
 
 `pnpm lint`, `pnpm typecheck`, and `pnpm test` all run in CI on every push and PR.
@@ -42,8 +42,11 @@ Add or update tests in `packages/core/src/__tests__` for any change to domain lo
 - **Unit (Vitest)**: `pnpm --filter @credit-generator/core test`. Covers the domain layer: name
   parsing, initials deduplication, statement formats, score-to-level boundaries, import/export round
   trips, validation, and heatmap SVG generation.
-- **End-to-end (Playwright)**: `pnpm test:e2e`. Covers sample data, name import, the client-side XML
-  download, and share-link round trips, plus axe accessibility scans.
+- **End-to-end (Playwright)**: `pnpm test:e2e`. `happy-path.spec.ts` covers sample data, DOI and
+  name import, the grid, and the client-side XML download. `sharing.spec.ts` covers share links and
+  the co-author claim round trip. `a11y.spec.ts` runs the axe scans. `messages.spec.ts`,
+  `design-tokens.spec.ts`, and `offline.spec.ts` guard the locale catalogs, the design tokens, and
+  the service worker.
 
 Every push and PR runs Biome, typecheck, unit coverage, the axe scans, and the Cloudflare Worker
 build. The rest of the E2E suite runs on manual dispatch or on PRs labeled `e2e`.
