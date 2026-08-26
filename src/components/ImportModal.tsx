@@ -29,7 +29,7 @@ interface Props {
    * used, or null on success. Lives with the caller because merging a returned
    * link needs the current workspace, which this dialog does not hold.
    */
-  onLink: (url: string) => Promise<"errShareLinkBroken" | null>;
+  onLink: (url: string) => Promise<"errShareLinkBroken" | "mergeWrongDraft" | "mergeUnmatched" | null>;
   onClose: () => void;
 }
 

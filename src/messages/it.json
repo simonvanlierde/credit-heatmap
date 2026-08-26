@@ -179,7 +179,7 @@
   "activeDraft": "Aperta",
   "askContributorCopied": "Link copiato. Invialo a {name}.",
   "mergedRowInto": "I ruoli di {name} sono stati inseriti in «{title}».",
-  "mergeUnmatched": "{name} non è in questa bozza, quindi non è stato inserito nulla.",
+  "mergeUnmatched": "Quella risposta riguarda una persona che non è in questa bozza, quindi non è stato inserito nulla.",
   "annMergeUndone": "Unione annullata.",
   "welcomeIntro": "Redigere una dichiarazione di contributo pronta per l'invio, in tre passaggi.",
   "about": "Informazioni",

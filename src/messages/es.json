@@ -179,7 +179,7 @@
   "activeDraft": "Abierto",
   "askContributorCopied": "Enlace copiado. Envíeselo a {name}.",
   "mergedRowInto": "Los roles de {name} se completaron en «{title}».",
-  "mergeUnmatched": "{name} no está en este borrador, así que no se incorporó nada.",
+  "mergeUnmatched": "Esa respuesta es de alguien que no está en este borrador, así que no se incorporó nada.",
   "annMergeUndone": "Combinación deshecha.",
   "welcomeIntro": "Redactar una declaración de contribución lista para enviar, en tres pasos.",
   "about": "Acerca de",

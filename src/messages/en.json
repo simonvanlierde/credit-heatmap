@@ -179,7 +179,7 @@
   "activeDraft": "Open",
   "askContributorCopied": "Link copied. Send it to {name}.",
   "mergedRowInto": "{name}'s roles were filled in on “{title}”.",
-  "mergeUnmatched": "{name} is not in this draft, so nothing was merged.",
+  "mergeUnmatched": "That reply is for someone who is not in this draft, so nothing was merged.",
   "annMergeUndone": "Merge undone.",
   "welcomeIntro": "Draft a manuscript-ready contribution statement in three steps.",
   "about": "About",

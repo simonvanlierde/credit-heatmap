@@ -179,7 +179,7 @@
   "activeDraft": "編集中",
   "askContributorCopied": "リンクをコピーしました。{name} さんに送ってください。",
   "mergedRowInto": "{name}さんの役割を「{title}」に反映しました。",
-  "mergeUnmatched": "{name} さんはこの下書きにいないため、何も取り込まれませんでした。",
+  "mergeUnmatched": "この返信の対象者はこの下書きにいないため、何も取り込まれませんでした。",
   "annMergeUndone": "統合を元に戻しました。",
   "welcomeIntro": "3 つのステップで、投稿原稿にそのまま使える著者貢献をまとめます。",
   "about": "概要",

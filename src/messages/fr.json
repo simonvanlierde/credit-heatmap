@@ -179,7 +179,7 @@
   "activeDraft": "Ouvert",
   "askContributorCopied": "Lien copié. Envoyez-le à {name}.",
   "mergedRowInto": "Les rôles de {name} ont été remplis dans « {title} ».",
-  "mergeUnmatched": "{name} ne figure pas dans ce brouillon ; rien n'a été intégré.",
+  "mergeUnmatched": "Cette réponse concerne une personne absente de ce brouillon ; rien n'a été intégré.",
   "annMergeUndone": "Fusion annulée.",
   "welcomeIntro": "Rédigez une déclaration de contribution prête à soumettre, en trois étapes.",
   "about": "À propos",

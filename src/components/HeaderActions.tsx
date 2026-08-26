@@ -7,11 +7,14 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "use-intl";
 import { DraftPicker } from "@/components/DraftPicker";
 import { ImportModal } from "@/components/ImportModal";
+import { showStatus } from "@/components/StatusBanner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { announce } from "@/lib/announce";
-import { buildShareUrl, decodeShareHash, type SharedDraft } from "@/lib/share";
+import { buildShareUrl, decodeShareHash, type ShareData } from "@/lib/share";
 import { useCopyStatus } from "@/lib/use-copy-status";
-import { MAX_DRAFTS, useContributionStore } from "@/store/contribution-store";
+import { type DraftClaim, MAX_DRAFTS, useContributionStore } from "@/store/contribution-store";
+
+type LinkFailure = "errShareLinkBroken" | "mergeWrongDraft" | "mergeUnmatched";
 
 /**
  * Import / Share buttons rendered in the nav bar.
@@ -31,8 +34,7 @@ export function HeaderActions() {
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
   const setTitle = useContributionStore((s) => s.setTitle);
   const setClaim = useContributionStore((s) => s.setClaim);
-  const activeDraftId = useContributionStore((s) => s.activeDraftId);
-  const drafts = useContributionStore((s) => s.drafts);
+  const claim = useContributionStore((s) => s.claim);
   const createDraft = useContributionStore((s) => s.createDraft);
   const switchDraft = useContributionStore((s) => s.switchDraft);
 
@@ -43,36 +45,119 @@ export function HeaderActions() {
     void useContributionStore.persist.rehydrate();
   }, []);
 
-  // On first load, a `#s=…` share link opens beside whatever was persisted
-  // rather than over it: the person following the link may already have a paper
-  // of their own in this browser. The hash is then cleared so later edits and
-  // reloads aren't reverted.
-  //
-  // Adding `t` to the deps would re-run this on every language change; on the
-  // failure path the hash is deliberately left in place, so it would
-  // re-announce the error each time someone switches language.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only by design
+  // Mount + hashchange share one handler: pasting a link into an already-open
+  // tab must react exactly like opening it fresh.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: listener registered once by design
   useEffect(() => {
-    void (async () => {
-      const fromHash = await decodeShareHash(window.location.hash);
-      if (!fromHash || fromHash.authors.length === 0) return;
-      // decodeShareHash validates against the schema, but loadAuthors rebuilds
-      // every author through createAuthor, which can still reject one. Throwing
-      // here would take down the whole page render on a bad link, so degrade to
-      // the persisted draft and say why.
+    const handle = () => void handleIncomingHash();
+    handle();
+    window.addEventListener("hashchange", handle);
+    return () => window.removeEventListener("hashchange", handle);
+  }, []);
+
+  async function handleIncomingHash(): Promise<void> {
+    const hash = window.location.hash;
+    if (!hash.startsWith("#s=")) return;
+    const shared = await decodeShareHash(hash);
+    if (!shared || shared.authors.length === 0) {
+      // A link that says it is a share but does not decode is worth a visible
+      // verdict; the workspace is untouched either way.
+      showStatus({ kind: "error", message: t("errShareLinkBroken") });
+      return;
+    }
+    const failure = openFromLink(shared);
+    if (failure) {
+      showStatus({ kind: "error", message: t(failure) });
+      return;
+    }
+    // Drop only the fragment; keep any query string intact.
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  }
+
+  /**
+   * Route a decoded link. One function for every entry path (opened, pasted in
+   * the URL bar, pasted into Import), so the same artifact always behaves the
+   * same way. Success paths surface their own status; failures return a key so
+   * the Import dialog can render them inline and stay open.
+   */
+  function openFromLink(shared: ShareData): LinkFailure | null {
+    const state = useContributionStore.getState();
+    const isLocal = (id: string | null): id is string =>
+      id !== null && (id === state.activeDraftId || !!state.drafts[id]);
+
+    // A reply to a request: merge one row into the draft it was asked about.
+    if (shared.reply && shared.claimId) {
+      if (!isLocal(shared.sourceDraftId)) return "mergeWrongDraft";
+      if (shared.sourceDraftId !== state.activeDraftId) switchDraft(shared.sourceDraftId);
+      const before = useContributionStore.getState().authors;
+      const result = mergeContributorRow(before, shared.authors, shared.claimId);
+      if (result.unmatched) return "mergeUnmatched";
+      if (!result.merged) return "errShareLinkBroken";
       try {
-        if (loadSharedAuthors(fromHash.authors) === "limit") return;
-        // Says whose row this link is asking for, and which paper it came from;
-        // the banner reads the first and the reply carries the second back.
-        setClaim(fromHash.claimIndex, fromHash.draftId);
+        loadAuthors(result.authors);
       } catch {
-        announce(t("errShareLinkBroken"), { assertive: true });
-        return;
+        return "errShareLinkBroken";
       }
-      // Drop only the fragment; keep any query string intact.
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    })();
-  }, [createDraft, loadAuthors, setClaim, setTitle]);
+      const title = useContributionStore.getState().title.trim() || t("untitledDraft");
+      showStatus({
+        kind: "success",
+        message: t("mergedRowInto", { name: result.merged.name, title }),
+        action: {
+          label: t("undo"),
+          onAct: () => {
+            loadAuthors(before);
+            announce(t("annMergeUndone"));
+          },
+        },
+      });
+      return null;
+    }
+
+    // A request: either your own request link, a request you already answered,
+    // or a fresh claim to open locked.
+    if (shared.claimId && shared.sourceDraftId) {
+      const claimedName = shared.authors.find((author) => author.id === shared.claimId)?.name ?? "";
+      if (isLocal(shared.sourceDraftId)) {
+        // The originator opened the link they built. Not a claim: just go there.
+        if (shared.sourceDraftId !== state.activeDraftId) switchDraft(shared.sourceDraftId);
+        showStatus({ kind: "success", message: t("requestLinkOwn", { name: claimedName }) });
+        return null;
+      }
+      const matches = (candidate: DraftClaim | null) =>
+        candidate?.contributorId === shared.claimId && candidate.sourceDraftId === shared.sourceDraftId;
+      if (matches(state.claim)) {
+        showStatus({ kind: "success", message: t("claimResumed") });
+        return null;
+      }
+      const existing = Object.values(state.drafts).find((draft) => matches(draft.claim));
+      if (existing) {
+        // Re-opening the same request revisits the draft it made, never forks it.
+        switchDraft(existing.id);
+        showStatus({ kind: "success", message: t("claimResumed") });
+        return null;
+      }
+      try {
+        if (loadSharedAuthors(shared) === "limit") return null;
+      } catch {
+        return "errShareLinkBroken";
+      }
+      setClaim({ contributorId: shared.claimId, sourceDraftId: shared.sourceDraftId });
+      return null;
+    }
+
+    // A whole shared draft, addressed to nobody.
+    try {
+      const outcome = loadSharedAuthors(shared);
+      if (outcome === "limit") return null;
+      showStatus({
+        kind: "success",
+        message: t(outcome === "occupied" ? "sharedDraftOpened" : "sharedDraftLoaded"),
+      });
+    } catch {
+      return "errShareLinkBroken";
+    }
+    return null;
+  }
 
   /**
    * Load a shared roster beside the open work. Own work already here? Give the
@@ -81,16 +166,15 @@ export function HeaderActions() {
    * open. loadAuthors may still throw on a bad payload; each caller reports
    * that failure its own way.
    */
-  function loadSharedAuthors(sharedAuthors: Author[]): "limit" | "occupied" | "fresh" {
+  function loadSharedAuthors(shared: ShareData): "limit" | "occupied" | "fresh" {
     const occupied = useContributionStore.getState().authors.length > 0;
     if (occupied && createDraft() === null) {
-      announce(t("draftLimitReached", { count: MAX_DRAFTS }), { assertive: true });
+      showStatus({ kind: "error", message: t("draftLimitReached", { count: MAX_DRAFTS }) });
       return "limit";
     }
-    // The payload carries no title: loading in place must not keep the
-    // previous paper's title above the shared roster.
-    if (!occupied) setTitle("");
-    loadAuthors(sharedAuthors);
+    // The payload's title (or its absence) replaces whatever was here.
+    setTitle(shared.title);
+    loadAuthors(shared.authors);
     return occupied ? "occupied" : "fresh";
   }
 
@@ -102,81 +186,21 @@ export function HeaderActions() {
     if (importedTitle !== undefined) setTitle(importedTitle);
   }
 
-  /**
-   * Take a pasted share link, without ever overwriting the paper you are on.
-   *
-   * Three cases, and the difference matters once more than one draft exists:
-   *
-   * - A reply to a request (it carries a claim) lands on the draft it was asked
-   *   about, switching to that draft first. A reply whose draft is not here is
-   *   reported rather than merged, because merging it into the paper that
-   *   happens to be open would quietly rewrite the wrong one.
-   * - A whole draft someone shared opens as a *new* draft, so the work in front
-   *   of you survives.
-   * - An empty workspace takes the shared draft in place; there is nothing to
-   *   protect, and a stray empty draft is just clutter.
-   */
-  async function handleLink(url: string): Promise<"errShareLinkBroken" | null> {
+  /** Take a pasted share link through the same router every other entry uses. */
+  async function handleLink(url: string): Promise<LinkFailure | null> {
     const hashAt = url.indexOf("#");
     const shared = hashAt === -1 ? null : await decodeShareHash(url.slice(hashAt));
     if (!shared || shared.authors.length === 0) return "errShareLinkBroken";
-
-    if (shared.claimIndex !== null) return mergeReply(shared);
-    return openSharedDraft(shared);
-  }
-
-  /** Fold a co-author's reply into the draft it belongs to. */
-  function mergeReply(shared: SharedDraft): "errShareLinkBroken" | null {
-    if (shared.claimIndex === null) return "errShareLinkBroken";
-
-    // A link built before draft ids existed has no home to name, so it lands
-    // on the open draft, which is what it always did.
-    const target = shared.draftId;
-    if (target && target !== activeDraftId) {
-      if (!drafts[target]) {
-        announce(t("mergeWrongDraft"), { assertive: true });
-        return null;
-      }
-      switchDraft(target);
-    }
-
-    // Read the roster after any switch: `authors` above is last render's.
-    const current = useContributionStore.getState().authors;
-    const result = mergeContributorRow(current, shared.authors, shared.claimIndex);
-    if (result.unmatched) {
-      announce(t("mergeUnmatched", { name: result.unmatched.name }), { assertive: true });
-      return null;
-    }
-    if (!result.merged) return "errShareLinkBroken";
-
-    try {
-      loadAuthors(result.authors);
-    } catch {
-      return "errShareLinkBroken";
-    }
-    announce(t("mergedRow", { name: result.merged.name }));
-    return null;
-  }
-
-  /** Open a whole shared draft beside your own work, never on top of it. */
-  function openSharedDraft(shared: SharedDraft): "errShareLinkBroken" | null {
-    let outcome: "limit" | "occupied" | "fresh";
-    try {
-      outcome = loadSharedAuthors(shared.authors);
-    } catch {
-      return "errShareLinkBroken";
-    }
-    if (outcome === "limit") return null;
-    announce(outcome === "occupied" ? t("sharedDraftOpened") : t("mergeNotAClaim"));
-    return null;
+    return openFromLink(shared);
   }
 
   async function handleShare() {
+    const state = useContributionStore.getState();
     try {
-      await copyShareUrl(await buildShareUrl(useContributionStore.getState().authors));
+      await copyShareUrl(await buildShareUrl({ authors: state.authors, title: state.title }));
       setShareOpen(false);
     } catch {
-      announce(t("errShareTooLarge"), { assertive: true });
+      showStatus({ kind: "error", message: t("errShareTooLarge") });
     }
   }
 
@@ -188,9 +212,9 @@ export function HeaderActions() {
           <PopoverTrigger asChild>
             <button
               type="button"
-              disabled={authorCount === 0}
+              disabled={authorCount === 0 || claim !== null}
               aria-label={t("a11yShareLink")}
-              title={t("a11yShareLink")}
+              title={claim !== null ? t("claimLockedHint") : t("a11yShareLink")}
               className="touch-target flex size-9 items-center justify-center gap-2 rounded-lg border border-primary/30 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-4"
             >
               {shareStatus === "copied" ? (
@@ -224,8 +248,10 @@ export function HeaderActions() {
         <button
           type="button"
           onClick={() => setImportOpen(true)}
+          disabled={claim !== null}
           aria-label={t("import")}
-          className="touch-target flex size-9 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-primary-container sm:w-auto sm:px-5"
+          title={claim !== null ? t("claimLockedHint") : t("import")}
+          className="touch-target flex size-9 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-5"
         >
           <Upload className="h-4 w-4" />
           <span className="sr-only sm:not-sr-only">{t("import")}</span>

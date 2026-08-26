@@ -179,7 +179,7 @@
   "activeDraft": "Geöffnet",
   "askContributorCopied": "Link kopiert. Senden Sie ihn an {name}.",
   "mergedRowInto": "Die Rollen von {name} wurden in „{title}“ eingetragen.",
-  "mergeUnmatched": "{name} ist nicht in diesem Entwurf, daher wurde nichts übernommen.",
+  "mergeUnmatched": "Diese Antwort gilt einer Person, die nicht in diesem Entwurf steht, daher wurde nichts übernommen.",
   "annMergeUndone": "Zusammenführung rückgängig gemacht.",
   "welcomeIntro": "Erstellen Sie in drei Schritten eine einreichungsfertige Beitragserklärung.",
   "about": "Über",

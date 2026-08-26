@@ -179,7 +179,7 @@
   "activeDraft": "Aberto",
   "askContributorCopied": "Ligação copiada. Envie-a a {name}.",
   "mergedRowInto": "Os papéis de {name} foram preenchidos em \"{title}\".",
-  "mergeUnmatched": "{name} não está neste rascunho, por isso nada foi incorporado.",
+  "mergeUnmatched": "Essa resposta é de alguém que não está neste rascunho, por isso nada foi incorporado.",
   "annMergeUndone": "Mesclagem desfeita.",
   "welcomeIntro": "Redigir uma declaração de contribuição pronta a submeter, em três passos.",
   "about": "Acerca",
