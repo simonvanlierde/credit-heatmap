@@ -10,5 +10,7 @@
   "correspondenceNote": "責任著者：{names}。",
   "nameListPair": "{first}と{last}",
   "nameListEnd": "{head}と{last}",
-  "nameListSeparator": "、"
+  "nameListSeparator": "、",
+  "segmentSeparator": "；",
+  "levelAnnotation": "{label}（{level}）"
 }

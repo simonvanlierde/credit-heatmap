@@ -10,5 +10,7 @@
   "correspondenceNote": "Correspondentie: {names}.",
   "nameListPair": "{first} en {last}",
   "nameListEnd": "{head} en {last}",
-  "nameListSeparator": ", "
+  "nameListSeparator": ", ",
+  "segmentSeparator": "; ",
+  "levelAnnotation": "{label} ({level})"
 }

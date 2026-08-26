@@ -25,8 +25,12 @@ export function markerNotes(
   // One marked contributor cannot have contributed "equally" with anyone, so
   // the note would be nonsense; the marker stays in the data and in the
   // structured exports, which is where a lone flag still means something.
-  if (equal.length > 1) notes.push(translateUi("equalContributionNote").replace("{names}", join(equal)));
-  if (corresponding.length > 0) notes.push(translateUi("correspondenceNote").replace("{names}", join(corresponding)));
+  // Replacer functions, not replacement strings: a name containing "$&" or
+  // "$'" would otherwise be expanded as a replacement pattern.
+  if (equal.length > 1) notes.push(translateUi("equalContributionNote").replace("{names}", () => join(equal)));
+  if (corresponding.length > 0) {
+    notes.push(translateUi("correspondenceNote").replace("{names}", () => join(corresponding)));
+  }
   return notes;
 }
 
@@ -36,9 +40,11 @@ function joinNames(names: string[], translateUi: UiTranslator): string {
   const last = names[names.length - 1] ?? "";
   if (names.length === 2) {
     return translateUi("nameListPair")
-      .replace("{first}", names[0] ?? "")
-      .replace("{last}", last);
+      .replace("{first}", () => names[0] ?? "")
+      .replace("{last}", () => last);
   }
   const head = names.slice(0, -1).join(translateUi("nameListSeparator"));
-  return translateUi("nameListEnd").replace("{head}", head).replace("{last}", last);
+  return translateUi("nameListEnd")
+    .replace("{head}", () => head)
+    .replace("{last}", () => last);
 }

@@ -10,5 +10,7 @@
   "correspondenceNote": "通讯作者：{names}。",
   "nameListPair": "{first}和{last}",
   "nameListEnd": "{head}和{last}",
-  "nameListSeparator": "、"
+  "nameListSeparator": "、",
+  "segmentSeparator": "；",
+  "levelAnnotation": "{label}（{level}）"
 }

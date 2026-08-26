@@ -96,10 +96,15 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
   const CELL_S = CELL * scale;
   const GAP_S = GAP * scale;
 
-  // Approx rendered width of the longest label on each axis (≈0.62em per char).
-  const authorMaxChars = Math.max(1, ...authors.map((_, ai) => authorLabel(ai).length));
+  // Approx rendered width of the longest label on each axis (≈0.62em per
+  // Latin char). CJK glyphs render full-width (≈1em), so count them as 1.6
+  // units or a six-character Japanese name overflows its band.
+  const CJK_CHAR = /[ᄀ-ᇿ⺀-꓏가-힣豈-﫿︰-﹏＀-￯]/;
+  const labelUnits = (label: string): number =>
+    [...label].reduce((units, char) => units + (CJK_CHAR.test(char) ? 1.6 : 1), 0);
+  const authorMaxChars = Math.max(1, ...authors.map((_, ai) => labelUnits(authorLabel(ai))));
   const authorLabelW = authorMaxChars * 11 * 0.62 * scale;
-  const roleMaxChars = Math.max(1, ...roles.map((r) => translateRole(r.name).length));
+  const roleMaxChars = Math.max(1, ...roles.map((r) => labelUnits(translateRole(r.name))));
   const roleLabelW = roleMaxChars * 10.5 * 0.62 * scale;
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 

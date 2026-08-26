@@ -22,7 +22,9 @@ export type UiKey =
   | "correspondenceNote"
   | "nameListPair"
   | "nameListEnd"
-  | "nameListSeparator";
+  | "nameListSeparator"
+  | "segmentSeparator"
+  | "levelAnnotation";
 
 export type UiTranslator = (key: UiKey) => string;
 
@@ -44,6 +46,13 @@ const EN_UI: Record<UiKey, string> = {
   nameListPair: "{first} and {last}",
   nameListEnd: "{head} and {last}",
   nameListSeparator: ", ",
+  // Joins the segments of a statement ("Role: names; Role: names"). Its own
+  // key because CJK locales use full-width punctuation ("；"), and mixing
+  // ASCII separators into a ja/zh statement reads as a typo.
+  segmentSeparator: "; ",
+  // How a non-lead level annotates its label; CJK locales use full-width
+  // parentheses.
+  levelAnnotation: "{label} ({level})",
 };
 
 // One static import() per locale so bundlers code-split each catalog (only the

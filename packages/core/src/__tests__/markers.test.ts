@@ -140,3 +140,26 @@ describe("markers in exports", () => {
     expect(restored[2]?.equalContribution).toBe(false);
   });
 });
+
+describe("replacement-pattern safety", () => {
+  it("keeps a name containing $-patterns literal in the notes", () => {
+    // String.replace expands "$&" and "$'" in a replacement *string*; a
+    // contributor named with one must still appear verbatim.
+    // Active contributions, because notes are suppressed on an empty statement.
+    const authors = [
+      createAuthor("A $& Consortium", {
+        equalContribution: true,
+        corresponding: true,
+        contributions: [{ role: "Conceptualization", score: 100 }],
+      }),
+      createAuthor("Bob White", {
+        equalContribution: true,
+        contributions: [{ role: "Investigation", score: 100 }],
+      }),
+    ];
+    const statement = generateStatement(authors, { format: "by-author" });
+    expect(statement).toContain("A $& Consortium and Bob White contributed equally");
+    expect(statement).toContain("Correspondence: A $& Consortium.");
+    expect(statement).not.toContain("{names}");
+  });
+});

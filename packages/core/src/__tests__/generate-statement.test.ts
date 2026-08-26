@@ -207,3 +207,24 @@ describe("generateStatement", () => {
     expect(stmt).toContain("Remerciements: Bob White: Conceptualization (Secondaire)");
   });
 });
+
+describe("catalog-owned separators", () => {
+  it("joins with full-width punctuation when the catalog says so (ja/zh)", () => {
+    // The marker notes already join with the catalog's separators; the body
+    // must not mix ASCII "," and ";" into otherwise full-width punctuation.
+    const translateUi = makeUiTranslator({
+      nameListSeparator: "、",
+      segmentSeparator: "；",
+      levelAnnotation: "{label}（{level}）",
+      equal: "同等",
+    });
+    const authors = makeAuthors();
+    const byRole = generateStatement(authors, { format: "by-role", translateUi });
+    expect(byRole).toContain("、");
+    expect(byRole).toContain("；");
+    expect(byRole).not.toMatch(/, |; /);
+
+    const withLevels = generateStatement(authors, { format: "by-author", showLevels: true, translateUi });
+    expect(withLevels).toContain("（同等）");
+  });
+});

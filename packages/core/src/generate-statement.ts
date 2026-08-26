@@ -144,7 +144,10 @@ function withLevel(label: string, score: number, translateUi: UiTranslator): str
   const level = scoreToLevel(score);
   if (level === "lead") return label;
   const levelLabel = level === "equal" ? translateUi("equal") : translateUi("supporting");
-  return `${label} (${levelLabel})`;
+  // Replacer functions so a "$&" in a contributor label survives literally.
+  return translateUi("levelAnnotation")
+    .replace("{label}", () => label)
+    .replace("{level}", () => levelLabel);
 }
 
 /** Body of a by-role statement (no `CRediT:`/`Acknowledgements:` prefix); "" if empty. */
@@ -173,11 +176,15 @@ function generateByRole(
 
   // Emit in canonical CRediT order, not first-author-encounter order, so the
   // statement matches the documented role sequence regardless of who contributed.
+  // The list and segment separators are catalog-owned: the marker notes
+  // already join with them, and a ja/zh statement must not mix ASCII "," and
+  // ";" into otherwise full-width punctuation.
   const parts = CREDIT_ROLES.filter((r) => roleMap.has(r.name)).map(
-    (r) => `${fmt.strong(translateRole(r.name))}: ${(roleMap.get(r.name) ?? []).join(", ")}`,
+    (r) =>
+      `${fmt.strong(translateRole(r.name))}: ${(roleMap.get(r.name) ?? []).join(translateUi("nameListSeparator"))}`,
   );
 
-  return parts.join("; ");
+  return parts.join(translateUi("segmentSeparator"));
 }
 
 /** Body of a by-author statement (no `CRediT:`/`Acknowledgements:` prefix); "" if empty. */
@@ -201,9 +208,9 @@ function generateByAuthor(
       showLevels ? withLevel(translateRole(c.role), c.score, translateUi) : translateRole(c.role),
     );
 
-    parts.push(`${fmt.strong(label)}: ${roleList.map(fmt.text).join(", ")}`);
+    parts.push(`${fmt.strong(label)}: ${roleList.map(fmt.text).join(translateUi("nameListSeparator"))}`);
   }
 
   if (parts.length === 0) return "";
-  return parts.join("; ");
+  return parts.join(translateUi("segmentSeparator"));
 }

@@ -67,7 +67,13 @@ function findRow(current: Author[], claimed: Author): number {
   return current.findIndex((author) => compareName(author.name) === compareName(claimed.name));
 }
 
-/** Case- and space-insensitive, so "de Vries" and "De  Vries" are one person. */
+/**
+ * Case-, space- and normalization-insensitive, so "de Vries" and "De  Vries"
+ * are one person, and so is "é" typed on a device that composes it as
+ * "e" + combining accent. `toLowerCase`, not `toLocaleLowerCase`: the match
+ * must not depend on the host's locale (under Turkish rules "I" lowercases to
+ * "ı", so the same two names would merge on one device and not on another).
+ */
 function compareName(name: string): string {
-  return name.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+  return name.normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
 }

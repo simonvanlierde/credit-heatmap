@@ -135,3 +135,18 @@ describe("mergeContributorRow", () => {
     expect(result.authors.map((author) => author.name)).toEqual(["Jane A. Smith", "Bob White", "Carol Davis"]);
   });
 });
+
+describe("name matching robustness", () => {
+  it("matches across Unicode normalization forms and is host-locale independent", () => {
+    // "é" typed as NFC on one device and as NFD (e + combining accent) on
+    // another is the same person; toLocaleLowerCase would additionally make
+    // the match depend on the host's locale (Turkish "I" → "ı").
+    const current = [createAuthor("Renée Dupont", { contributions: [{ role: "Software", score: 0 }] })];
+    const incoming = [createAuthor("Renée DUPONT", { contributions: [{ role: "Software", score: 100 }] })];
+
+    const result = mergeContributorRow(current, incoming, 0);
+    expect(result.unmatched).toBeNull();
+    expect(result.merged?.name).toBe("Renée Dupont");
+    expect(result.authors[0]?.contributions.find((c) => c.role === "Software")?.score).toBe(100);
+  });
+});

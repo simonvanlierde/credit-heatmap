@@ -69,6 +69,8 @@ const UI_KEYS: UiKey[] = [
   "nameListPair",
   "nameListEnd",
   "nameListSeparator",
+  "segmentSeparator",
+  "levelAnnotation",
 ];
 
 describe("loadUiCatalog", () => {
