@@ -215,5 +215,7 @@
   "aboutTagline": "Redigere dichiarazioni di contributo CRediT ed esportare la griglia come heatmap dei contributi.",
   "aboutInspiredBy": "Ispirato all'originale",
   "aboutOutputTranslations": "Traduzioni dei testi generati a cura di",
-  "detectedFormat": "Formato rilevato: "
+  "detectedFormat": "Formato rilevato: ",
+  "mergeWrongDraft": "Quella risposta riguarda una bozza che non è in questo browser, quindi non è stato modificato nulla.",
+  "sharedDraftOpened": "La bozza condivisa è stata aperta accanto al tuo lavoro."
 }

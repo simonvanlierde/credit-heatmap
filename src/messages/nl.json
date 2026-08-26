@@ -215,5 +215,7 @@
   "aboutTagline": "Stel CRediT-bijdrageverklaringen op en exporteer het raster als bijdrage-heatmap.",
   "aboutInspiredBy": "Geïnspireerd op het oorspronkelijke project",
   "aboutOutputTranslations": "Uitvoervertalingen door",
-  "detectedFormat": "Gedetecteerd: "
+  "detectedFormat": "Gedetecteerd: ",
+  "mergeWrongDraft": "Dat antwoord hoort bij een concept dat niet in deze browser staat, dus er is niets gewijzigd.",
+  "sharedDraftOpened": "Het gedeelde concept is naast uw eigen werk geopend."
 }

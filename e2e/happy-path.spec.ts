@@ -305,6 +305,101 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: "Validation for Jane A. Smith: None" })).toBeVisible();
   });
 
+  test("a shared draft opens beside your work instead of replacing it", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await page.getByRole("button", { name: "Share" }).click();
+    await page.getByRole("button", { name: "Copy data link" }).click();
+    const shareUrl = await page.evaluate(() => navigator.clipboard.readText());
+
+    // Someone else's browser, already holding a paper of their own.
+    const other = await context.newPage();
+    await other.addInitScript(() => {
+      window.localStorage.setItem(
+        "credit-generator-state",
+        JSON.stringify({ state: { welcomeSeen: true }, version: 1 }),
+      );
+    });
+    await other.goto("/");
+    await other.getByRole("button", { name: "Import", exact: true }).click();
+    await other.locator("#import-text").fill("Erik Nilsson");
+    await other.getByRole("button", { name: "Import data" }).click();
+    // Title after the first edit lands: the store rehydrates in an effect, and
+    // anything typed before that is overwritten by the restored draft.
+    await expect(other.getByRole("button", { name: /^Remove / })).toHaveCount(1);
+    await other.getByLabel("Draft title").fill("My own paper");
+    await expect(other.getByRole("button", { name: "Drafts: My own paper" })).toBeVisible();
+
+    // The shared draft arrives. Their own paper must survive it.
+    await other.getByRole("button", { name: "Import", exact: true }).click();
+    await other.locator("#import-text").fill(shareUrl);
+    await other.getByRole("button", { name: "Import data" }).click();
+
+    await expect(other.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+    await other.getByRole("button", { name: /^Drafts:/ }).click();
+    await other.getByRole("button", { name: "Switch to My own paper" }).click();
+    await expect(other.getByRole("button", { name: /^Remove / })).toHaveCount(1);
+    await expect(other.getByLabel("Name or ORCID iD", { exact: true })).toHaveValue("Erik Nilsson");
+  });
+
+  test("a reply lands on the paper it was asked about, not the one you are on", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/");
+
+    // Paper one, the one that must come through untouched. The title is set
+    // after the sample loads: the store rehydrates in an effect, and a value
+    // typed before that is overwritten by the restored draft.
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+    await page.getByLabel("Draft title").fill("Paper one");
+    await expect(page.getByRole("button", { name: "Drafts: Paper one" })).toBeVisible();
+
+    // Paper two, where the request is sent from.
+    await page.getByRole("button", { name: /^Drafts:/ }).click();
+    await page.getByRole("button", { name: "New draft" }).click();
+    await page.getByLabel("Draft title").fill("Paper two");
+    await expect(page.getByRole("button", { name: "Drafts: Paper two" })).toBeVisible();
+    await page.getByRole("button", { name: "Import", exact: true }).click();
+    await page.locator("#import-text").fill("Jane A. Smith\nBob White");
+    await page.getByRole("button", { name: "Import data" }).click();
+    await page.getByRole("button", { name: "Ask Bob White to fill this in" }).click();
+    const askUrl = await page.evaluate(() => navigator.clipboard.readText());
+
+    // Bob answers.
+    const bob = await context.newPage();
+    await bob.addInitScript(() => {
+      window.localStorage.clear();
+      window.localStorage.setItem(
+        "credit-generator-state",
+        JSON.stringify({ state: { welcomeSeen: true }, version: 1 }),
+      );
+    });
+    await bob.goto(askUrl);
+    await bob.getByRole("button", { name: /^Validation for Bob White:/ }).click();
+    await bob.getByRole("button", { name: "Copy the link to send back" }).click();
+    const returnedUrl = await bob.evaluate(() => navigator.clipboard.readText());
+
+    // Meanwhile you have gone back to paper one. The reply must not land here.
+    await page.getByRole("button", { name: /^Drafts:/ }).click();
+    await page.getByRole("button", { name: "Switch to Paper one" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    await page.getByRole("button", { name: "Import", exact: true }).click();
+    await page.locator("#import-text").fill(returnedUrl);
+    await page.getByRole("button", { name: "Import data" }).click();
+
+    // It switched to paper two and merged there.
+    await expect(page.getByRole("button", { name: /^Drafts: Paper two/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Validation for Bob White: Contributed" })).toBeVisible();
+
+    // Paper one still has its three sample contributors, unchanged.
+    await page.getByRole("button", { name: /^Drafts:/ }).click();
+    await page.getByRole("button", { name: "Switch to Paper one" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+    await expect(page.getByRole("button", { name: "Validation for Bob White: None" })).toBeVisible();
+  });
+
   test("persists and clears the local draft", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();

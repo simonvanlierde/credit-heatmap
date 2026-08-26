@@ -62,6 +62,11 @@ interface ContributionState {
    * reload would leave the banner up long after the link was dealt with.
    */
   claimIndex: number | null;
+  /**
+   * The draft the claimed link came from, carried back on the reply so it
+   * lands on the right paper.
+   */
+  claimDraftId: string | null;
   /** Whether the welcome card is currently open. Ephemeral (not persisted), so a
    *  "How it works" re-open never survives a reload as a fake first run. */
   welcomeOpen: boolean;
@@ -75,7 +80,7 @@ interface ContributionState {
   drafts: Record<string, Draft>;
   activeDraftId: string;
   loadAuthors: (authors: Author[]) => void;
-  setClaim: (claimIndex: number | null) => void;
+  setClaim: (claimIndex: number | null, claimDraftId?: string | null) => void;
   setTitle: (title: string) => void;
   /** Start an empty draft and switch to it. Returns its id, or null at the cap. */
   createDraft: () => string | null;
@@ -372,6 +377,7 @@ export const useContributionStore = create<ContributionState>()(
       welcomeSeen: false,
       welcomeOpen: false,
       claimIndex: null,
+      claimDraftId: null,
 
       createDraft: () => {
         let created: string | null = null;
@@ -397,6 +403,7 @@ export const useContributionStore = create<ContributionState>()(
           applyDraft(state, target);
           // The claim described the draft that was open when the link landed.
           state.claimIndex = null;
+          state.claimDraftId = null;
         }),
 
       renameDraft: (draftId, title) =>
@@ -455,9 +462,10 @@ export const useContributionStore = create<ContributionState>()(
           state.authors = normalizeAuthors(authors);
         }),
 
-      setClaim: (claimIndex) =>
+      setClaim: (claimIndex, claimDraftId = null) =>
         set((state) => {
           state.claimIndex = claimIndex;
+          state.claimDraftId = claimDraftId;
         }),
 
       setTitle: (title) =>

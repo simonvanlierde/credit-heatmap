@@ -215,5 +215,7 @@
   "aboutTagline": "Erstellen Sie CRediT-Beitragserklärungen und exportieren Sie das Raster als Beitrags-Heatmap.",
   "aboutInspiredBy": "Inspiriert vom ursprünglichen Projekt",
   "aboutOutputTranslations": "Übersetzungen der Ausgabe von",
-  "detectedFormat": "Erkannt: "
+  "detectedFormat": "Erkannt: ",
+  "mergeWrongDraft": "Diese Antwort gehört zu einem Entwurf, der nicht in diesem Browser liegt; es wurde nichts geändert.",
+  "sharedDraftOpened": "Der geteilte Entwurf wurde neben Ihrer eigenen Arbeit geöffnet."
 }

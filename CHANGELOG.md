@@ -39,6 +39,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A share link no longer overwrites the paper you are working on. A whole draft
+  someone sent opens as a new draft beside your own; a reply to a request lands on the draft it was
+  asked about, switching to it first, and a reply whose draft is not in this browser says so instead
+  of merging into whichever paper happened to be open.
 - Renaming a contributor no longer clears the authorship markers set on them. Every mutation
   rebuilds the contributor through `createAuthor`, and two rebuild sites were dropping the fields.
 

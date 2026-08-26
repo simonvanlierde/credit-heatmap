@@ -19,6 +19,7 @@ export function ClaimBanner() {
   const t = useTranslations();
   const claimIndex = useContributionStore((s) => s.claimIndex);
   const authors = useContributionStore((s) => s.authors);
+  const claimDraftId = useContributionStore((s) => s.claimDraftId);
   const [copyStatus, copy] = useCopyStatus({
     copied: "Link copied to clipboard",
     error: "Could not copy the link",
@@ -30,7 +31,9 @@ export function ClaimBanner() {
   async function handleSendBack() {
     if (claimIndex === null) return;
     try {
-      await copy(buildShareUrl(authors, claimIndex));
+      // The draft id rides back with the reply, so it lands on the paper it
+      // was asked about rather than on whatever the recipient has open.
+      await copy(buildShareUrl(authors, { claimIndex, ...(claimDraftId ? { draftId: claimDraftId } : {}) }));
     } catch {
       announce("This draft is too large to send back as a link. Export it as JSON instead.", { assertive: true });
     }

@@ -215,5 +215,7 @@
   "aboutTagline": "Rédigez des déclarations de contribution CRediT et exportez la grille sous forme de heatmap des contributions.",
   "aboutInspiredBy": "Inspiré du projet original",
   "aboutOutputTranslations": "Traductions de la sortie par",
-  "detectedFormat": "Détecté : "
+  "detectedFormat": "Détecté : ",
+  "mergeWrongDraft": "Cette réponse concerne un brouillon absent de ce navigateur : rien n'a été modifié.",
+  "sharedDraftOpened": "Le brouillon partagé a été ouvert à côté de votre travail."
 }

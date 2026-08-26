@@ -215,5 +215,7 @@
   "aboutTagline": "CRediT の著者貢献を作成し、グリッドを貢献ヒートマップとしてエクスポートできます。",
   "aboutInspiredBy": "着想のもとになったオリジナル版：",
   "aboutOutputTranslations": "出力の翻訳提供：",
-  "detectedFormat": "検出された形式："
+  "detectedFormat": "検出された形式：",
+  "mergeWrongDraft": "この返信はこのブラウザーにない下書きのものであるため、何も変更されませんでした。",
+  "sharedDraftOpened": "共有された下書きを、作業中の下書きとは別に開きました。"
 }

@@ -9,9 +9,9 @@ import { DraftPicker } from "@/components/DraftPicker";
 import { ImportModal } from "@/components/ImportModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { announce } from "@/lib/announce";
-import { buildShareUrl, decodeShareHash } from "@/lib/share";
+import { buildShareUrl, decodeShareHash, type SharedDraft } from "@/lib/share";
 import { useCopyStatus } from "@/lib/use-copy-status";
-import { useContributionStore } from "@/store/contribution-store";
+import { MAX_DRAFTS, useContributionStore } from "@/store/contribution-store";
 
 /**
  * Import / Share buttons rendered in the nav bar.
@@ -28,6 +28,10 @@ export function HeaderActions() {
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
   const setTitle = useContributionStore((s) => s.setTitle);
   const setClaim = useContributionStore((s) => s.setClaim);
+  const activeDraftId = useContributionStore((s) => s.activeDraftId);
+  const drafts = useContributionStore((s) => s.drafts);
+  const createDraft = useContributionStore((s) => s.createDraft);
+  const switchDraft = useContributionStore((s) => s.switchDraft);
   const t = useTranslations();
 
   // Rehydrate persisted state on the client (the store skips hydration at
@@ -37,8 +41,10 @@ export function HeaderActions() {
     void useContributionStore.persist.rehydrate();
   }, []);
 
-  // On first load, a `#s=…` share link overrides the persisted/local state.
-  // The hash is then cleared so later edits and reloads aren't reverted.
+  // On first load, a `#s=…` share link opens beside whatever was persisted
+  // rather than over it: the person following the link may already have a paper
+  // of their own in this browser. The hash is then cleared so later edits and
+  // reloads aren't reverted.
   //
   // Adding `t` to the deps would re-run this on every language change; on the
   // failure path the hash is deliberately left in place, so it would
@@ -52,9 +58,12 @@ export function HeaderActions() {
       // here would take down the whole page render on a bad link, so degrade to
       // the persisted draft and say why.
       try {
+        // Own work already here? Give the link its own draft.
+        if (useContributionStore.getState().authors.length > 0) createDraft();
         loadAuthors(fromHash.authors);
-        // Says whose row this link is asking for; the banner reads it.
-        setClaim(fromHash.claimIndex);
+        // Says whose row this link is asking for, and which paper it came from;
+        // the banner reads the first and the reply carries the second back.
+        setClaim(fromHash.claimIndex, fromHash.draftId);
       } catch {
         announce(t("errShareLinkBroken"), { assertive: true });
         return;
@@ -62,7 +71,7 @@ export function HeaderActions() {
       // Drop only the fragment; keep any query string intact.
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
-  }, [loadAuthors, setClaim]);
+  }, [createDraft, loadAuthors, setClaim]);
 
   function handleImport(importedAuthors: Author[], importedTitle?: string) {
     // Errors surface in ImportModal, which keeps the dialog open on failure.
@@ -73,28 +82,46 @@ export function HeaderActions() {
   }
 
   /**
-   * Take a pasted share link.
+   * Take a pasted share link, without ever overwriting the paper you are on.
    *
-   * A link addressed at one contributor is a reply to a request, so only that
-   * row is collected. An ordinary share link still replaces the whole draft,
-   * which is what it has always done.
+   * Three cases, and the difference matters once more than one draft exists:
+   *
+   * - A reply to a request (it carries a claim) lands on the draft it was asked
+   *   about, switching to that draft first. A reply whose draft is not here is
+   *   reported rather than merged, because merging it into the paper that
+   *   happens to be open would quietly rewrite the wrong one.
+   * - A whole draft someone shared opens as a *new* draft, so the work in front
+   *   of you survives.
+   * - An empty workspace takes the shared draft in place; there is nothing to
+   *   protect, and a stray empty draft is just clutter.
    */
   function handleLink(url: string): "errShareLinkBroken" | null {
     const hashAt = url.indexOf("#");
     const shared = hashAt === -1 ? null : decodeShareHash(url.slice(hashAt));
     if (!shared || shared.authors.length === 0) return "errShareLinkBroken";
 
-    if (shared.claimIndex === null) {
-      try {
-        loadAuthors(shared.authors);
-      } catch {
-        return "errShareLinkBroken";
+    if (shared.claimIndex !== null) return mergeReply(shared);
+    return openSharedDraft(shared);
+  }
+
+  /** Fold a co-author's reply into the draft it belongs to. */
+  function mergeReply(shared: SharedDraft): "errShareLinkBroken" | null {
+    if (shared.claimIndex === null) return "errShareLinkBroken";
+
+    // A link built before draft ids existed has no home to name, so it lands
+    // on the open draft, which is what it always did.
+    const target = shared.draftId;
+    if (target && target !== activeDraftId) {
+      if (!drafts[target]) {
+        announce(t("mergeWrongDraft"), { assertive: true });
+        return null;
       }
-      announce(t("mergeNotAClaim"));
-      return null;
+      switchDraft(target);
     }
 
-    const result = mergeContributorRow(authors, shared.authors, shared.claimIndex);
+    // Read the roster after any switch: `authors` above is last render's.
+    const current = useContributionStore.getState().authors;
+    const result = mergeContributorRow(current, shared.authors, shared.claimIndex);
     if (result.unmatched) {
       announce(t("mergeUnmatched", { name: result.unmatched.name }), { assertive: true });
       return null;
@@ -107,6 +134,23 @@ export function HeaderActions() {
       return "errShareLinkBroken";
     }
     announce(t("mergedRow", { name: result.merged.name }));
+    return null;
+  }
+
+  /** Open a whole shared draft beside your own work, never on top of it. */
+  function openSharedDraft(shared: SharedDraft): "errShareLinkBroken" | null {
+    const occupied = useContributionStore.getState().authors.length > 0;
+    if (occupied && createDraft() === null) {
+      announce(t("draftLimitReached", { count: MAX_DRAFTS }), { assertive: true });
+      return null;
+    }
+
+    try {
+      loadAuthors(shared.authors);
+    } catch {
+      return "errShareLinkBroken";
+    }
+    announce(occupied ? t("sharedDraftOpened") : t("mergeNotAClaim"));
     return null;
   }
 

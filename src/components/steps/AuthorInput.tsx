@@ -583,7 +583,8 @@ function AuthorRow({
   enter: boolean;
 }) {
   const t = useTranslations();
-  const { authors, updateAuthorName, updateAuthorOrcid, setAuthorType, setAuthorMarker } = useContributionStore();
+  const { activeDraftId, authors, updateAuthorName, updateAuthorOrcid, setAuthorType, setAuthorMarker } =
+    useContributionStore();
   const author = authors[index];
 
   const [loading, setLoading] = useState(false);
@@ -603,7 +604,7 @@ function AuthorRow({
   async function handleAsk() {
     if (!author) return;
     try {
-      await navigator.clipboard.writeText(buildShareUrl(authors, index));
+      await navigator.clipboard.writeText(buildShareUrl(authors, { claimIndex: index, draftId: activeDraftId }));
       announce(t("askContributorCopied", { name: author.name }));
     } catch {
       announce(t("copyFailedMessage"), { assertive: true });
