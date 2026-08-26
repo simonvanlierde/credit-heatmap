@@ -1,6 +1,6 @@
 {
   "stepContributors": "貢献者",
-  "stepContributions": "貢献",
+  "stepContributions": "役割の割り当て",
   "stepStatement": "著者貢献",
   "addContributor": "新しい著者名または ORCID iD",
   "addPlaceholder": "氏名または ORCID iD を追加…",
@@ -130,5 +130,21 @@
   "savedInBrowser": "このブラウザーに保存されます",
   "shareWarningTitle": "このリンクにはデータが含まれます",
   "shareWarningBody": "このリンクを知っている人は、氏名、ORCID iD、貢献者の種別、役割の割り当てをすべて閲覧できます。",
-  "noContributorsHint": "下に氏名または ORCID iD を追加するか、著者リスト全体を貼り付けるか、ヘッダーの <b>インポート</b> をお使いください。"
+  "noContributorsHint": "下に氏名または ORCID iD を追加するか、著者リスト全体を貼り付けるか、ヘッダーの <b>インポート</b> をお使いください。",
+  "a11yContributionGrid": "貢献グリッド",
+  "a11yStatementExport": "著者貢献とエクスポート",
+  "a11yGeneratedStatement": "生成された著者貢献",
+  "a11yStatementNotes": "著者貢献に関する確認事項",
+  "a11yBulkContributor": "一括割り当ての対象となる貢献者",
+  "a11yBulkRole": "一括割り当ての対象となる役割",
+  "a11yCustomColor": "ヒートマップのカスタム色",
+  "a11yExportFormat": "エクスポート形式",
+  "a11yOrcidInput": "ORCID iD",
+  "a11yOrcidHint": "ORCID iD を入力するか、iD または orcid.org の URL として貼り付けてください",
+  "a11yDismissWelcome": "はじめにの案内を閉じる",
+  "a11yShareLink": "すべての貢献者データを含むリンクを共有します",
+  "a11yUploadFile": "CSV、JSON、XML ファイルをアップロード",
+  "a11yUseInitials": "氏名の代わりにイニシャルを使う",
+  "a11yShowLevels": "レベルを表示：役割に貢献レベルを併記します",
+  "a11ySeparateAcks": "謝辞を分ける：著者以外の貢献者を別の行に記載します"
 }

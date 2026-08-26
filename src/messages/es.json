@@ -130,5 +130,21 @@
   "savedInBrowser": "Guardado en este navegador",
   "shareWarningTitle": "Este enlace contiene sus datos",
   "shareWarningBody": "Cualquier persona con este enlace puede leer cada nombre, ORCID iD, tipo de contribuyente y asignación de roles.",
-  "noContributorsHint": "Añadir abajo un nombre o una ORCID iD, pegar una lista completa de autores, o usar <b>Importar</b> en la cabecera."
+  "noContributorsHint": "Añadir abajo un nombre o una ORCID iD, pegar una lista completa de autores, o usar <b>Importar</b> en la cabecera.",
+  "a11yContributionGrid": "Cuadrícula de contribuciones",
+  "a11yStatementExport": "Declaración y exportación",
+  "a11yGeneratedStatement": "Declaración de contribución generada",
+  "a11yStatementNotes": "Avisos sobre la declaración",
+  "a11yBulkContributor": "Contribuyente para la asignación masiva",
+  "a11yBulkRole": "Rol para la asignación masiva",
+  "a11yCustomColor": "Color personalizado del mapa de calor",
+  "a11yExportFormat": "Formato de exportación",
+  "a11yOrcidInput": "ORCID iD",
+  "a11yOrcidHint": "Escribir un iD de ORCID, o pegarlo como iD o como URL de orcid.org",
+  "a11yDismissWelcome": "Cerrar la introducción",
+  "a11yShareLink": "Compartir un enlace que contiene todos los datos de los contribuyentes",
+  "a11yUploadFile": "Subir un archivo CSV, JSON o XML",
+  "a11yUseInitials": "Usar iniciales en lugar de nombres",
+  "a11yShowLevels": "Mostrar niveles: anotar los roles con los niveles de contribución",
+  "a11ySeparateAcks": "Separar los agradecimientos: mencionar en una línea aparte a los contribuyentes que no son autores"
 }

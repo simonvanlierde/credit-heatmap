@@ -254,7 +254,7 @@ export function ContributionGrid() {
                   {t("bulkOneContributor")}
                 </p>
                 <Select value={bulkAuthor?.id} onValueChange={setBulkAuthorId}>
-                  <SelectTrigger className="w-full text-xs" aria-label="Contributor for bulk assignment">
+                  <SelectTrigger className="w-full text-xs" aria-label={t("a11yBulkContributor")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -277,7 +277,7 @@ export function ContributionGrid() {
                   {t("bulkOneRole")}
                 </p>
                 <Select value={bulkRoleIndex} onValueChange={setBulkRoleIndex}>
-                  <SelectTrigger className="w-full text-xs" aria-label="Role for bulk assignment">
+                  <SelectTrigger className="w-full text-xs" aria-label={t("a11yBulkRole")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

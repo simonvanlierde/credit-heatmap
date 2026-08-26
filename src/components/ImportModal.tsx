@@ -241,7 +241,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
                 accept=".csv,.json,.xml"
                 className="hidden"
                 onChange={handleFileInput}
-                aria-label="Upload CSV, JSON, or XML file"
+                aria-label={t("a11yUploadFile")}
               />
             </div>
           </div>

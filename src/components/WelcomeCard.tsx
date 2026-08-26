@@ -90,7 +90,7 @@ export function WelcomeCard() {
         <button
           type="button"
           onClick={closeWelcome}
-          aria-label="Dismiss getting started"
+          aria-label={t("a11yDismissWelcome")}
           className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <X className="h-4 w-4" />

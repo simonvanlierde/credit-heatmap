@@ -116,26 +116,18 @@ export function StatementOutput() {
           ]}
         />
         <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-          <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label="Use initials instead of names" />
+          <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label={t("a11yUseInitials")} />
           {t("useInitials")}
         </span>
         {canShowLevels && (
           <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-            <Switch
-              checked={showLevels}
-              onCheckedChange={setShowLevels}
-              aria-label="Show levels: annotate roles with contribution levels"
-            />
+            <Switch checked={showLevels} onCheckedChange={setShowLevels} aria-label={t("a11yShowLevels")} />
             {t("showLevels")}
           </span>
         )}
         {hasNonAuthors && (
           <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-            <Switch
-              checked={separateAck}
-              onCheckedChange={setSeparateAck}
-              aria-label="Separate acknowledgements: credit non-author contributors on their own line"
-            />
+            <Switch checked={separateAck} onCheckedChange={setSeparateAck} aria-label={t("a11ySeparateAcks")} />
             Separate acknowledgements
           </span>
         )}
@@ -167,7 +159,7 @@ export function StatementOutput() {
       <section
         // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region with no focusable content needs a tab stop, or keyboard users cannot reach the overflow (axe scrollable-region-focusable).
         tabIndex={0}
-        aria-label="Generated statement"
+        aria-label={t("a11yGeneratedStatement")}
         className="relative z-10 min-h-[3.5rem] border-l border-primary bg-surface-container-low p-3 rounded-r focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary desk:min-h-0 desk:overflow-y-auto"
         style={{ fontFamily: "var(--font-headline)" }}
       >
@@ -198,7 +190,7 @@ export function StatementOutput() {
           // biome-ignore lint/a11y/noNoninteractiveTabindex: same as the statement pane; the bounded notes list scrolls and holds no focusable content.
           tabIndex={0}
           className="relative z-10 flex max-h-40 flex-col gap-1.5 overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          aria-label="Statement notes"
+          aria-label={t("a11yStatementNotes")}
           aria-live="polite"
         >
           {issues.map((issue) => (
@@ -244,7 +236,7 @@ export function StatementOutput() {
               on a phone, where three of them genuinely do not fit one line. */}
           <div className="flex flex-wrap items-center gap-2">
             <Select value={dataFormat} onValueChange={(value) => setDataFormat(value as DataFormat)}>
-              <SelectTrigger className="w-32 py-1.5 text-xs" aria-label="Export format">
+              <SelectTrigger className="w-32 py-1.5 text-xs" aria-label={t("a11yExportFormat")}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

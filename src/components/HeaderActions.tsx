@@ -75,8 +75,8 @@ export function HeaderActions() {
             <button
               type="button"
               disabled={authors.length === 0}
-              aria-label="Share a link containing all contributor data"
-              title="Share a link containing all contributor data"
+              aria-label={t("a11yShareLink")}
+              title={t("a11yShareLink")}
               className="flex size-9 items-center justify-center gap-2 rounded-lg border border-primary/30 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-4"
             >
               {shareStatus === "copied" ? (

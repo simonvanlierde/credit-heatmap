@@ -809,9 +809,9 @@ function AuthorRow({
                 // biome-ignore lint/a11y/noAutofocus: revealed on explicit user action, so focusing it is expected.
                 autoFocus
                 type="text"
-                aria-label="ORCID iD"
+                aria-label={t("a11yOrcidInput")}
                 placeholder="0000-0000-0000-0000"
-                title="Type an ORCID iD, or paste one as an iD or an orcid.org URL"
+                title={t("a11yOrcidHint")}
                 onPaste={handleSmartPaste}
                 onKeyDown={(event) => {
                   if (event.key !== "Enter") return;

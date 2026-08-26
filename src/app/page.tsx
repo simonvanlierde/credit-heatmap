@@ -1,3 +1,4 @@
+import { LabelledSection } from "@/components/LabelledSection";
 import { AuthorList } from "@/components/steps/AuthorInput";
 import { ContributionGrid } from "@/components/steps/ContributionGrid";
 import { StatementOutput } from "@/components/steps/StatementOutput";
@@ -20,17 +21,17 @@ export default function HomePage() {
           `desk` additionally locks the row to the viewport height; each pane
           scrolls its own content from there. */}
       <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[21rem_minmax(0,max-content)_minmax(26rem,1fr)] xl:items-start desk:h-full desk:items-stretch desk:overflow-hidden">
-        <section aria-label="Contributors" className="min-w-0 desk:min-h-0">
+        <LabelledSection labelKey="stepContributors" className="min-w-0 desk:min-h-0">
           <AuthorList />
-        </section>
+        </LabelledSection>
 
-        <section aria-label="Contribution grid" className="min-w-0 desk:min-h-0">
+        <LabelledSection labelKey="a11yContributionGrid" className="min-w-0 desk:min-h-0">
           <ContributionGrid />
-        </section>
+        </LabelledSection>
 
-        <section aria-label="Statement and export" className="min-w-0 desk:min-h-0">
+        <LabelledSection labelKey="a11yStatementExport" className="min-w-0 desk:min-h-0">
           <StatementOutput />
-        </section>
+        </LabelledSection>
       </div>
     </>
   );

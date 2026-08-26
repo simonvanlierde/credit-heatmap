@@ -3,6 +3,7 @@
 import { OKABE_ITO, onColor } from "@credit-generator/core";
 import { Check, RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslations } from "use-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
 /**
@@ -23,6 +24,7 @@ export function ColorPopover({
   trigger: ReactNode;
   label?: string;
 }) {
+  const t = useTranslations();
   return (
     <Popover>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
@@ -53,7 +55,7 @@ export function ColorPopover({
               type="color"
               value={value}
               onChange={(event) => onChange(event.target.value)}
-              aria-label="Custom color"
+              aria-label={t("a11yCustomColor")}
               className="h-6 w-6 cursor-pointer rounded border border-outline-variant bg-transparent p-0"
             />
             Custom
