@@ -1,7 +1,7 @@
 # CRediT Matrix
 
-[![CI](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/simonvanlierde/credit-heatmap/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/credit-heatmap)
+[![CI](https://github.com/simonvanlierde/credit-matrix/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/credit-matrix/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/simonvanlierde/credit-matrix/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/credit-matrix)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcredit.duinlab.nl)](https://credit.duinlab.nl)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.21213659-blue.svg)](https://doi.org/10.5281/zenodo.21213659)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -45,7 +45,7 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
 
 | First run | Statement & export |
 |---|---|
-| ![Empty first-run state with a getting-started card inviting you to add a contributor, import, or load sample data](docs/screenshots/empty-state.png) | ![The contribution statement with grouping and level options, a copy-statement button, and a format picker offering copy or download](docs/screenshots/statement-export.png) |
+| ![The first-run welcome over the empty workspace: three numbered steps, notes on drafts and asking co-authors, and a load-sample-data action](docs/screenshots/empty-state.png) | ![The statement pane: grouping and level options, the generated statement, a copy-statement button, and a format picker offering copy or download](docs/screenshots/statement-export.png) |
 
 ---
 
@@ -99,8 +99,8 @@ this to be revisited.
 **Prerequisites:** Node ≥ 26, pnpm ≥ 11, [just](https://github.com/casey/just) (optional)
 
 ```bash
-git clone https://github.com/simonvanlierde/credit-heatmap
-cd credit-heatmap
+git clone https://github.com/simonvanlierde/credit-matrix
+cd credit-matrix
 pnpm install
 pnpm dev            # → http://localhost:3000
 ```

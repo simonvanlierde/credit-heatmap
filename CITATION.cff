@@ -9,7 +9,7 @@ authors:
     family-names: van Lierde
     orcid: "https://orcid.org/0009-0006-6953-909X"
 license: MIT
-repository-code: "https://github.com/simonvanlierde/credit-heatmap"
+repository-code: "https://github.com/simonvanlierde/credit-matrix"
 url: "https://credit.duinlab.nl"
 keywords:
   - CRediT

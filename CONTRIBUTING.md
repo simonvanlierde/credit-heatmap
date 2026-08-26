@@ -9,8 +9,8 @@ features are welcome.
 [just](https://github.com/casey/just).
 
 ```bash
-git clone https://github.com/simonvanlierde/credit-heatmap
-cd credit-heatmap
+git clone https://github.com/simonvanlierde/credit-matrix
+cd credit-matrix
 pnpm install        # also installs the lefthook git hooks
 pnpm dev            # → http://localhost:3000
 ```

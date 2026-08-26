@@ -172,8 +172,8 @@ Persisted local drafts migrate automatically.
   contribution heatmap, JATS4R XML / CSV / JSON / Markdown exports, ORCID lookup,
   share links, and a framework-agnostic `@credit-generator/core` domain package.
 
-[Unreleased]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/simonvanlierde/credit-heatmap/releases/tag/v0.1.0
+[Unreleased]: https://github.com/simonvanlierde/credit-matrix/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/simonvanlierde/credit-matrix/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/simonvanlierde/credit-matrix/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/simonvanlierde/credit-matrix/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/simonvanlierde/credit-matrix/releases/tag/v0.1.0

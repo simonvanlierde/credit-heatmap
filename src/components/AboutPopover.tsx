@@ -28,7 +28,7 @@ export function AboutPopover({ version }: { version: string }) {
           <p className="mt-0.5">{t("aboutTagline")}</p>
         </div>
         <a
-          href="https://github.com/simonvanlierde/credit-heatmap"
+          href="https://github.com/simonvanlierde/credit-matrix"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
