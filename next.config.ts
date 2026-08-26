@@ -17,9 +17,9 @@ import type { NextConfig } from "next";
  * - `img-src` needs blob:/data: for the heatmap PNG (canvas → createObjectURL).
  * - `connect-src 'self'` is enough: the ORCID call goes through /api/orcid.
  *
- * `'unsafe-eval'` is added in development only: the webpack dev server
- * evaluates HMR updates as strings, and without it the client bundle dies on
- * load. The shipped build never evaluates strings, so production stays strict.
+ * `'unsafe-eval'` is added in development only: the dev server evaluates HMR
+ * updates as strings, and without it the client bundle dies on load. The
+ * shipped build never evaluates strings, so production stays strict.
  */
 const isDev = process.env.NODE_ENV === "development";
 
@@ -59,13 +59,6 @@ const nextConfig: NextConfig = {
   // @opennextjs/cloudflare, so no Next `output` mode is needed.
   // core ships its TS source (just-in-time internal package); Next transpiles it.
   transpilePackages: ["@credit-generator/core"],
-  // core uses NodeNext ".js" specifiers on .ts files; map them to source on resolve.
-  // Turbopack has no extensionAlias equivalent yet (vercel/next.js#82945), so the
-  // build/dev scripts pass --webpack to opt into this builder under Next 16.
-  webpack: (config) => {
-    config.resolve.extensionAlias = { ".js": [".ts", ".tsx", ".js"] };
-    return config;
-  },
 };
 
 export default nextConfig;

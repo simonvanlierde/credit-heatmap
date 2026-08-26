@@ -1,11 +1,11 @@
-import type { Author } from "../author.js";
-import { rolesWithContributions } from "../author.js";
-import { DEFAULT_MONO_COLOR, heatCellColor } from "../contributor-color.js";
-import type { RoleTranslator } from "../credit-i18n/index.js";
-import { makeUiTranslator, type UiTranslator } from "../credit-i18n/ui-strings.js";
-import { CREDIT_ROLES } from "../credit-roles.js";
-import { escapeXml } from "./escape-xml.js";
-import { GENERATOR_NOTE } from "./generator-note.js";
+import type { Author } from "../author";
+import { rolesWithContributions } from "../author";
+import { DEFAULT_MONO_COLOR, heatCellColor } from "../contributor-color";
+import type { RoleTranslator } from "../credit-i18n/index";
+import { makeUiTranslator, type UiTranslator } from "../credit-i18n/ui-strings";
+import { CREDIT_ROLES } from "../credit-roles";
+import { escapeXml } from "./escape-xml";
+import { GENERATOR_NOTE } from "./generator-note";
 
 // Layout constants (unscaled)
 const CELL = 22;

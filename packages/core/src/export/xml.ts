@@ -1,10 +1,10 @@
 // spell-checker: ignore archivearticle, mathml
 
-import type { Author } from "../author.js";
-import { activeContributions } from "../author.js";
-import { getRoleByName } from "../credit-roles.js";
-import { escapeXml } from "./escape-xml.js";
-import { GENERATOR_NOTE } from "./generator-note.js";
+import type { Author } from "../author";
+import { activeContributions } from "../author";
+import { getRoleByName } from "../credit-roles";
+import { escapeXml } from "./escape-xml";
+import { GENERATOR_NOTE } from "./generator-note";
 
 const DOCTYPE =
   '<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD with MathML3 v1.2 20190208//EN" "JATS-archivearticle1-mathml3.dtd">';

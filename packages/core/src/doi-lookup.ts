@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isValidOrcid, MAX_AUTHORS, normalizeOrcid } from "./author.js";
+import { isValidOrcid, MAX_AUTHORS, normalizeOrcid } from "./author";
 
 /**
  * Stable machine-readable failure codes, mirroring `orcid-lookup.ts`.

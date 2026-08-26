@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { toJson } from "../export/json.js";
-import { createAuthor } from "../parse-authors.js";
-import { fromSharePayload, toSharePayload } from "../share-payload.js";
+import { toJson } from "../export/json";
+import { createAuthor } from "../parse-authors";
+import { fromSharePayload, toSharePayload } from "../share-payload";
 
 function makeAuthors() {
   return [

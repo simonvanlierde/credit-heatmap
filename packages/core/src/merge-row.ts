@@ -1,5 +1,5 @@
-import type { Author } from "./author.js";
-import { normalizeOrcid } from "./author.js";
+import type { Author } from "./author";
+import { normalizeOrcid } from "./author";
 
 export interface MergeResult {
   /** The list with the claimed row replaced, or the original list unchanged. */

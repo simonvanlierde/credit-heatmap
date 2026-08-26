@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseAuthorText } from "../parse-authors.js";
-import { validateContributions } from "../validate.js";
+import { parseAuthorText } from "../parse-authors";
+import { validateContributions } from "../validate";
 
 function setScore(authors: ReturnType<typeof parseAuthorText>, index: number, role: string, score: number) {
   const author = authors[index];

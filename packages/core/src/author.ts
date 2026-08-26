@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { CreditRoleName } from "./credit-roles.js";
-import { CREDIT_ROLES } from "./credit-roles.js";
+import type { CreditRoleName } from "./credit-roles";
+import { CREDIT_ROLES } from "./credit-roles";
 
 export const MAX_AUTHORS = 200;
 export const MAX_AUTHOR_NAME_LENGTH = 500;

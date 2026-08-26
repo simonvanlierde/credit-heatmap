@@ -1,4 +1,4 @@
-import { getRoleByName } from "../credit-roles.js";
+import { getRoleByName } from "../credit-roles";
 
 /**
  * Localized CRediT role names/descriptions, sourced from the community

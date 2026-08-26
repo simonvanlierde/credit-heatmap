@@ -1,7 +1,7 @@
-import type { Author, Contribution } from "../author.js";
-import { isValidOrcid } from "../author.js";
-import { CREDIT_ROLES } from "../credit-roles.js";
-import { createAuthor, deduplicateAuthorInitials } from "../parse-authors.js";
+import type { Author, Contribution } from "../author";
+import { isValidOrcid } from "../author";
+import { CREDIT_ROLES } from "../credit-roles";
+import { createAuthor, deduplicateAuthorInitials } from "../parse-authors";
 
 /**
  * Parse a JATS4R XML string (as produced by `toJats4rXml()` or the original

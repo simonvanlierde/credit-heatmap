@@ -1,4 +1,4 @@
-import { isValidOrcid, normalizeOrcid, ORCID_REGEX } from "./author.js";
+import { isValidOrcid, normalizeOrcid, ORCID_REGEX } from "./author";
 
 /**
  * Stable machine-readable failure codes.

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { AuthorSchema } from "../author.js";
-import { loadUiCatalog, makeUiTranslator } from "../credit-i18n/ui-strings.js";
-import { fromCsv, toCsv } from "../export/csv.js";
-import { fromJson, toJson } from "../export/json.js";
-import { toMarkdown } from "../export/markdown.js";
-import { toJats4rXml } from "../export/xml.js";
-import { fromJats4rXml } from "../export/xml-import.js";
-import { generateStatement } from "../generate-statement.js";
-import { createAuthor } from "../parse-authors.js";
+import { AuthorSchema } from "../author";
+import { loadUiCatalog, makeUiTranslator } from "../credit-i18n/ui-strings";
+import { fromCsv, toCsv } from "../export/csv";
+import { fromJson, toJson } from "../export/json";
+import { toMarkdown } from "../export/markdown";
+import { toJats4rXml } from "../export/xml";
+import { fromJats4rXml } from "../export/xml-import";
+import { generateStatement } from "../generate-statement";
+import { createAuthor } from "../parse-authors";
 
 /**
  * Equal contribution and corresponding authorship are not CRediT roles — the

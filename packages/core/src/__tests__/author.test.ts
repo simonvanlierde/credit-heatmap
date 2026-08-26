@@ -8,9 +8,9 @@ import {
   ORCID_INPUT_REGEX,
   ORCID_REGEX,
   scoreToLevel,
-} from "../author.js";
-import { CREDIT_ROLES } from "../credit-roles.js";
-import { createAuthor, parseAuthorText } from "../parse-authors.js";
+} from "../author";
+import { CREDIT_ROLES } from "../credit-roles";
+import { createAuthor, parseAuthorText } from "../parse-authors";
 
 /** Minimal schema-valid author, for tests that vary one field. */
 const VALID_AUTHOR = {

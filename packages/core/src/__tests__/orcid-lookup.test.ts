@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { lookupOrcidPerson } from "../orcid-lookup.js";
+import { lookupOrcidPerson } from "../orcid-lookup";
 
 describe("lookupOrcidPerson", () => {
   it("rejects invalid IDs without calling upstream", async () => {

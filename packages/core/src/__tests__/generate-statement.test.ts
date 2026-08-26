@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { makeUiTranslator } from "../credit-i18n/ui-strings.js";
-import { generateStatement } from "../generate-statement.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { makeUiTranslator } from "../credit-i18n/ui-strings";
+import { generateStatement } from "../generate-statement";
+import { parseAuthorText } from "../parse-authors";
 
 function makeAuthors() {
   const authors = parseAuthorText("Jane Smith\nBob White");

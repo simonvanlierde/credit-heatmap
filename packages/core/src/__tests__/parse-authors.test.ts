@@ -6,7 +6,7 @@ import {
   parseAuthorText,
   parseNameParts,
   splitNameList,
-} from "../parse-authors.js";
+} from "../parse-authors";
 
 describe("parseNameParts", () => {
   it("parses a three-part name", () => {

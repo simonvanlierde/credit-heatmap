@@ -1,5 +1,5 @@
-import type { Author } from "./author.js";
-import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "./credit-i18n/ui-strings.js";
+import type { Author } from "./author";
+import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "./credit-i18n/ui-strings";
 
 /**
  * Notes for the two authorship markers that sit outside CRediT: shared first

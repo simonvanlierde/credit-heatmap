@@ -1,12 +1,6 @@
-import type { Author, Contribution, ContributorType } from "./author.js";
-import {
-  isUsableAuthorName,
-  isValidOrcid,
-  MAX_AUTHOR_NAME_LENGTH,
-  normalizeOrcid,
-  ORCID_INPUT_REGEX,
-} from "./author.js";
-import { CREDIT_ROLES } from "./credit-roles.js";
+import type { Author, Contribution, ContributorType } from "./author";
+import { isUsableAuthorName, isValidOrcid, MAX_AUTHOR_NAME_LENGTH, normalizeOrcid, ORCID_INPUT_REGEX } from "./author";
+import { CREDIT_ROLES } from "./credit-roles";
 
 /**
  * Parse a single display name string into first / middle / surname parts.

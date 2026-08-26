@@ -1,8 +1,8 @@
 import { z } from "zod";
-import type { Author } from "./author.js";
-import { MAX_AUTHORS } from "./author.js";
-import { CREDIT_ROLES } from "./credit-roles.js";
-import { createAuthor, deduplicateAuthorInitials } from "./parse-authors.js";
+import type { Author } from "./author";
+import { MAX_AUTHORS } from "./author";
+import { CREDIT_ROLES } from "./credit-roles";
+import { createAuthor, deduplicateAuthorInitials } from "./parse-authors";
 
 /**
  * A draft squeezed small enough to travel in a URL.

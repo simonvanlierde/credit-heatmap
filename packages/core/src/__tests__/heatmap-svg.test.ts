@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Author } from "../author.js";
-import { rolesWithContributions } from "../author.js";
-import { makeUiTranslator } from "../credit-i18n/ui-strings.js";
-import { CREDIT_ROLES } from "../credit-roles.js";
-import { buildHeatmapSvg } from "../export/heatmap-svg.js";
-import { createAuthor, parseAuthorText } from "../parse-authors.js";
+import type { Author } from "../author";
+import { rolesWithContributions } from "../author";
+import { makeUiTranslator } from "../credit-i18n/ui-strings";
+import { CREDIT_ROLES } from "../credit-roles";
+import { buildHeatmapSvg } from "../export/heatmap-svg";
+import { createAuthor, parseAuthorText } from "../parse-authors";
 
 function setScore(author: Author, role: string, score: number): void {
   const c = author.contributions.find((x) => x.role === role);

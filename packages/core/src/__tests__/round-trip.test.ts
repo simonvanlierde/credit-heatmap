@@ -1,10 +1,10 @@
 import { DOMParser } from "linkedom";
 import { describe, expect, it } from "vitest";
-import { MAX_AUTHORS } from "../author.js";
-import { fromJson, toJson } from "../export/json.js";
-import { toJats4rXml } from "../export/xml.js";
-import { fromXmlDocument } from "../export/xml-import.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { MAX_AUTHORS } from "../author";
+import { fromJson, toJson } from "../export/json";
+import { toJats4rXml } from "../export/xml";
+import { fromXmlDocument } from "../export/xml-import";
+import { parseAuthorText } from "../parse-authors";
 
 describe("round-trip exports", () => {
   it("XML round-trip preserves names, initials, contributions, and ORCID", () => {

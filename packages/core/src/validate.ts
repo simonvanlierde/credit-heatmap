@@ -1,6 +1,6 @@
-import type { Author } from "./author.js";
-import { hasContributions } from "./author.js";
-import type { CreditRoleName } from "./credit-roles.js";
+import type { Author } from "./author";
+import { hasContributions } from "./author";
+import type { CreditRoleName } from "./credit-roles";
 
 export type ValidationLevel = "warning" | "info";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { lookupDoiWork, normalizeDoi } from "../doi-lookup.js";
+import { lookupDoiWork, normalizeDoi } from "../doi-lookup";
 
 /** A minimal Crossref `works` body: only the fields the lookup reads. */
 function crossrefResponse(message: unknown): Response {

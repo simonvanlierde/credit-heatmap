@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { loadRoleCatalog, makeRoleTranslator, normalizeLocaleCode } from "../credit-i18n/index.js";
-import { DEFAULT_UI_TRANSLATOR, loadUiCatalog, makeUiTranslator, type UiKey } from "../credit-i18n/ui-strings.js";
-import { generateStatement } from "../generate-statement.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { loadRoleCatalog, makeRoleTranslator, normalizeLocaleCode } from "../credit-i18n/index";
+import { DEFAULT_UI_TRANSLATOR, loadUiCatalog, makeUiTranslator, type UiKey } from "../credit-i18n/ui-strings";
+import { generateStatement } from "../generate-statement";
+import { parseAuthorText } from "../parse-authors";
 
 function makeAuthors() {
   const authors = parseAuthorText("Jane Smith\nBob White");

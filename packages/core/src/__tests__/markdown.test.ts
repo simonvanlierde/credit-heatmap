@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { toMarkdown } from "../export/markdown.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { toMarkdown } from "../export/markdown";
+import { parseAuthorText } from "../parse-authors";
 
 describe("toMarkdown", () => {
   it("renders a contributor → roles table with level annotations", () => {

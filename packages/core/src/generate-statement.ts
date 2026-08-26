@@ -1,9 +1,9 @@
-import type { Author } from "./author.js";
-import { activeContributions, scoreToLevel } from "./author.js";
-import { DEFAULT_ROLE_TRANSLATOR, type RoleTranslator } from "./credit-i18n/index.js";
-import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "./credit-i18n/ui-strings.js";
-import { CREDIT_ROLES } from "./credit-roles.js";
-import { markerNotes } from "./markers.js";
+import type { Author } from "./author";
+import { activeContributions, scoreToLevel } from "./author";
+import { DEFAULT_ROLE_TRANSLATOR, type RoleTranslator } from "./credit-i18n/index";
+import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "./credit-i18n/ui-strings";
+import { CREDIT_ROLES } from "./credit-roles";
+import { markerNotes } from "./markers";
 
 export type StatementFormat = "by-role" | "by-role-short" | "by-author" | "by-author-short";
 

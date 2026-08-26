@@ -7,7 +7,7 @@ import {
   ON_COLOR_DARK,
   ON_COLOR_LIGHT,
   onColor,
-} from "../contributor-color.js";
+} from "../contributor-color";
 
 /** The empty-cell fill, mirrored from contributor-color.ts. */
 const NONE_FILL = "#ececea";

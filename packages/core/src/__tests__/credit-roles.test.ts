@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CREDIT_ROLES, getRoleByName } from "../credit-roles.js";
+import { CREDIT_ROLES, getRoleByName } from "../credit-roles";
 
 describe("CREDIT_ROLES", () => {
   it("defines exactly the 14 NISO roles with unique names, official UUIDs, and URLs", () => {

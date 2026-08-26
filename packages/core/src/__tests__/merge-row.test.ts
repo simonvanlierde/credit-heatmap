@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mergeContributorRow } from "../merge-row.js";
-import { createAuthor } from "../parse-authors.js";
+import { mergeContributorRow } from "../merge-row";
+import { createAuthor } from "../parse-authors";
 
 const JANE_ORCID = "0000-0002-1825-0097";
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { toJats4rXml } from "../export/xml.js";
-import { fromJats4rXml } from "../export/xml-import.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { toJats4rXml } from "../export/xml";
+import { fromJats4rXml } from "../export/xml-import";
+import { parseAuthorText } from "../parse-authors";
 
 // `fromJats4rXml` relies on a global DOMParser. In the browser this is native;
 // here it is provided by linkedom in test-setup.ts, so this exercises the same
