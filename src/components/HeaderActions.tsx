@@ -3,7 +3,7 @@
 import type { Author } from "@credit-generator/core";
 import { mergeContributorRow } from "@credit-generator/core";
 import { Check, CircleAlert, Link2, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 import { DraftPicker } from "@/components/DraftPicker";
 import { ImportModal } from "@/components/ImportModal";
@@ -37,6 +37,8 @@ export function HeaderActions() {
   const claim = useContributionStore((s) => s.claim);
   const createDraft = useContributionStore((s) => s.createDraft);
   const switchDraft = useContributionStore((s) => s.switchDraft);
+  const deleteDraft = useContributionStore((s) => s.deleteDraft);
+  const decodedOnMount = useRef(false);
 
   // Rehydrate persisted state on the client (the store skips hydration at
   // creation to avoid an SSR mismatch). Runs before the share-hash effect below
@@ -45,12 +47,24 @@ export function HeaderActions() {
     void useContributionStore.persist.rehydrate();
   }, []);
 
+  // The listener is registered once, so it must not capture this render's
+  // handler: `t` changes with the interface language, and a hash pasted after
+  // that switch has to speak the new one.
+  const handlerRef = useRef(handleIncomingHash);
+  useEffect(() => {
+    handlerRef.current = handleIncomingHash;
+  });
+
   // Mount + hashchange share one handler: pasting a link into an already-open
   // tab must react exactly like opening it fresh.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: listener registered once by design
   useEffect(() => {
-    const handle = () => void handleIncomingHash();
-    handle();
+    const handle = () => void handlerRef.current();
+    // StrictMode re-runs effects in development; the mount decode would then
+    // load the link twice. A ref survives that re-run, an effect body does not.
+    if (!decodedOnMount.current) {
+      decodedOnMount.current = true;
+      handle();
+    }
     window.addEventListener("hashchange", handle);
     return () => window.removeEventListener("hashchange", handle);
   }, []);
@@ -58,6 +72,9 @@ export function HeaderActions() {
   async function handleIncomingHash(): Promise<void> {
     const hash = window.location.hash;
     if (!hash.startsWith("#s=")) return;
+    // On mount this can beat the rehydrate effect above; awaiting it (a no-op
+    // once done) keeps the link from opening over a draft not yet restored.
+    await useContributionStore.persist.rehydrate();
     const shared = await decodeShareHash(hash);
     if (!shared || shared.authors.length === 0) {
       // A link that says it is a share but does not decode is worth a visible
@@ -87,12 +104,15 @@ export function HeaderActions() {
 
     // A reply to a request: merge one row into the draft it was asked about.
     if (shared.reply && shared.claimId) {
-      if (!isLocal(shared.sourceDraftId)) return "mergeWrongDraft";
-      if (shared.sourceDraftId !== state.activeDraftId) switchDraft(shared.sourceDraftId);
-      const before = useContributionStore.getState().authors;
+      const target = shared.sourceDraftId;
+      if (!isLocal(target)) return "mergeWrongDraft";
+      // Merge against the named draft's roster *before* going there: a reply
+      // that turns out to be unusable must leave you on the paper you were on.
+      const before = target === state.activeDraftId ? state.authors : (state.drafts[target]?.authors ?? []);
       const result = mergeContributorRow(before, shared.authors, shared.claimId);
       if (result.unmatched) return "mergeUnmatched";
       if (!result.merged) return "errShareLinkBroken";
+      switchDraft(target);
       try {
         loadAuthors(result.authors);
       } catch {
@@ -105,6 +125,10 @@ export function HeaderActions() {
         action: {
           label: t("undo"),
           onAct: () => {
+            // The strip lives a minute, long enough to switch drafts under it.
+            // Put the roster back where it came from, or nowhere at all.
+            switchDraft(target);
+            if (useContributionStore.getState().activeDraftId !== target) return;
             loadAuthors(before);
             announce(t("annMergeUndone"));
           },
@@ -168,13 +192,21 @@ export function HeaderActions() {
    */
   function loadSharedAuthors(shared: ShareData): "limit" | "occupied" | "fresh" {
     const occupied = useContributionStore.getState().authors.length > 0;
-    if (occupied && createDraft() === null) {
+    const created = occupied ? createDraft() : null;
+    if (occupied && created === null) {
       showStatus({ kind: "error", message: t("draftLimitReached", { count: MAX_DRAFTS }) });
       return "limit";
     }
     // The payload's title (or its absence) replaces whatever was here.
     setTitle(shared.title);
-    loadAuthors(shared.authors);
+    try {
+      loadAuthors(shared.authors);
+    } catch (error) {
+      // A payload that fails to load must not leave an empty draft behind;
+      // deleting it also lands you back on your own most recent work.
+      if (created) deleteDraft(created);
+      throw error;
+    }
     return occupied ? "occupied" : "fresh";
   }
 
