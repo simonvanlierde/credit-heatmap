@@ -27,8 +27,9 @@ interface CatalogFile {
 
 // One static import() per vendored locale so bundlers code-split each catalog
 // (only the selected language ships to the client). Regenerate the JSON with
-// scripts/fetch-credit-translations.mjs; add a line here for each new locale.
-const LOADERS: Record<string, () => Promise<CatalogFile>> = {
+// scripts/fetch-credit-translations.mjs. The exhaustive key type makes adding
+// a locale to AVAILABLE_LOCALES without a catalog here a compile error.
+const LOADERS: Record<Exclude<LocaleCode, "en">, () => Promise<CatalogFile>> = {
   fr: () => import("./translations/fr.json"),
   de: () => import("./translations/de.json"),
   es: () => import("./translations/es.json"),
@@ -84,7 +85,7 @@ export function normalizeLocaleCode(locale: unknown): LocaleCode {
 
 /** Load a locale's role catalog. Returns null for `en` or any unknown locale (→ identity translator). */
 export async function loadRoleCatalog(locale: string): Promise<RoleCatalog | null> {
-  const loader = LOADERS[locale];
+  const loader = Object.hasOwn(LOADERS, locale) ? LOADERS[locale as Exclude<LocaleCode, "en">] : undefined;
   if (!loader) return null;
   const mod = await loader();
   return mod.default.translations;

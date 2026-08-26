@@ -37,41 +37,49 @@ export function LanguageSelector() {
       </PopoverTrigger>
       <PopoverContent className="w-64 p-3">
         <div className="grid gap-3">
-          {/* A Radix trigger is a button, not a form control, so <label> cannot
-              associate with it. Point the trigger at the visible text instead. */}
-          <div className="grid gap-1.5 text-xs font-medium text-on-surface">
-            <span id="ui-locale-label">{t("interfaceLanguage")}</span>
-            <Select value={uiLocale} onValueChange={(value) => setUiLocale(value as LocaleCode)}>
-              <SelectTrigger aria-labelledby="ui-locale-label" className="w-full text-xs font-normal">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AVAILABLE_LOCALES.map((locale) => (
-                  <SelectItem key={locale.code} value={locale.code}>
-                    {locale.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid gap-1.5 text-xs font-medium text-on-surface">
-            <span id="output-locale-label">{t("outputLanguage")}</span>
-            <Select value={outputLocale} onValueChange={(value) => setOutputLocale(value as LocaleCode)}>
-              <SelectTrigger aria-labelledby="output-locale-label" className="w-full text-xs font-normal">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AVAILABLE_LOCALES.map((locale) => (
-                  <SelectItem key={locale.code} value={locale.code}>
-                    {locale.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <LocaleSelect id="ui-locale-label" label={t("interfaceLanguage")} value={uiLocale} onChange={setUiLocale} />
+          <LocaleSelect
+            id="output-locale-label"
+            label={t("outputLanguage")}
+            value={outputLocale}
+            onChange={setOutputLocale}
+          />
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * One labelled locale picker. A Radix trigger is a button, not a form control,
+ * so <label> cannot associate with it: point the trigger at the visible text.
+ */
+function LocaleSelect({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: LocaleCode;
+  onChange: (locale: LocaleCode) => void;
+}) {
+  return (
+    <div className="grid gap-1.5 text-xs font-medium text-on-surface">
+      <span id={id}>{label}</span>
+      <Select value={value} onValueChange={(next) => onChange(next as LocaleCode)}>
+        <SelectTrigger aria-labelledby={id} className="w-full text-xs font-normal">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {AVAILABLE_LOCALES.map((locale) => (
+            <SelectItem key={locale.code} value={locale.code}>
+              {locale.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

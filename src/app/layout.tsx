@@ -45,16 +45,13 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://credit.duinlab.nl"),
   title: "CRediT Matrix",
   description,
+  // og/twitter title and description inherit from the top-level fields.
   openGraph: {
     type: "website",
     siteName: "CRediT Matrix",
-    title: "CRediT Matrix",
-    description,
   },
   twitter: {
     card: "summary_large_image",
-    title: "CRediT Matrix",
-    description,
   },
 };
 
@@ -87,7 +84,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     {/* Lockup: the matrix mark reads at cap height beside the wordmark. */}
                     <BrandMark className="h-[1.15rem] w-[1.15rem] shrink-0 sm:h-[1.3rem] sm:w-[1.3rem]" />
                     <span
-                      className="font-headline text-lg italic font-semibold tracking-tight sm:text-xl"
+                      // The chrome needs 349px once every control is at its
+                      // 44px touch size, so below 22rem the mark carries the
+                      // brand alone rather than pushing Import off the edge.
+                      className="hidden min-[22rem]:inline font-headline text-lg italic font-semibold tracking-tight sm:text-xl"
                       style={{ fontFamily: "var(--font-headline)" }}
                     >
                       CRediT Matrix

@@ -259,6 +259,11 @@ export function ContributionGrid() {
     const score = author.contributions[roleIndex]?.score ?? 0;
     const level = translateUi(graded ? scoreToLevel(score) : score > 0 ? "contributed" : "none");
     const fill = score > 0 ? heatCellColor(heatmapMonoColor, graded ? score : 100) : null;
+    const label = t("a11yRoleAssignment", {
+      role: role ? translateInterfaceRole(role.name) : "",
+      name: author.name,
+      level,
+    });
     return (
       <td key={`${author.id}-${role?.name}`} className="min-w-11 p-0">
         <button
@@ -286,16 +291,8 @@ export function ContributionGrid() {
                 }
               : undefined
           }
-          aria-label={t("a11yRoleAssignment", {
-            role: role ? translateInterfaceRole(role.name) : "",
-            name: author.name,
-            level,
-          })}
-          title={t("a11yRoleAssignment", {
-            role: role ? translateInterfaceRole(role.name) : "",
-            name: author.name,
-            level,
-          })}
+          aria-label={label}
+          title={label}
           onClick={() => handleCellClick(author, roleIndex, score)}
           // The fill transitions, and deliberately nothing moves: in Levels mode
           // a click's only result is the shade stepping up, and at this cadence

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useContributionStore } from "@/store/contribution-store";
+import { useHydrated } from "@/lib/use-hydrated";
 
 /**
  * False through the first painted frame of a restored draft, true from the next
@@ -10,26 +10,21 @@ import { useContributionStore } from "@/store/contribution-store";
  * class to an element that is already on screen changes no property and re-runs
  * no `@starting-style`, so nothing plays retroactively.
  *
- * It waits on rehydration rather than on mount alone. The store uses
- * skipHydration (see contribution-store.ts), so contributors restored from
- * localStorage land in a render *after* the first one, so a plain frame counter
- * would race them and animate the whole draft on every reload.
+ * It waits on rehydration (via useHydrated) rather than on mount alone. The
+ * store uses skipHydration (see contribution-store.ts), so contributors
+ * restored from localStorage land in a render *after* the first one, so a
+ * plain frame counter would race them and animate the whole draft on every
+ * reload.
  */
 export function useSettled(): boolean {
+  const hydrated = useHydrated();
   const [settled, setSettled] = useState(false);
 
   useEffect(() => {
-    let frame = 0;
-    const settle = () => {
-      frame = requestAnimationFrame(() => setSettled(true));
-    };
-    if (useContributionStore.persist.hasHydrated()) settle();
-    const unsubscribe = useContributionStore.persist.onFinishHydration(settle);
-    return () => {
-      cancelAnimationFrame(frame);
-      unsubscribe();
-    };
-  }, []);
+    if (!hydrated) return;
+    const frame = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(frame);
+  }, [hydrated]);
 
   return settled;
 }

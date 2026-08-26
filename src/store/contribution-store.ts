@@ -12,7 +12,7 @@ import {
   normalizeOrcid,
 } from "@credit-generator/core";
 import { create } from "zustand";
-import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
+import { type PersistStorage, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { requestStorageFullAnnouncement } from "@/lib/announce";
 import { PERSIST_KEY, PERSIST_VERSION } from "./persist-meta";
@@ -229,9 +229,11 @@ function stashLive(state: ContributionState): void {
  * understand, and there is no way to walk backwards: start fresh rather than
  * guess. A real migration registry comes back with the first post-launch bump.
  */
-function migratePersisted(persisted: unknown, from: number): unknown {
-  if (persisted === null || typeof persisted !== "object") return {};
-  return from > PERSIST_VERSION ? {} : persisted;
+function migratePersisted(persisted: unknown, from: number): PersistedState {
+  // The cast is a formality for persist's types: `hydrateDrafts` re-checks
+  // every field of whatever this returns.
+  if (persisted === null || typeof persisted !== "object") return {} as PersistedState;
+  return (from > PERSIST_VERSION ? {} : persisted) as PersistedState;
 }
 
 /** Drop anything from a draft's contributor list that would make a later edit throw. */
@@ -316,8 +318,38 @@ function hydrateDrafts(persisted: unknown): Partial<ContributionState> {
   };
 }
 
+/** The shape partialize hands to storage. */
+interface PersistedState {
+  drafts: Record<string, Draft>;
+  activeDraftId: string;
+  uiLocale: LocaleCode;
+  welcomeSeen: boolean;
+}
+
+/** Where a parked draft lives: one localStorage key per draft, under the main key's namespace. */
+const DRAFT_KEY_PREFIX = `${PERSIST_KEY}:draft:`;
+
+/** Every parked-draft key currently in localStorage. */
+function draftKeys(): string[] {
+  const keys: string[] = [];
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i);
+    if (key?.startsWith(DRAFT_KEY_PREFIX)) keys.push(key);
+  }
+  return keys;
+}
+
 /**
- * localStorage, but a failed write says so.
+ * localStorage, but a failed write says so — and the shelf is split from the
+ * workspace.
+ *
+ * The main key holds the active draft and the person's preferences; each
+ * parked draft has its own `:draft:<id>` key, written only when that draft
+ * changes (stash, switch, delete). Persist calls setItem on every store
+ * change, so keeping the shelf out of the main key is what stops a single
+ * grid click from re-serializing every held paper. Reads merge the two back
+ * into the one shape `hydrateDrafts` expects, so an old single-key value (and
+ * every test fixture) still loads.
  *
  * A quota error is the realistic failure once several drafts are held, and
  * zustand's default storage swallows it into a console message nobody reads:
@@ -325,36 +357,66 @@ function hydrateDrafts(persisted: unknown): Partial<ContributionState> {
  * since some point the user cannot identify. Saying it once, when it happens,
  * is the difference between losing this edit and losing the afternoon.
  */
-function announcingStorage(): StateStorage {
+function announcingStorage(): PersistStorage<PersistedState> {
   let warned = false;
+  // Parked drafts already on disk, by reference. Immer's structural sharing
+  // keeps an untouched draft's identity across edits, so a reference match
+  // means the stored JSON is current and the write can be skipped.
+  const written = new Map<string, Draft>();
+
+  // An unreadable value must not escape as a throw: a parse failure would
+  // abort hydration with hasHydrated never set — inputs stay readOnly and the
+  // setItem guard below drops every write, on every visit, until the user
+  // clears localStorage by hand. A truncated value from a crashed tab is
+  // exactly the case hydrateDrafts exists for, but repair only runs on a
+  // parsed value. Drop what cannot be read instead — for a parked draft that
+  // costs one draft, not the workspace.
+  const readJson = (key: string): unknown => {
+    try {
+      const raw = window.localStorage.getItem(key);
+      return raw === null ? null : JSON.parse(raw);
+    } catch {
+      try {
+        window.localStorage.removeItem(key);
+      } catch {
+        // Storage blocked entirely (SecurityError): nothing to clean up.
+      }
+      return null;
+    }
+  };
+
   return {
     // Guarded rather than assumed: this module is imported during the server
     // render, where there is no localStorage at all.
     getItem: (key) => {
       if (typeof window === "undefined") return null;
-      // An unreadable value must not escape as a throw: createJSONStorage
-      // JSON.parses whatever this returns, and a parse failure aborts
-      // hydration with hasHydrated never set — inputs stay readOnly and the
-      // setItem guard below drops every write, on every visit, until the user
-      // clears localStorage by hand. A truncated value from a crashed tab is
-      // exactly the case hydrateDrafts exists for, but repair only runs after
-      // a successful parse. Probe here and drop what cannot be read, so the
-      // app hydrates its defaults and persistence resumes.
-      try {
-        const raw = window.localStorage.getItem(key);
-        if (raw !== null) JSON.parse(raw);
-        return raw;
-      } catch {
-        try {
-          window.localStorage.removeItem(key);
-        } catch {
-          // Storage blocked entirely (SecurityError): nothing to clean up.
-        }
-        return null;
+      const main = readJson(key);
+      const parked: Record<string, unknown> = {};
+      for (const draftKey of draftKeys()) {
+        const draft = readJson(draftKey);
+        if (draft !== null) parked[draftKey.slice(DRAFT_KEY_PREFIX.length)] = draft;
       }
+      if (main === null && Object.keys(parked).length === 0) return null;
+      const record = (main !== null && typeof main === "object" ? main : {}) as Record<string, unknown>;
+      const mainState = (record.state !== null && typeof record.state === "object" ? record.state : {}) as Record<
+        string,
+        unknown
+      >;
+      const mainDrafts = (
+        mainState.drafts !== null && typeof mainState.drafts === "object" ? mainState.drafts : {}
+      ) as Record<string, unknown>;
+      // Main wins for the active draft; hydrateDrafts repairs whatever merges.
+      const state = { ...mainState, drafts: { ...parked, ...mainDrafts } };
+      return {
+        state: state as unknown as PersistedState,
+        version: typeof record.version === "number" ? record.version : 0,
+      };
     },
     removeItem: (key) => {
-      if (typeof window !== "undefined") window.localStorage.removeItem(key);
+      if (typeof window === "undefined") return;
+      window.localStorage.removeItem(key);
+      for (const draftKey of draftKeys()) window.localStorage.removeItem(draftKey);
+      written.clear();
     },
     setItem: (key, value) => {
       if (typeof window === "undefined") return;
@@ -364,11 +426,32 @@ function announcingStorage(): StateStorage {
       // draft in storage — and the rehydrate that follows would then read that
       // emptied value back. One early keystroke could erase a saved paper.
       if (!useContributionStore.persist.hasHydrated()) return;
+      const { drafts, activeDraftId, uiLocale, welcomeSeen } = value.state;
       try {
-        window.localStorage.setItem(key, value);
+        for (const [id, draft] of Object.entries(drafts)) {
+          if (id === activeDraftId || written.get(id) === draft) continue;
+          window.localStorage.setItem(DRAFT_KEY_PREFIX + id, JSON.stringify(draft));
+          written.set(id, draft);
+        }
+        // The active draft lives in the main key, and a deleted draft's key
+        // would otherwise resurrect it on the next load.
+        for (const draftKey of draftKeys()) {
+          const id = draftKey.slice(DRAFT_KEY_PREFIX.length);
+          if (id === activeDraftId || !(id in drafts)) {
+            window.localStorage.removeItem(draftKey);
+            written.delete(id);
+          }
+        }
+        window.localStorage.setItem(
+          key,
+          JSON.stringify({
+            state: { drafts: { [activeDraftId]: drafts[activeDraftId] }, activeDraftId, uiLocale, welcomeSeen },
+            version: value.version,
+          }),
+        );
         warned = false;
       } catch {
-        // Every keystroke retries the write; announcing each one would flood
+        // Every change retries the write; announcing each one would flood
         // the live region. Say it once per run of failures.
         if (warned) return;
         warned = true;
@@ -706,14 +789,14 @@ export const useContributionStore = create<ContributionState>()(
     })),
     {
       name: PERSIST_KEY,
-      storage: createJSONStorage(announcingStorage),
+      storage: announcingStorage(),
       /**
        * Stays at 1 until launch. There are no users, so the persisted shape can
        * change freely without a migration step for a version nobody holds.
        *
-       * After launch: bump this and add the matching step to MIGRATIONS. The
-       * chain runs one hop at a time, so each step only describes its own
-       * change and never has to know the whole history.
+       * After launch: bump this and grow `migratePersisted` into a real
+       * per-version migration chain (today it only discards shapes from a
+       * newer build; see its doc).
        */
       version: PERSIST_VERSION,
       migrate: migratePersisted,

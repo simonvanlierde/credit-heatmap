@@ -1,7 +1,7 @@
 import type { Author } from "./author";
 import { activeContributions, scoreToLevel } from "./author";
 import { DEFAULT_ROLE_TRANSLATOR, type RoleTranslator } from "./credit-i18n/index";
-import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "./credit-i18n/ui-strings";
+import { DEFAULT_UI_TRANSLATOR, fillTemplate, type UiTranslator } from "./credit-i18n/ui-strings";
 import { CREDIT_ROLES } from "./credit-roles";
 import { markerNotes } from "./markers";
 
@@ -25,6 +25,11 @@ export interface StatementOptions {
    * labels. Defaults to English.
    */
   translateUi?: UiTranslator;
+  /**
+   * BCP-47 locale of the output language; drives the CLDR name-list wording
+   * in the marker notes. Defaults to "en".
+   */
+  locale?: string;
   /**
    * When true (default), people marked as non-author contributors are credited
    * on a separate `Acknowledgements:` line. When false, everyone is listed
@@ -104,6 +109,7 @@ export function generateStatement(authors: Author[], options: StatementOptions):
     showLevels = false,
     translateRole = DEFAULT_ROLE_TRANSLATOR,
     translateUi = DEFAULT_UI_TRANSLATOR,
+    locale = "en",
     separateAcknowledgements = true,
     asHtml = false,
   } = options;
@@ -119,7 +125,7 @@ export function generateStatement(authors: Author[], options: StatementOptions):
   // Combined: everyone (authors and non-authors) on one CRediT line.
   // The marker notes are appended to whichever lines the statement produces,
   // and suppressed entirely when there is no statement to annotate.
-  const notes = markerNotes(authors, { useInitials, translateUi }).map(fmt.text);
+  const notes = markerNotes(authors, { useInitials, translateUi, locale }).map(fmt.text);
 
   if (!separateAcknowledgements) {
     const allBody = body(authors);
@@ -144,10 +150,7 @@ function withLevel(label: string, score: number, translateUi: UiTranslator): str
   const level = scoreToLevel(score);
   if (level === "lead") return label;
   const levelLabel = level === "equal" ? translateUi("equal") : translateUi("supporting");
-  // Replacer functions so a "$&" in a contributor label survives literally.
-  return translateUi("levelAnnotation")
-    .replace("{label}", () => label)
-    .replace("{level}", () => levelLabel);
+  return fillTemplate(translateUi("levelAnnotation"), { label, level: levelLabel });
 }
 
 /** Body of a by-role statement (no `CRediT:`/`Acknowledgements:` prefix); "" if empty. */

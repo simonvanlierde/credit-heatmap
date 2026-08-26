@@ -5,6 +5,7 @@ import {
   CREDIT_ROLES,
   generateStatement,
   isAllBinary,
+  rolesWithContributions,
   toCsv,
   toJats4rXml,
   toJson,
@@ -33,7 +34,7 @@ const DATA_FORMATS: Record<
   DataFormat,
   {
     label: string;
-    serialize: (authors: Author[], translateRole: RoleTranslator, translateUi: UiTranslator) => string;
+    serialize: (authors: Author[], translateRole: RoleTranslator, translateUi: UiTranslator, locale: string) => string;
     filename: string;
     mime: string;
   }
@@ -45,7 +46,7 @@ const DATA_FORMATS: Record<
   csv: { label: "CSV", serialize: toCsv, filename: "credit_result.csv", mime: "text/csv;charset=utf-8" },
   markdown: {
     label: "Markdown",
-    serialize: (authors, translateRole, translateUi) => toMarkdown(authors, translateRole, translateUi),
+    serialize: (authors, translateRole, translateUi, locale) => toMarkdown(authors, translateRole, translateUi, locale),
     filename: "credit-contributors.md",
     mime: "text/markdown;charset=utf-8",
   },
@@ -82,16 +83,13 @@ export function StatementOutput() {
     showLevels,
     translateRole,
     translateUi,
+    locale: outputLanguage,
     separateAcknowledgements: separateAck,
   };
   const statement = generateStatement(authors, statementOptions);
   const issues = validateContributions(authors);
   const hasAuthors = authors.length > 0;
-  const assignedRoleCount = new Set(
-    authors.flatMap((author) =>
-      author.contributions.filter((contribution) => contribution.score > 0).map((item) => item.role),
-    ),
-  ).size;
+  const assignedRoleCount = rolesWithContributions(authors).length;
   const isReady = Boolean(statement) && issues.length === 0;
   // Levels only mean something when contributions aren't purely binary.
   const canShowLevels = !isAllBinary(authors);
@@ -101,7 +99,7 @@ export function StatementOutput() {
   function downloadData() {
     if (!hasAuthors) return;
     const { serialize, filename, mime } = DATA_FORMATS[dataFormat];
-    download(new Blob([serialize(authors, translateRole, translateUi)], { type: mime }), filename);
+    download(new Blob([serialize(authors, translateRole, translateUi, outputLanguage)], { type: mime }), filename);
   }
 
   return (
@@ -278,7 +276,9 @@ export function StatementOutput() {
 
             <button
               type="button"
-              onClick={() => copyDataText(DATA_FORMATS[dataFormat].serialize(authors, translateRole, translateUi))}
+              onClick={() =>
+                copyDataText(DATA_FORMATS[dataFormat].serialize(authors, translateRole, translateUi, outputLanguage))
+              }
               disabled={!hasAuthors}
               className="flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >

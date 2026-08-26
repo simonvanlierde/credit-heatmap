@@ -6,6 +6,8 @@ export type ValidationLevel = "warning" | "info";
 
 export type ValidationIssue =
   // authorId keys the rendered list: two contributors can share a name.
+  // `message` is the English fallback for non-UI consumers of the core
+  // package; the app renders its own localized text from `code`.
   | { level: "warning"; code: "authorNoRoles"; authorId: string; authorName: string; message: string }
   | { level: "info"; code: "roleUnassigned"; role: CreditRoleName; message: string };
 

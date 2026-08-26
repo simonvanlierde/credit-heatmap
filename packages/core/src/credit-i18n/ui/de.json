@@ -8,8 +8,6 @@
   "emptyState": "Noch keine Beiträge zugewiesen.",
   "equalContributionNote": "{names} haben gleichermaßen zu dieser Arbeit beigetragen.",
   "correspondenceNote": "Korrespondenz: {names}.",
-  "nameListPair": "{first} und {last}",
-  "nameListEnd": "{head} und {last}",
   "nameListSeparator": ", ",
   "segmentSeparator": "; ",
   "levelAnnotation": "{label} ({level})"

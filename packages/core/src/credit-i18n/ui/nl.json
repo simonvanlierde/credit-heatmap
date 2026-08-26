@@ -8,8 +8,6 @@
   "emptyState": "Nog geen bijdragen toegewezen.",
   "equalContributionNote": "{names} hebben in gelijke mate aan dit werk bijgedragen.",
   "correspondenceNote": "Correspondentie: {names}.",
-  "nameListPair": "{first} en {last}",
-  "nameListEnd": "{head} en {last}",
   "nameListSeparator": ", ",
   "segmentSeparator": "; ",
   "levelAnnotation": "{label} ({level})"

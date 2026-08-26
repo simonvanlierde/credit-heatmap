@@ -6,7 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import { AVAILABLE_LOCALES } from "@credit-generator/core";
 import { expect, type Page, test } from "@playwright/test";
-import { PERSIST_KEY, PERSIST_VERSION } from "../src/store/persist-meta";
+import { seedStorage } from "./helpers";
 
 /**
  * Interface messages live in the app (`src/messages`), not in core: they are
@@ -112,16 +112,7 @@ test.describe("interface messages", () => {
  */
 test.describe("rendering a non-English locale", () => {
   const seed = (page: Page, uiLocale: string, outputLocale: string) =>
-    page.addInitScript(
-      ([ui, out, key, version]) => {
-        window.localStorage.setItem(
-          key as string,
-          JSON.stringify({ state: { authors: [], welcomeSeen: true, uiLocale: ui, outputLocale: out }, version }),
-        );
-      },
-      // Key and version come from the store; see the note in persist-meta.ts.
-      [uiLocale, outputLocale, PERSIST_KEY, PERSIST_VERSION] as const,
-    );
+    seedStorage(page, { authors: [], welcomeSeen: true, uiLocale, outputLocale });
 
   test("translates the interface and declares the document language", async ({ page }) => {
     await seed(page, "nl", "nl");

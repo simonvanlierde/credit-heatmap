@@ -59,11 +59,13 @@ async function handleNavigation(request) {
   }
 }
 
-/** Cache first: asset URLs are content-hashed, so a hit is never stale. */
+/** Cache first: hashed asset URLs are never stale; unhashed ones refresh in the background. */
 async function handleAsset(request) {
   const cached = await caches.match(request);
   if (cached) {
-    void refresh(request);
+    // /_next/static/ URLs are content-hashed, so their cached copy is the
+    // final word; only unhashed assets (favicon, manifest) can change in place.
+    if (!new URL(request.url).pathname.startsWith("/_next/static/")) void refresh(request);
     return cached;
   }
   return fetch(request).then(async (response) => {

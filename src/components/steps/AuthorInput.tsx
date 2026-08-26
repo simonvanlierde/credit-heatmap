@@ -52,6 +52,7 @@ import { useTranslations } from "use-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { StepHeader } from "@/components/ui/step-header";
 import { announce } from "@/lib/announce";
+import { postLookup } from "@/lib/post-lookup";
 import { buildShareUrl } from "@/lib/share";
 import { useCopyStatus } from "@/lib/use-copy-status";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -82,26 +83,12 @@ interface OrcidLookupResult {
 type OrcidFailure = { code: string };
 
 async function fetchOrcidName(orcid: string): Promise<{ displayName: string } | OrcidFailure> {
-  try {
-    const res = await fetch("/api/orcid", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: normalizeOrcid(orcid) }),
-    });
-    if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as { code?: string } | null;
-      return { code: data?.code ?? "BAD_REQUEST" };
-    }
-    const result = (await res.json()) as OrcidLookupResult;
-    if (!result.displayName.trim()) {
-      return { code: "NO_NAME" };
-    }
-    return { displayName: result.displayName };
-  } catch {
-    // The ORCID proxy is the one path that needs a network: the rest of the app
-    // works offline, so say which half is unavailable rather than blaming ORCID.
-    return { code: navigator.onLine ? "UNREACHABLE" : "OFFLINE" };
+  const result = await postLookup<OrcidLookupResult>("/api/orcid", { id: normalizeOrcid(orcid) });
+  if ("code" in result) return result;
+  if (!result.displayName.trim()) {
+    return { code: "NO_NAME" };
   }
+  return { displayName: result.displayName };
 }
 
 /**
@@ -160,6 +147,13 @@ export function AuthorList() {
   } = useContributionStore();
 
   const hydrated = useHydrated();
+  // Edited locally, committed on blur — like the contributor name fields. A
+  // per-keystroke store write would re-render the grid and statement panes and
+  // re-serialize every parked draft to localStorage on each character.
+  const [titleDraft, setTitleDraft] = useState(title);
+  // External writers (hydration, draft switch, DOI import) own the field when
+  // it is not being edited.
+  useEffect(() => setTitleDraft(title), [title]);
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [removed, setRemoved] = useState<{ author: Author; index: number } | null>(null);
@@ -412,8 +406,15 @@ export function AuthorList() {
       <div className="relative mb-3">
         <input
           id="work-title"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
+          value={titleDraft}
+          onChange={(event) => setTitleDraft(event.target.value)}
+          onBlur={() => setTitle(titleDraft)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+            // Revert without blurring: blur() fires before the revert renders,
+            // so a blur here would commit the abandoned text.
+            if (event.key === "Escape") setTitleDraft(title);
+          }}
           // Read-only until the persisted draft lands, because anything typed
           // before that is silently overwritten by it.
           readOnly={!hydrated}

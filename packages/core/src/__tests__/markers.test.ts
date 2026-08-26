@@ -87,7 +87,7 @@ describe("markers in the statement", () => {
       createAuthor(name, { equalContribution: true, contributions: [{ role: "Software", score: 100 }] }),
     );
     expect(generateStatement(authors, { format: "by-role" })).toContain(
-      "A One, B Two and C Three contributed equally to this work.",
+      "A One, B Two, and C Three contributed equally to this work.",
     );
   });
 
@@ -98,8 +98,9 @@ describe("markers in the statement", () => {
 
   it("uses the output locale's word order and punctuation", async () => {
     const translateUi = makeUiTranslator(await loadUiCatalog("ja"));
-    const statement = generateStatement(makeAuthors(), { format: "by-role", translateUi });
-    expect(statement).toContain("Jane A. SmithとBob Whiteは本研究に同等に貢献しました。");
+    const statement = generateStatement(makeAuthors(), { format: "by-role", translateUi, locale: "ja" });
+    // CLDR joins a Japanese list with "、", not "と".
+    expect(statement).toContain("Jane A. Smith、Bob Whiteは本研究に同等に貢献しました。");
     expect(statement).toContain("責任著者：Jane A. Smith。");
   });
 });

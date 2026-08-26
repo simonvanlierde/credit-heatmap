@@ -27,6 +27,7 @@ export function toMarkdown(
   authors: Author[],
   translateRole: RoleTranslator = DEFAULT_ROLE_TRANSLATOR,
   translateUi: UiTranslator = DEFAULT_UI_TRANSLATOR,
+  locale = "en",
 ): string {
   const header = "| Contributor | CRediT roles |\n| --- | --- |";
 
@@ -48,7 +49,7 @@ export function toMarkdown(
   });
 
   // Notes sit under the table as plain sentences, the way a journal prints them.
-  const notes = markerNotes(authors, { translateUi }).map((note) => escapeCell(note));
+  const notes = markerNotes(authors, { translateUi, locale }).map((note) => escapeCell(note));
 
   // An HTML comment: invisible in every Markdown renderer, readable in the source.
   return [header, ...rows, ...(notes.length > 0 ? ["", ...notes] : []), "", `<!-- ${GENERATOR_NOTE} -->`].join("\n");

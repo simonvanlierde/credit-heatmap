@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { PERSIST_KEY, PERSIST_VERSION } from "../src/store/persist-meta";
+import { PERSIST_KEY } from "../src/store/persist-meta";
+import { asReturningVisitor } from "./helpers";
 
 /**
  * Automated accessibility scans. axe-core catches a subset of WCAG issues
@@ -21,14 +22,11 @@ const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
  * intentionally looping one can't hang the suite.
  */
 async function settleMotion(page: Page) {
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        const done = Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined)));
-        const cap = new Promise<void>((r) => setTimeout(r, 2000));
-        Promise.race([done, cap]).then(() => resolve());
-      }),
-  );
+  await page.evaluate(() => {
+    const done = Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined)));
+    const cap = new Promise<void>((r) => setTimeout(r, 2000));
+    return Promise.race([done, cap]).then(() => undefined);
+  });
 }
 
 const scan = async (page: Page) => {
@@ -36,30 +34,9 @@ const scan = async (page: Page) => {
   return new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
 };
 
-/**
- * Most flows exercise the workspace, not the first-run welcome. That welcome is
- * now a modal dialog, so leaving it open would intercept every click. Seeding
- * the "returning visitor" flag keeps it closed, and only when nothing is
- * stored yet, so the persistence and migration flows still own their own state.
- * The first-run modal itself is covered by its own tests.
- */
 /** The contributor rows only; other lists exist (welcome steps, validation). */
 function contributorRows(page: Page) {
   return page.locator("section[aria-label=Contributors]").getByRole("listitem");
-}
-
-async function asReturningVisitor(page: Page) {
-  // Key and version come from the store; see the note in persist-meta.ts.
-  await page.addInitScript(
-    ([key, version]) => {
-      if (window.localStorage.getItem(key as string)) return;
-      window.localStorage.setItem(
-        key as string,
-        JSON.stringify({ state: { authors: [], welcomeSeen: true }, version }),
-      );
-    },
-    [PERSIST_KEY, PERSIST_VERSION] as const,
-  );
 }
 
 test.describe("Accessibility (axe-core)", () => {

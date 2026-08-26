@@ -66,8 +66,6 @@ const UI_KEYS: UiKey[] = [
   "emptyState",
   "equalContributionNote",
   "correspondenceNote",
-  "nameListPair",
-  "nameListEnd",
   "nameListSeparator",
   "segmentSeparator",
   "levelAnnotation",

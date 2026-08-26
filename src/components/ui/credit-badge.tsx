@@ -2,10 +2,8 @@
 
 import { BadgeCheck, Check, Copy, Download, ImageDown } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
 import { useTranslations } from "use-intl";
-import { announce } from "@/lib/announce";
-import { type CopyStatus, useCopyStatus } from "@/lib/use-copy-status";
+import { useCopyStatus } from "@/lib/use-copy-status";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
 const BADGE_SRC = "/credit-badge.png";
@@ -31,20 +29,16 @@ function htmlSnippet() {
 export function CreditBadge({ className }: { className?: string }) {
   const t = useTranslations();
   const [htmlStatus, copyHtml] = useCopyStatus({ copied: t("annBadgeHtmlCopied"), error: t("copyFailedMessage") });
-  const [pngStatus, setPngStatus] = useState<CopyStatus>("idle");
+  const [pngStatus, copyPngBlob] = useCopyStatus({ copied: t("annBadgeCopied"), error: t("copyFailedMessage") });
 
   // Copy the image bytes (not a URL) so it pastes straight into a doc/editor.
-  async function copyPng() {
-    try {
+  // useCopyStatus owns the status, the announce and the 2s reset; this only
+  // supplies the clipboard write.
+  function copyPng() {
+    return copyPngBlob(async () => {
       const blob = await (await fetch(BADGE_SRC)).blob();
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-      setPngStatus("copied");
-      announce(t("annBadgeCopied"));
-    } catch {
-      setPngStatus("error");
-      announce(t("copyFailedMessage"), { assertive: true });
-    }
-    setTimeout(() => setPngStatus("idle"), 2000);
+    });
   }
 
   return (
@@ -95,7 +89,7 @@ export function CreditBadge({ className }: { className?: string }) {
           </button>
           <button
             type="button"
-            onClick={copyPng}
+            onClick={() => void copyPng()}
             className="flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary"
           >
             {pngStatus === "copied" ? (

@@ -289,8 +289,9 @@ describe("contribution store", () => {
         throw new DOMException("QuotaExceededError");
       });
 
-      storage.setItem("credit-generator-state", { state: {}, version: 1 });
-      storage.setItem("credit-generator-state", { state: {}, version: 1 });
+      const state = { drafts: {}, activeDraftId: "a", uiLocale: "en" as const, welcomeSeen: true };
+      storage.setItem("credit-generator-state", { state, version: 1 });
+      storage.setItem("credit-generator-state", { state, version: 1 });
 
       // Once per run of failures, not once per keystroke.
       expect(requestStorageFullAnnouncement).toHaveBeenCalledTimes(1);

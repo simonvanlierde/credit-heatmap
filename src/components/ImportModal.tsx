@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 import { announce } from "@/lib/announce";
 import type { Messages } from "@/lib/intl";
+import { postLookup } from "@/lib/post-lookup";
 
 interface Props {
   open: boolean;
@@ -58,23 +59,11 @@ const DOI_ERROR_KEYS = {
 type DoiFailure = { code: keyof typeof DOI_ERROR_KEYS };
 
 async function fetchDoiWork(doi: string): Promise<Extract<DoiLookupResult, { ok: true }> | DoiFailure> {
-  try {
-    const res = await fetch("/api/doi", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ doi: normalizeDoi(doi) }),
-    });
-    if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as { code?: string } | null;
-      const code = data?.code ?? "";
-      return { code: code in DOI_ERROR_KEYS ? (code as keyof typeof DOI_ERROR_KEYS) : "BAD_REQUEST" };
-    }
-    return (await res.json()) as Extract<DoiLookupResult, { ok: true }>;
-  } catch {
-    // The lookup is one of two paths that need a network; the rest of the app
-    // works offline, so say which half is unavailable rather than blaming Crossref.
-    return { code: navigator.onLine ? "UNREACHABLE" : "OFFLINE" };
+  const result = await postLookup<Extract<DoiLookupResult, { ok: true }>>("/api/doi", { doi: normalizeDoi(doi) });
+  if ("code" in result) {
+    return { code: result.code in DOI_ERROR_KEYS ? (result.code as keyof typeof DOI_ERROR_KEYS) : "BAD_REQUEST" };
   }
+  return result;
 }
 
 type DetectedFormat = "link" | "csv" | "json" | "xml" | "names" | "unknown";
@@ -111,6 +100,15 @@ const IMPORTERS: Record<
   csv: { parse: fromCsv, emptyMessageKey: "errImportNoCsvRows" },
   xml: { parse: fromJats4rXml, emptyMessageKey: "errImportNoXmlContribs" },
   names: { parse: parseAuthorText, emptyMessageKey: "errImportNoNames" },
+};
+
+/** Label shown beside the paste area; "JATS4R XML" and "CSV" are format names, not prose. */
+const FORMAT_LABEL: Record<Exclude<DetectedFormat, "unknown">, (t: ReturnType<typeof useTranslations>) => string> = {
+  names: (t) => t("importAuthorList"),
+  link: (t) => t("formatShareLink"),
+  json: (t) => t("formatJsonExport"),
+  xml: () => "JATS4R XML",
+  csv: () => "CSV",
 };
 
 export function ImportModal({ open, existingContributorCount, onImport, onLink, onClose }: Props) {
@@ -417,15 +415,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
               {format !== "unknown" && (
                 <span className="text-[11px] text-primary font-medium italic">
                   {t("detectedFormat")}
-                  {format === "names"
-                    ? t("importAuthorList")
-                    : format === "link"
-                      ? t("formatShareLink")
-                      : format === "json"
-                        ? t("formatJsonExport")
-                        : format === "xml"
-                          ? "JATS4R XML"
-                          : "CSV"}
+                  {FORMAT_LABEL[format](t)}
                 </span>
               )}
             </div>

@@ -10,6 +10,8 @@
  * not the community role repo's, hence a separate directory.
  */
 
+import type { LocaleCode } from "./index";
+
 export type UiKey =
   | "acknowledgements"
   | "lead"
@@ -20,13 +22,24 @@ export type UiKey =
   | "emptyState"
   | "equalContributionNote"
   | "correspondenceNote"
-  | "nameListPair"
-  | "nameListEnd"
   | "nameListSeparator"
   | "segmentSeparator"
   | "levelAnnotation";
 
 export type UiTranslator = (key: UiKey) => string;
+
+/**
+ * Fill `{name}` placeholders in a catalog template. Replacer functions, not
+ * replacement strings: a value containing "$&" or "$'" would otherwise be
+ * expanded as a replacement pattern.
+ */
+export function fillTemplate(template: string, vars: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replace(`{${key}}`, () => value);
+  }
+  return result;
+}
 
 /** A complete output catalog. Missing prose must fail before release. */
 export type UiCatalog = Record<UiKey, string>;
@@ -43,8 +56,6 @@ const EN_UI: Record<UiKey, string> = {
   // `{names}` is substituted with the marked contributors.
   equalContributionNote: "{names} contributed equally to this work.",
   correspondenceNote: "Correspondence: {names}.",
-  nameListPair: "{first} and {last}",
-  nameListEnd: "{head} and {last}",
   nameListSeparator: ", ",
   // Joins the segments of a statement ("Role: names; Role: names"). Its own
   // key because CJK locales use full-width punctuation ("；"), and mixing
@@ -56,8 +67,9 @@ const EN_UI: Record<UiKey, string> = {
 };
 
 // One static import() per locale so bundlers code-split each catalog (only the
-// selected language ships to the client). Add a line here for each new locale.
-const LOADERS: Record<string, () => Promise<{ default: UiCatalog }>> = {
+// selected language ships to the client). The exhaustive key type makes adding
+// a locale to AVAILABLE_LOCALES without a catalog here a compile error.
+const LOADERS: Record<Exclude<LocaleCode, "en">, () => Promise<{ default: UiCatalog }>> = {
   fr: () => import("./ui/fr.json"),
   de: () => import("./ui/de.json"),
   es: () => import("./ui/es.json"),
@@ -70,7 +82,7 @@ const LOADERS: Record<string, () => Promise<{ default: UiCatalog }>> = {
 
 /** Load a locale's UI catalog. Returns null for `en` or any unknown locale (→ English). */
 export async function loadUiCatalog(locale: string): Promise<UiCatalog | null> {
-  const loader = LOADERS[locale];
+  const loader = Object.hasOwn(LOADERS, locale) ? LOADERS[locale as Exclude<LocaleCode, "en">] : undefined;
   if (!loader) return null;
   const mod = await loader();
   return mod.default;

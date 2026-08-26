@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { isValidOrcid, MAX_AUTHORS, normalizeOrcid } from "./author";
+import { fetchUpstreamJson } from "./upstream-fetch";
 
 /**
- * Stable machine-readable failure codes, mirroring `orcid-lookup.ts`.
+ * Stable machine-readable failure codes.
  *
  * The client localizes from the code; the `error` string beside it stays English
  * for logs and `curl`. Codes are API surface: add rather than rename.
@@ -20,9 +21,6 @@ const MESSAGES: Record<DoiErrorCode, string> = {
 
 /** DOI accepted on input: bare form, a `doi:` prefix, or the doi.org URL. */
 export const DOI_INPUT_REGEX = /^(?:(?:https?:\/\/(?:dx\.)?doi\.org\/)|(?:doi:))?10\.\d{4,9}\/\S+$/i;
-
-/** Upstream deadline. Crossref normally answers well inside this. */
-const CROSSREF_TIMEOUT_MS = 5000;
 
 export interface DoiAuthor {
   name: string;
@@ -88,31 +86,14 @@ export async function lookupDoiWork(
   if (!DOI_INPUT_REGEX.test(normalized)) return fail(400, "INVALID_DOI");
 
   const politeSuffix = mailto ? `?mailto=${encodeURIComponent(mailto)}` : "";
-  let response: Response;
-  try {
-    response = await fetcher(`https://api.crossref.org/works/${encodeURIComponent(normalized)}${politeSuffix}`, {
-      headers: { Accept: "application/json" },
-      cache: "force-cache",
-      next: { revalidate: 3600 },
-      // Without a deadline a hung upstream pins the request until the platform
-      // kills it; the catch below already maps the abort to a 502.
-      signal: AbortSignal.timeout(CROSSREF_TIMEOUT_MS),
-    } as RequestInit);
-  } catch {
-    return fail(502, "UNAVAILABLE");
-  }
+  const upstream = await fetchUpstreamJson(
+    `https://api.crossref.org/works/${encodeURIComponent(normalized)}${politeSuffix}`,
+    fetcher,
+  );
+  if (upstream.kind === "not-found") return fail(404, "NOT_FOUND");
+  if (upstream.kind !== "ok") return fail(502, "UNAVAILABLE");
 
-  if (response.status === 404) return fail(404, "NOT_FOUND");
-  if (!response.ok) return fail(502, "UNAVAILABLE");
-
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch {
-    return fail(502, "UNAVAILABLE");
-  }
-
-  const parsed = CrossrefWorkSchema.safeParse(body);
+  const parsed = CrossrefWorkSchema.safeParse(upstream.body);
   if (!parsed.success) return fail(502, "UNAVAILABLE");
 
   const entries = parsed.data.message.author ?? [];

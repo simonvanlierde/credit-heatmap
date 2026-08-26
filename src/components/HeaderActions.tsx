@@ -61,18 +61,7 @@ export function HeaderActions() {
       // here would take down the whole page render on a bad link, so degrade to
       // the persisted draft and say why.
       try {
-        // Own work already here? Give the link its own draft — and refuse the
-        // link when the draft cap makes that impossible, because falling
-        // through would load it over the paper that is open.
-        const occupied = useContributionStore.getState().authors.length > 0;
-        if (occupied && createDraft() === null) {
-          announce(t("draftLimitReached", { count: MAX_DRAFTS }), { assertive: true });
-          return;
-        }
-        // The payload carries no title: loading in place must not keep the
-        // previous paper's title above the shared roster.
-        if (!occupied) setTitle("");
-        loadAuthors(fromHash.authors);
+        if (loadSharedAuthors(fromHash.authors) === "limit") return;
         // Says whose row this link is asking for, and which paper it came from;
         // the banner reads the first and the reply carries the second back.
         setClaim(fromHash.claimIndex, fromHash.draftId);
@@ -84,6 +73,26 @@ export function HeaderActions() {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     })();
   }, [createDraft, loadAuthors, setClaim, setTitle]);
+
+  /**
+   * Load a shared roster beside the open work. Own work already here? Give the
+   * link its own draft — and refuse the link when the draft cap makes that
+   * impossible, because falling through would load it over the paper that is
+   * open. loadAuthors may still throw on a bad payload; each caller reports
+   * that failure its own way.
+   */
+  function loadSharedAuthors(sharedAuthors: Author[]): "limit" | "occupied" | "fresh" {
+    const occupied = useContributionStore.getState().authors.length > 0;
+    if (occupied && createDraft() === null) {
+      announce(t("draftLimitReached", { count: MAX_DRAFTS }), { assertive: true });
+      return "limit";
+    }
+    // The payload carries no title: loading in place must not keep the
+    // previous paper's title above the shared roster.
+    if (!occupied) setTitle("");
+    loadAuthors(sharedAuthors);
+    return occupied ? "occupied" : "fresh";
+  }
 
   function handleImport(importedAuthors: Author[], importedTitle?: string) {
     // Errors surface in ImportModal, which keeps the dialog open on failure.
@@ -151,21 +160,14 @@ export function HeaderActions() {
 
   /** Open a whole shared draft beside your own work, never on top of it. */
   function openSharedDraft(shared: SharedDraft): "errShareLinkBroken" | null {
-    const occupied = useContributionStore.getState().authors.length > 0;
-    if (occupied && createDraft() === null) {
-      announce(t("draftLimitReached", { count: MAX_DRAFTS }), { assertive: true });
-      return null;
-    }
-
+    let outcome: "limit" | "occupied" | "fresh";
     try {
-      // In place, the previous paper's title would otherwise sit above the
-      // shared roster: the payload carries no title of its own.
-      if (!occupied) setTitle("");
-      loadAuthors(shared.authors);
+      outcome = loadSharedAuthors(shared.authors);
     } catch {
       return "errShareLinkBroken";
     }
-    announce(occupied ? t("sharedDraftOpened") : t("mergeNotAClaim"));
+    if (outcome === "limit") return null;
+    announce(outcome === "occupied" ? t("sharedDraftOpened") : t("mergeNotAClaim"));
     return null;
   }
 

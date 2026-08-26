@@ -1,30 +1,8 @@
 // biome-ignore lint/correctness/noNodejsModules: Playwright tests run in Node.
 import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
-import { PERSIST_KEY, PERSIST_VERSION } from "../src/store/persist-meta";
-
-/**
- * Most flows exercise the workspace, not the first-run welcome. That welcome is
- * now a modal dialog, so leaving it open would intercept every click. Seeding
- * the "returning visitor" flag keeps it closed, and only when nothing is
- * stored yet, so the persistence and migration flows still own their own state.
- * The first-run modal itself is covered by its own tests.
- */
-async function asReturningVisitor(page: Page) {
-  // The key and version come from the store, never restated here: a fixture
-  // stamped with a version the store no longer accepts is silently discarded,
-  // and the failure surfaces as the welcome modal eating the first click.
-  await page.addInitScript(
-    ([key, version]) => {
-      if (window.localStorage.getItem(key as string)) return;
-      window.localStorage.setItem(
-        key as string,
-        JSON.stringify({ state: { authors: [], welcomeSeen: true }, version }),
-      );
-    },
-    [PERSIST_KEY, PERSIST_VERSION] as const,
-  );
-}
+import { PERSIST_KEY } from "../src/store/persist-meta";
+import { asReturningVisitor, seedStorage } from "./helpers";
 
 /**
  * The on-screen copy of a message. Errors are both rendered next to the field
@@ -301,15 +279,9 @@ test.describe("Happy path UI flows", () => {
 
     // Bob opens it in his own browser and sees whose row it is.
     const bob = await context.newPage();
-    await bob.addInitScript(
-      // A different person, on a different machine: nothing of this draft is
-      // stored for him. The welcome is seeded away so it cannot swallow clicks.
-      ([key, version]) => {
-        window.localStorage.clear();
-        window.localStorage.setItem(key as string, JSON.stringify({ state: { welcomeSeen: true }, version }));
-      },
-      [PERSIST_KEY, PERSIST_VERSION] as const,
-    );
+    // A different person, on a different machine: nothing of this draft is
+    // stored for him. The welcome is seeded away so it cannot swallow clicks.
+    await seedStorage(bob, { welcomeSeen: true }, { clearFirst: true });
     await bob.goto(askUrl);
     await expect(bob.getByText("You are filling in Bob White's contributions")).toBeVisible();
 
@@ -340,11 +312,7 @@ test.describe("Happy path UI flows", () => {
 
     // Someone else's browser, already holding a paper of their own.
     const other = await context.newPage();
-    await other.addInitScript(
-      ([key, version]) =>
-        window.localStorage.setItem(key as string, JSON.stringify({ state: { welcomeSeen: true }, version })),
-      [PERSIST_KEY, PERSIST_VERSION] as const,
-    );
+    await seedStorage(other, { welcomeSeen: true });
     await other.goto("/");
     await other.getByRole("button", { name: "Import", exact: true }).click();
     await other.locator("#import-text").fill("Erik Nilsson");
@@ -352,7 +320,9 @@ test.describe("Happy path UI flows", () => {
     // Title after the first edit lands: the store rehydrates in an effect, and
     // anything typed before that is overwritten by the restored draft.
     await expect(other.getByRole("button", { name: /^Remove / })).toHaveCount(1);
+    // Enter commits: the field holds a local draft until blur or Enter.
     await other.getByLabel("Draft title").fill("My own paper");
+    await other.getByLabel("Draft title").press("Enter");
     await expect(other.getByRole("button", { name: "Drafts: My own paper" })).toBeVisible();
 
     // The shared draft arrives. Their own paper must survive it.
@@ -377,12 +347,14 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
     await page.getByLabel("Draft title").fill("Paper one");
+    await page.getByLabel("Draft title").press("Enter");
     await expect(page.getByRole("button", { name: "Drafts: Paper one" })).toBeVisible();
 
     // Paper two, where the request is sent from.
     await page.getByRole("button", { name: /^Drafts:/ }).click();
     await page.getByRole("button", { name: "New draft" }).click();
     await page.getByLabel("Draft title").fill("Paper two");
+    await page.getByLabel("Draft title").press("Enter");
     await expect(page.getByRole("button", { name: "Drafts: Paper two" })).toBeVisible();
     await page.getByRole("button", { name: "Import", exact: true }).click();
     await page.locator("#import-text").fill("Jane A. Smith\nBob White");
@@ -393,13 +365,7 @@ test.describe("Happy path UI flows", () => {
 
     // Bob answers.
     const bob = await context.newPage();
-    await bob.addInitScript(
-      ([key, version]) => {
-        window.localStorage.clear();
-        window.localStorage.setItem(key as string, JSON.stringify({ state: { welcomeSeen: true }, version }));
-      },
-      [PERSIST_KEY, PERSIST_VERSION] as const,
-    );
+    await seedStorage(bob, { welcomeSeen: true }, { clearFirst: true });
     await bob.goto(askUrl);
     await bob.getByRole("button", { name: /^Validation for Bob White:/ }).click();
     await bob.getByRole("button", { name: "Copy the link to send back" }).click();
@@ -452,6 +418,7 @@ test.describe("Happy path UI flows", () => {
 
     // The title lives in the workspace; the picker lists the drafts by it.
     await page.getByLabel("Draft title").fill("First paper");
+    await page.getByLabel("Draft title").press("Enter");
     const picker = page.getByRole("button", { name: /^Drafts:/ });
     await picker.click();
     await page.getByRole("button", { name: "New draft" }).click();

@@ -1,5 +1,6 @@
-import { DOI_INPUT_REGEX, type DoiErrorCode, lookupDoiWork, normalizeDoi } from "@credit-generator/core";
+import { lookupDoiWork } from "@credit-generator/core";
 import { type NextRequest, NextResponse } from "next/server";
+import { errorResponse, readStringField } from "../lookup-route";
 import { checkRateLimit, checkSameOrigin } from "../rate-limit";
 
 /**
@@ -27,34 +28,10 @@ export async function POST(request: NextRequest) {
   const limited = await checkRateLimit(request);
   if (limited) return limited;
 
-  let doi = "";
-  try {
-    const body: unknown = await request.json();
-    if (body !== null && typeof body === "object" && "doi" in body && typeof body.doi === "string") {
-      doi = body.doi;
-    }
-  } catch {
-    return errorResponse(400, "BAD_REQUEST", "The request body could not be read.");
-  }
-
-  if (!DOI_INPUT_REGEX.test(normalizeDoi(doi))) {
-    return errorResponse(400, "INVALID_DOI", "That is not a valid DOI. It should look like 10.1234/abcde.");
-  }
+  const doi = await readStringField(request, "doi");
+  if (doi === null) return errorResponse(400, "BAD_REQUEST", "The request body could not be read.");
 
   const result = await lookupDoiWork(doi, fetch, POLITE_MAILTO);
   if (!result.ok) return errorResponse(result.status, result.code, result.error);
   return NextResponse.json(result);
-}
-
-/**
- * Every failure carries a stable `code` plus an English `error`.
- *
- * The client localizes from the code; the message is the fallback for a client
- * that meets a code it does not know, and what shows up in logs and `curl`.
- * Codes are API surface: add new ones rather than renaming existing ones.
- */
-type ApiErrorCode = DoiErrorCode | "BAD_REQUEST";
-
-function errorResponse(status: number, code: ApiErrorCode, error: string) {
-  return NextResponse.json({ code, error }, { status });
 }
