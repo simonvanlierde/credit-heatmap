@@ -98,3 +98,9 @@ jobs:
       # OpenNext), not just `next build`, so worker-bundling failures surface in CI.
       - name: Build
         run: pnpm exec opennextjs-cloudflare build
+
+      # Nothing else in CI reads wrangler.jsonc, and the real deploy runs from
+      # Cloudflare Builds on merge to main: a bad binding, route or `main` path
+      # would first fail in production. The dry run needs no credentials.
+      - name: Validate Worker config
+        run: pnpm exec wrangler deploy --dry-run
