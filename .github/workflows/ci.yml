@@ -54,18 +54,42 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The browser download is ~130MB and never varies for a given Playwright
+      # version, so key the cache on the lockfile. `--with-deps` still runs on a
+      # hit: the apt system libraries live outside this path.
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
       # Only Chromium is needed; skip the other browsers.
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
+
+      # This job builds the app before the tests run (see playwright.config.ts),
+      # so it wants the same incremental cache the build job keeps.
+      - name: Cache Next.js build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('**/*.{js,jsx,ts,tsx}') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
 
       # The whole Playwright suite gates every push/PR: the axe scans *and*
       # the critical-workflow specs (import, undo, ORCID lookup, persistence,
       # bulk assign, export). Running only a11y.spec.ts here let a regression
       # in any of those merge with CI fully green, since e2e.yml is opt-in.
+      #
+      # Workers are left at Playwright's default (half the runner's cores).
+      # Against a production build the suite runs 62s serially and 46s on two
+      # workers, and the one test that failed under load was an unscoped
+      # locator, not a shared-state problem: `retries: 2` covers the rest.
       - name: Run Playwright suite
         env:
           CI: true
-        run: pnpm exec playwright test --workers=1
+        run: pnpm exec playwright test
 
   build:
     name: Build
