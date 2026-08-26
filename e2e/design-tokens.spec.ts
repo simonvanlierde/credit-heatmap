@@ -2,8 +2,8 @@
 import { readFileSync } from "node:fs";
 // biome-ignore lint/correctness/noNodejsModules: Playwright tests run in Node.
 import path from "node:path";
-import process from "node:process";
 // biome-ignore lint/correctness/noNodejsModules: Playwright tests run in Node.
+import process from "node:process";
 import { expect, test } from "@playwright/test";
 
 /**

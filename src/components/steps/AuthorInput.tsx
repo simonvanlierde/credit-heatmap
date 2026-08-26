@@ -33,6 +33,7 @@ import {
   GripVertical,
   Plus,
   PlusCircle,
+  Send,
   Sparkles,
   Trash2,
   UserCheck,
@@ -47,6 +48,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 import { StepHeader } from "@/components/ui/step-header";
 import { announce } from "@/lib/announce";
+import { buildShareUrl } from "@/lib/share";
 import { useSettled } from "@/lib/use-settled";
 import { useContributionStore } from "@/store/contribution-store";
 
@@ -578,6 +580,21 @@ function AuthorRow({
   const [nameDraft, setNameDraft] = useState(author?.name ?? "");
   const [nameError, setNameError] = useState<string | null>(null);
   const committedRef = useRef(false);
+
+  /**
+   * Copy a link addressed at this contributor. They open it, tick their own
+   * roles, and send the same link back; importing it collects that row alone.
+   */
+  async function handleAsk() {
+    if (!author) return;
+    try {
+      await navigator.clipboard.writeText(buildShareUrl(authors, index));
+      announce(t("askContributorCopied", { name: author.name }));
+    } catch {
+      announce(t("copyFailedMessage"), { assertive: true });
+    }
+  }
+
   const nameInputRef = useRef<HTMLInputElement>(null);
   // Guard against setState after the row unmounts mid-lookup (delete/reorder).
   const mounted = useRef(true);
@@ -783,6 +800,16 @@ function AuthorRow({
                 title={author.corresponding ? t("correspondingUnset") : t("correspondingSet")}
                 onClick={() => setAuthorMarker(author.id, "corresponding", !author.corresponding)}
               />
+              <button
+                type="button"
+                onClick={() => void handleAsk()}
+                aria-label={t("askContributor", { name: author.name })}
+                title={t("askContributor", { name: author.name })}
+                className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-[color,opacity] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+              >
+                <Send className="h-3 w-3" />
+                {t("ask")}
+              </button>
               {!hasOrcid && !editingOrcid && (
                 // Short label: the trigger is hover-revealed but still occupies its
                 // width, and "ORCID iD" pushed this row onto a second line in the

@@ -89,11 +89,16 @@ export function DraftPicker() {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex min-h-9 max-w-[10rem] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface sm:max-w-[16rem]"
+          // Names the control *and* which draft is live: below `sm` the title is
+          // hidden, and without this the button would announce only "Drafts".
+          aria-label={`${t("drafts")}: ${label}`}
+          className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface sm:max-w-[16rem]"
         >
           <Files className="h-4 w-4 shrink-0" />
-          <span className="truncate">{label}</span>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+          {/* The title is the first thing to go on a narrow header: the icon
+              still opens the list, where the title is spelled out in full. */}
+          <span className="hidden truncate sm:inline">{label}</span>
+          <ChevronDown className="hidden h-3.5 w-3.5 shrink-0 sm:block" />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 max-w-[calc(100vw-1.5rem)] p-0">

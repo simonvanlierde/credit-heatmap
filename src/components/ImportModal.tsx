@@ -23,6 +23,12 @@ interface Props {
   existingContributorCount: number;
   /** `title` is set only by the DOI path; the other importers carry no title. */
   onImport: (authors: Author[], title?: string) => void;
+  /**
+   * Handle a pasted share link. Returns a message key when it could not be
+   * used, or null on success. Lives with the caller because merging a returned
+   * link needs the current workspace, which this dialog does not hold.
+   */
+  onLink: (url: string) => "errShareLinkBroken" | null;
   onClose: () => void;
 }
 
@@ -71,10 +77,12 @@ async function fetchDoiWork(doi: string): Promise<Extract<DoiLookupResult, { ok:
   }
 }
 
-type DetectedFormat = "csv" | "json" | "xml" | "names" | "unknown";
+type DetectedFormat = "link" | "csv" | "json" | "xml" | "names" | "unknown";
 
 function detect(text: string): DetectedFormat {
   const trimmed = text.trim();
+  // A share link, most usefully one a co-author sent back with their own roles.
+  if (/^https?:\/\/\S+#s=/.test(trimmed)) return "link";
   if (trimmed.startsWith("<")) return "xml";
   // JSON must be checked before the CSV heuristic: a toJson() payload contains
   // both a comma and a "name" field, so the CSV check would misclassify it.
@@ -96,6 +104,7 @@ const MAX_IMPORT_MB = `${Math.round(MAX_IMPORT_BYTES / 1_000_000)} MB`;
 
 /** Format names are proper nouns; the "names" case is translated at render. */
 const FORMAT_LABEL: Record<DetectedFormat, string> = {
+  link: "Share link",
   csv: "CSV",
   json: "JSON export",
   xml: "JATS4R XML",
@@ -105,7 +114,7 @@ const FORMAT_LABEL: Record<DetectedFormat, string> = {
 
 /** Parser + "nothing found" message for each detectable format. */
 const IMPORTERS: Record<
-  Exclude<DetectedFormat, "unknown">,
+  Exclude<DetectedFormat, "unknown" | "link">,
   { parse: (text: string) => Author[]; emptyMessageKey: keyof Messages }
 > = {
   json: { parse: fromJson, emptyMessageKey: "errImportNoJsonContributors" },
@@ -114,7 +123,7 @@ const IMPORTERS: Record<
   names: { parse: parseAuthorText, emptyMessageKey: "errImportNoNames" },
 };
 
-export function ImportModal({ open, existingContributorCount, onImport, onClose }: Props) {
+export function ImportModal({ open, existingContributorCount, onImport, onLink, onClose }: Props) {
   const t = useTranslations();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -181,6 +190,17 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
     try {
       if (new TextEncoder().encode(text).byteLength > MAX_IMPORT_BYTES) {
         showError(`That import is too large. Paste less than ${MAX_IMPORT_MB} of data.`);
+        return;
+      }
+      if (format === "link") {
+        // The whole-draft and merge cases both need the current workspace, so
+        // the caller owns this one; failures come back as a message key.
+        const failure = onLink(text.trim());
+        if (failure) {
+          showError(t(failure));
+          return;
+        }
+        dialogRef.current?.close();
         return;
       }
       const { parse, emptyMessageKey } = IMPORTERS[format];

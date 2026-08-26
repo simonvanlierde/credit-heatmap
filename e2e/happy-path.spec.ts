@@ -263,6 +263,48 @@ test.describe("Happy path UI flows", () => {
     expect(new URL(fresh.url()).hash).toBe("");
   });
 
+  test("collects one co-author's roles through a claimed link", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    // Ask the second contributor (Bob White) to fill in his own row.
+    await page.getByRole("button", { name: "Ask Bob White to fill this in" }).click();
+    const askUrl = await page.evaluate(() => navigator.clipboard.readText());
+    expect(askUrl).toContain("&c=1");
+
+    // Bob opens it in his own browser and sees whose row it is.
+    const bob = await context.newPage();
+    await bob.addInitScript(() => {
+      // A different person, on a different machine: nothing of this draft is
+      // stored for him. The welcome is seeded away so it cannot swallow clicks.
+      window.localStorage.clear();
+      window.localStorage.setItem(
+        "credit-generator-state",
+        JSON.stringify({ state: { welcomeSeen: true }, version: 1 }),
+      );
+    });
+    await bob.goto(askUrl);
+    await expect(bob.getByText("You are filling in Bob White's contributions")).toBeVisible();
+
+    // He assigns himself a role, and edits someone else's for good measure.
+    await bob.getByRole("button", { name: /^Validation for Bob White:/ }).click();
+    await bob.getByRole("button", { name: /^Validation for Jane A\. Smith:/ }).click();
+
+    await bob.getByRole("button", { name: "Copy the link to send back" }).click();
+    const returnedUrl = await bob.evaluate(() => navigator.clipboard.readText());
+
+    // Back in the original workspace, paste what he sent.
+    await page.getByRole("button", { name: "Import" }).click();
+    await page.locator("#import-text").fill(returnedUrl);
+    await page.getByRole("button", { name: "Import data" }).click();
+
+    // His row lands; his opinion about Jane's row does not.
+    await expect(page.getByRole("button", { name: "Validation for Bob White: Contributed" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Validation for Jane A. Smith: None" })).toBeVisible();
+  });
+
   test("persists and clears the local draft", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
@@ -288,7 +330,7 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
-    const picker = page.getByRole("button", { name: /Untitled draft|Drafts/ }).first();
+    const picker = page.getByRole("button", { name: /^Drafts:/ });
     await picker.click();
     await page.getByLabel("Draft title").fill("First paper");
     await page.getByRole("button", { name: "New draft" }).click();
@@ -301,10 +343,7 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(1);
 
     // Back to the first draft: its three contributors and its title return.
-    await page
-      .getByRole("button", { name: /Untitled draft/ })
-      .first()
-      .click();
+    await picker.click();
     await page.getByRole("button", { name: "Switch to First paper" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 

@@ -1,3 +1,4 @@
+import { ClaimBanner } from "@/components/ClaimBanner";
 import { LabelledSection } from "@/components/LabelledSection";
 import { AuthorList } from "@/components/steps/AuthorInput";
 import { ContributionGrid } from "@/components/steps/ContributionGrid";
@@ -8,6 +9,7 @@ export default function HomePage() {
   return (
     <>
       <WelcomeCard />
+      <ClaimBanner />
       {/* Steps 1–3 in DOM (and tab) order. Below xl they stack and the page
           scrolls; from xl each step gets its own column, so the workflow reads
           left to right and fits one desktop viewport.

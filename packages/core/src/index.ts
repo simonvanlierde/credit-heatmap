@@ -57,6 +57,8 @@ export { fromJats4rXml, fromXmlDocument } from "./export/xml-import.js";
 export type { StatementFormat, StatementOptions } from "./generate-statement.js";
 export { generateStatement } from "./generate-statement.js";
 export { markerNotes } from "./markers.js";
+export type { MergeResult } from "./merge-row.js";
+export { mergeContributorRow } from "./merge-row.js";
 export type { OrcidErrorCode, OrcidLookupResult } from "./orcid-lookup.js";
 export { lookupOrcidPerson } from "./orcid-lookup.js";
 export {
@@ -66,5 +68,6 @@ export {
   parseNameParts,
   splitNameList,
 } from "./parse-authors.js";
+export { fromSharePayload, toSharePayload } from "./share-payload.js";
 export type { ValidationIssue, ValidationLevel } from "./validate.js";
 export { validateContributions } from "./validate.js";

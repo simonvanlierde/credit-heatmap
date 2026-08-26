@@ -23,11 +23,15 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
 ## What it does
 
 - **Contributors**: add, rename, reorder, or paste a whole author list. Paste an ORCID iD or URL to
-  look up the name
+  look up the name, or a DOI to fill the whole list from the published record
+- **Ask your co-authors**: send each person a link addressed to their own row. They tick what they
+  did and send it back; importing it collects that row and nothing else
+- **Drafts**: one per paper, switched from the header. They stay in this browser
 - **Contribution grid**: click a cell to assign one of the 14 roles, as a yes/no value or as a
   contribution level. The grid is the heatmap, so you can transpose it, swap initials for full
   names, and recolor it
-- **Statements**: group by role or by author, with full names or initials, and optional level labels
+- **Statements**: group by role or by author, with full names or initials, and optional level labels.
+  Copy as rich text or plain, and mark shared first authorship and corresponding authors
 - **Eight languages**: the interface and the generated statement each pick their own language, so a
   Dutch interface can produce an English statement. Role names come from
   [credit-translation](https://github.com/contributorshipcollaboration/credit-translation);
@@ -35,8 +39,8 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
 - **Exports**: copy or download JATS4R XML, CSV, JSON, and Markdown, or download the heatmap as SVG
   or PNG
 - **Sharing and import**: encode a draft in a URL, paste names, or import JSON, CSV, or JATS4R XML
-- **Works offline**: install it, and a draft survives a flight. Only the ORCID lookup needs a
-  network
+- **Works offline**: install it, and a draft survives a flight. Only the ORCID and DOI lookups need
+  a network
 
 | First run | Statement & export |
 |---|---|
@@ -71,8 +75,9 @@ Nearly everything runs in the browser. [`packages/core`](packages/core/README.md
 logic as pure TypeScript, with `zod` as its only runtime dependency. XML import uses the native
 `DOMParser`, and the PNG is drawn from the heatmap SVG onto a `<canvas>`.
 
-The ORCID lookup is the one exception: ORCID's public API sends no CORS headers, so `/api/orcid`
-proxies it. Contributions store a 0–100 integer `score` rather than a boolean, so the UI switches
+The ORCID and DOI lookups are the exceptions, proxied by `/api/orcid` and `/api/doi`: ORCID's public
+API sends no CORS headers, and Crossref's polite-pool contact address belongs on the server rather
+than in every client bundle. Contributions store a 0–100 integer `score` rather than a boolean, so the UI switches
 between binary and level-based editing without changing the stored model. See
 [`packages/core/README.md`](packages/core/README.md#domain-model) for the score-to-level boundaries.
 

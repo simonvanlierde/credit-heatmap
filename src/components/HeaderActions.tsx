@@ -1,6 +1,7 @@
 "use client";
 
 import type { Author } from "@credit-generator/core";
+import { mergeContributorRow } from "@credit-generator/core";
 import { Check, CircleAlert, Link2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslations } from "use-intl";
@@ -26,6 +27,7 @@ export function HeaderActions() {
   const authors = useContributionStore((s) => s.authors);
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
   const setTitle = useContributionStore((s) => s.setTitle);
+  const setClaim = useContributionStore((s) => s.setClaim);
   const t = useTranslations();
 
   // Rehydrate persisted state on the client (the store skips hydration at
@@ -44,13 +46,15 @@ export function HeaderActions() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only by design
   useEffect(() => {
     const fromHash = decodeShareHash(window.location.hash);
-    if (fromHash && fromHash.length > 0) {
+    if (fromHash && fromHash.authors.length > 0) {
       // decodeShareHash validates against the schema, but loadAuthors rebuilds
       // every author through createAuthor, which can still reject one. Throwing
       // here would take down the whole page render on a bad link, so degrade to
       // the persisted draft and say why.
       try {
-        loadAuthors(fromHash);
+        loadAuthors(fromHash.authors);
+        // Says whose row this link is asking for; the banner reads it.
+        setClaim(fromHash.claimIndex);
       } catch {
         announce(t("errShareLinkBroken"), { assertive: true });
         return;
@@ -58,7 +62,7 @@ export function HeaderActions() {
       // Drop only the fragment; keep any query string intact.
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
     }
-  }, [loadAuthors]);
+  }, [loadAuthors, setClaim]);
 
   function handleImport(importedAuthors: Author[], importedTitle?: string) {
     // Errors surface in ImportModal, which keeps the dialog open on failure.
@@ -66,6 +70,44 @@ export function HeaderActions() {
     // Only the DOI path carries a title. Guard on it rather than on emptiness,
     // so a record with no title still clears a stale one from the last import.
     if (importedTitle !== undefined) setTitle(importedTitle);
+  }
+
+  /**
+   * Take a pasted share link.
+   *
+   * A link addressed at one contributor is a reply to a request, so only that
+   * row is collected. An ordinary share link still replaces the whole draft,
+   * which is what it has always done.
+   */
+  function handleLink(url: string): "errShareLinkBroken" | null {
+    const hashAt = url.indexOf("#");
+    const shared = hashAt === -1 ? null : decodeShareHash(url.slice(hashAt));
+    if (!shared || shared.authors.length === 0) return "errShareLinkBroken";
+
+    if (shared.claimIndex === null) {
+      try {
+        loadAuthors(shared.authors);
+      } catch {
+        return "errShareLinkBroken";
+      }
+      announce(t("mergeNotAClaim"));
+      return null;
+    }
+
+    const result = mergeContributorRow(authors, shared.authors, shared.claimIndex);
+    if (result.unmatched) {
+      announce(t("mergeUnmatched", { name: result.unmatched.name }), { assertive: true });
+      return null;
+    }
+    if (!result.merged) return "errShareLinkBroken";
+
+    try {
+      loadAuthors(result.authors);
+    } catch {
+      return "errShareLinkBroken";
+    }
+    announce(t("mergedRow", { name: result.merged.name }));
+    return null;
   }
 
   async function handleShare() {
@@ -133,6 +175,7 @@ export function HeaderActions() {
         open={importOpen}
         existingContributorCount={authors.length}
         onImport={handleImport}
+        onLink={handleLink}
         onClose={() => setImportOpen(false)}
       />
     </>
