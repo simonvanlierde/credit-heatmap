@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, Copy, FilePlus2, Files, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { announce } from "@/lib/announce";
@@ -27,6 +27,17 @@ export function DraftPicker() {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
+
+  // The Delete button that was activated unmounts with the row swap, so focus
+  // would fall to <body> while the popover stays open, and nothing would say
+  // the question. Hand focus to Cancel (which also reads the pair) and speak
+  // the question itself.
+  useEffect(() => {
+    if (pendingDelete === null) return;
+    cancelDeleteRef.current?.focus();
+    announce(t("confirmDeleteDraft"));
+  }, [pendingDelete, t]);
 
   const drafts = useContributionStore((s) => s.drafts);
   const activeDraftId = useContributionStore((s) => s.activeDraftId);
@@ -109,6 +120,7 @@ export function DraftPicker() {
                   <span className="text-xs text-on-surface">{t("confirmDeleteDraft")}</span>
                   <span className="flex gap-1">
                     <button
+                      ref={cancelDeleteRef}
                       type="button"
                       onClick={() => setPendingDelete(null)}
                       className="rounded px-2 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface"

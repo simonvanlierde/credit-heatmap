@@ -24,7 +24,7 @@ import {
   Settings2,
   UserPlus,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useTranslations } from "use-intl";
 import { ColorPopover } from "@/components/ui/color-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -70,14 +70,19 @@ export function ContributionGrid() {
     setInputMode,
     heatmapMonoColor,
     setHeatmapMonoColor,
+    loadAuthors,
     setAuthorScore,
     setAllAuthorScores,
     setRoleScores,
     toggleContribution,
     welcomeOpen,
   } = useContributionStore();
-  const { describeRole, translateInterfaceRole, translateInterfaceUi, interfaceRoleLanguage } = useCreditTranslators();
-  const translateUi = translateInterfaceUi;
+  const {
+    describeRole,
+    translateInterfaceRole,
+    translateInterfaceUi: translateUi,
+    interfaceRoleLanguage,
+  } = useCreditTranslators();
   const t = useTranslations();
   // Second beat of the population sequence; see .enter-fade in globals.css.
   const settled = useSettled();
@@ -90,6 +95,32 @@ export function ContributionGrid() {
   // The single tab stop in the matrix; arrow keys move it. Reset when the
   // orientation flips, since row/col swap meaning.
   const [activeCell, setActiveCell] = useState({ row: 0, col: 0 });
+  // The roster as it stood before the last bulk action. One click can rewrite
+  // fourteen assignments, so it earns the same undo bar a row removal has.
+  const [bulkUndo, setBulkUndo] = useState<Author[] | null>(null);
+
+  useEffect(() => {
+    if (!bulkUndo) return;
+    const timer = window.setTimeout(() => setBulkUndo(null), 8000);
+    return () => window.clearTimeout(timer);
+  }, [bulkUndo]);
+
+  /** Run a bulk mutation with the roster snapshotted for undo. */
+  function runBulk(action: () => void) {
+    const before = useContributionStore.getState().authors;
+    action();
+    setBulkUndo(before);
+    announce(t("bulkChangeApplied"));
+  }
+
+  // NOTE: restores the whole roster snapshot, so it also reverts any edit made
+  // inside the 8-second window — simple last-state undo, not an operation log.
+  function undoBulk() {
+    if (!bulkUndo) return;
+    loadAuthors(bulkUndo);
+    announce(t("annBulkUndone"));
+    setBulkUndo(null);
+  }
 
   // Graded (level) colors and labels follow the input mode, so the legend and
   // cells always match the way clicks behave.
@@ -157,7 +188,35 @@ export function ContributionGrid() {
     col: Math.min(activeCell.col, Math.max(0, colCount - 1)),
   };
 
-  function handleCellKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, row: number, col: number) {
+  function handleCellKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    row: number,
+    col: number,
+    author: Author,
+    roleIndex: number,
+  ) {
+    // Direct entry: 0–3 set none/supporting/equal/lead without cycling, so a
+    // keyboard user never has to destroy a value to correct an overshoot. In
+    // yes/no mode only 0 and 1 mean anything.
+    const digit = "0123".indexOf(event.key);
+    if (digit !== -1) {
+      const score = graded ? (LEVEL_CYCLE[digit] ?? 0) : digit === 0 ? 0 : digit === 1 ? 100 : null;
+      if (score === null) return;
+      event.preventDefault();
+      setAuthorScore(author.id, roleIndex, score);
+      const role = CREDIT_ROLES[roleIndex];
+      if (role) {
+        announce(
+          t("a11yRoleAssignment", {
+            role: translateInterfaceRole(role.name),
+            name: author.name,
+            level: translateUi(graded ? scoreToLevel(score) : score > 0 ? "contributed" : "none"),
+          }),
+        );
+      }
+      return;
+    }
+
     const moves: Record<string, [number, number]> = {
       ArrowUp: [-1, 0],
       ArrowDown: [1, 0],
@@ -199,7 +258,7 @@ export function ContributionGrid() {
           // this a keyboard user tabs through every cell, up to 14 x 200.
           tabIndex={row === active.row && col === active.col ? 0 : -1}
           onFocus={() => setActiveCell({ row, col })}
-          onKeyDown={(event) => handleCellKeyDown(event, row, col)}
+          onKeyDown={(event) => handleCellKeyDown(event, row, col, author, roleIndex)}
           aria-pressed={score > 0}
           aria-label={t("a11yRoleAssignment", {
             role: role ? translateInterfaceRole(role.name) : "",
@@ -216,7 +275,11 @@ export function ContributionGrid() {
           // a click's only result is the shade stepping up, and at this cadence
           // (hundreds a session, in a 3px-gapped grid) a press scale would read
           // as the matrix twitching rather than as feedback.
-          className="contribution-cell flex h-7 w-full items-center justify-center rounded transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] hover:ring-2 hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          // Empty cells get a hairline ring: fill-on-fill alone is ~1.2:1
+          // against the card, which loses the click target on dim displays.
+          className={`contribution-cell flex h-7 w-full items-center justify-center rounded transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] hover:ring-2 hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            fill ? "" : "ring-1 ring-inset ring-outline/70"
+          }`}
           style={{ backgroundColor: fill ?? "var(--color-surface-container-high)" }}
         >
           {fill && (
@@ -284,10 +347,12 @@ export function ContributionGrid() {
                   </SelectContent>
                 </Select>
                 <div className="grid grid-cols-2 gap-2">
-                  <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, assignScore)}>
+                  <BulkButton onClick={() => runBulk(() => setAllAuthorScores(bulkAuthor.id, assignScore))}>
                     {t("bulkAssignAll")}
                   </BulkButton>
-                  <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, 0)}>{t("bulkClearAll")}</BulkButton>
+                  <BulkButton onClick={() => runBulk(() => setAllAuthorScores(bulkAuthor.id, 0))}>
+                    {t("bulkClearAll")}
+                  </BulkButton>
                 </div>
               </fieldset>
               <fieldset aria-labelledby="bulk-one-role" className="grid gap-2 border-t border-outline-variant/30 pt-3">
@@ -307,10 +372,12 @@ export function ContributionGrid() {
                   </SelectContent>
                 </Select>
                 <div className="grid grid-cols-2 gap-2">
-                  <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, assignScore)}>
+                  <BulkButton onClick={() => runBulk(() => setRoleScores(parsedBulkRoleIndex, assignScore))}>
                     {t("bulkAssignToAll")}
                   </BulkButton>
-                  <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, 0)}>{t("bulkClearRole")}</BulkButton>
+                  <BulkButton onClick={() => runBulk(() => setRoleScores(parsedBulkRoleIndex, 0))}>
+                    {t("bulkClearRole")}
+                  </BulkButton>
                 </div>
               </fieldset>
             </PopoverContent>
@@ -355,7 +422,9 @@ export function ContributionGrid() {
                 {transpose ? <Columns3 className="h-3.5 w-3.5" /> : <Rows3 className="h-3.5 w-3.5" />}
               </button>
               <span className="flex min-h-9 items-center gap-1.5 text-xs text-on-surface-variant">
-                <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label={t("useContributorInitials")} />
+                {/* The accessible name starts with the visible "Use initials",
+                    so voice control saying the visible label hits it (2.5.3). */}
+                <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label={t("a11yUseInitials")} />
                 {t("useInitials")}
               </span>
             </PopoverContent>
@@ -409,11 +478,16 @@ export function ContributionGrid() {
                   })}
                   onClick={() => handleCellClick(selectedAuthor, roleIndex, score)}
                   className={`contribution-cell flex min-h-11 min-w-24 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                    score > 0 ? "text-white shadow-sm" : "bg-surface-container-high text-on-surface-variant"
+                    score > 0 ? "shadow-sm" : "bg-surface-container-high text-on-surface-variant"
                   }`}
-                  style={
-                    score > 0 ? { backgroundColor: heatCellColor(heatmapMonoColor, graded ? score : 100) } : undefined
-                  }
+                  // Measured, not hardcoded white: the pale fills (light presets,
+                  // "supporting") fail 4.5:1 under white text, the same trap the
+                  // desktop cell's check mark already avoids with onColor.
+                  style={(() => {
+                    if (score <= 0) return undefined;
+                    const fill = heatCellColor(heatmapMonoColor, graded ? score : 100);
+                    return { backgroundColor: fill, color: onColor(fill) };
+                  })()}
                 >
                   {score > 0 && <Check aria-hidden="true" className="size-4" strokeWidth={3} />}
                   {level}
@@ -535,6 +609,27 @@ export function ContributionGrid() {
           </tbody>
         </table>
       </div>
+
+      {/* Same open-from-zero bar a row removal gets; see .undo-enter. */}
+      {bulkUndo && (
+        <div className="undo-enter grid">
+          <div className="overflow-hidden">
+            <div
+              role="status"
+              className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-surface-container px-3 py-2 text-sm text-on-surface"
+            >
+              <span className="min-w-0 truncate">{t("bulkChangeApplied")}</span>
+              <button
+                type="button"
+                onClick={undoBulk}
+                className="shrink-0 rounded-md px-2 py-1 font-semibold text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                {t("undo")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* No flex-wrap here: the export buttons stay pinned right in both modes,
           and the legend (which is longer in Levels) wraps inside its own share
@@ -663,7 +758,11 @@ function GridLegend({
         {/* Yes/no needs no hint: the grid says it. Levels does, because the click
             cycle isn't visible. It sits here rather than beside the mode control,
             where switching modes reflowed the whole header and shifted the matrix. */}
-        {graded && <span>{t("clickToCycle")}</span>}
+        {graded && (
+          <span>
+            {t("clickToCycle")} <span className="hidden md:inline">{t("levelKeysHint")}</span>
+          </span>
+        )}
       </span>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {(graded ? LEVEL_KEY : FLAT_KEY).map(({ key, score }) => (
@@ -788,37 +887,37 @@ function HeatmapExports({
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-2">
-      <span className="font-mono uppercase tracking-wider text-[10px] text-on-surface-variant">
-        {t("heatmapLabel")}
-      </span>
-      {error && (
-        <span className="text-[10px] text-error max-w-[120px] truncate" title={error}>
-          {error}
+    // The error gets its own full-width line under the buttons instead of a
+    // 120px truncation: the hover-title fallback was unreachable on touch.
+    <div className="flex shrink-0 flex-col items-end gap-1">
+      <div className="flex items-center gap-2">
+        <span className="font-mono uppercase tracking-wider text-[11px] text-on-surface-variant">
+          {t("heatmapLabel")}
         </span>
-      )}
-      <button
-        type="button"
-        disabled={loading !== null}
-        onClick={() => void copyPng()}
-        title={t("copyHeatmapHint")}
-        className="flex items-center gap-1.5 px-2.5 py-1 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        <Copy className="h-3.5 w-3.5" />
-        {copyStatus === "copied" ? t("copied") : copyStatus === "error" ? t("copyFailed") : t("copy")}
-      </button>
-      {(["svg", "png"] as ExportFormat[]).map((format) => (
         <button
-          key={format}
           type="button"
           disabled={loading !== null}
-          onClick={() => download(format)}
+          onClick={() => void copyPng()}
+          title={t("copyHeatmapHint")}
           className="flex items-center gap-1.5 px-2.5 py-1 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <Download className="h-3.5 w-3.5" />
-          {loading === format ? "…" : format.toUpperCase()}
+          <Copy className="h-3.5 w-3.5" />
+          {copyStatus === "copied" ? t("copied") : copyStatus === "error" ? t("copyFailed") : t("copy")}
         </button>
-      ))}
+        {(["svg", "png"] as ExportFormat[]).map((format) => (
+          <button
+            key={format}
+            type="button"
+            disabled={loading !== null}
+            onClick={() => download(format)}
+            className="flex items-center gap-1.5 px-2.5 py-1 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {loading === format ? "…" : format.toUpperCase()}
+          </button>
+        ))}
+      </div>
+      {error && <span className="max-w-56 text-right text-[11px] text-error">{error}</span>}
     </div>
   );
 }

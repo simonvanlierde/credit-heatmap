@@ -123,6 +123,24 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
   const [doiLoading, setDoiLoading] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const keepRef = useRef<HTMLButtonElement>(null);
+  const importRef = useRef<HTMLButtonElement>(null);
+
+  // The confirmation disables the Import button the user just activated, so
+  // hand focus to the safe choice; declining hands it back once Import is
+  // re-enabled (post-render, hence the effect). A confirm closes the dialog,
+  // where onClose owns focus, so the dialog-open check skips that path.
+  const hadPending = useRef(false);
+  useEffect(() => {
+    if (pending) {
+      hadPending.current = true;
+      keepRef.current?.focus();
+      return;
+    }
+    if (!hadPending.current) return;
+    hadPending.current = false;
+    if (dialogRef.current?.open) importRef.current?.focus();
+  }, [pending]);
 
   const format: DetectedFormat = detect(text);
 
@@ -232,17 +250,23 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
       showError(t(DOI_ERROR_KEYS[result.code]));
       return;
     }
-    try {
-      // Crossref names go through createAuthor like any other import, so the
-      // initials and the empty role row are built exactly as they are for a
-      // pasted list.
-      const authors = result.authors.map((author) =>
-        createAuthor(author.name, author.orcid ? { orcid: author.orcid } : undefined),
-      );
-      stageImport({ authors, title: result.title });
-    } catch {
+    // Crossref names go through createAuthor like any other import, so the
+    // initials and the empty role row are built exactly as they are for a
+    // pasted list. Per entry, not around the whole map: one unusable entry
+    // (a name Crossref sends but createAuthor rejects) costs that row, not
+    // the other forty authors of the record.
+    const authors = result.authors.flatMap((author) => {
+      try {
+        return [createAuthor(author.name, author.orcid ? { orcid: author.orcid } : undefined)];
+      } catch {
+        return [];
+      }
+    });
+    if (authors.length === 0) {
       showError(t("errImportFailed"));
+      return;
     }
+    stageImport({ authors, title: result.title });
   }
 
   function finishImport({ authors, title }: PendingImport) {
@@ -346,7 +370,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
           {/* Drop zone */}
           <div>
             <p className="text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-3">
-              Structured file upload
+              {t("structuredFileUpload")}
             </p>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop is a mouse-only progressive enhancement; the Browse button + file input below provide the accessible path. */}
             {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: same as above. */}
@@ -391,7 +415,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
                 {t("pasteRawData")}
               </label>
               {format !== "unknown" && (
-                <span className="text-[10px] text-primary font-medium italic">
+                <span className="text-[11px] text-primary font-medium italic">
                   {t("detectedFormat")}
                   {format === "names"
                     ? t("importAuthorList")
@@ -431,6 +455,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
+                  ref={keepRef}
                   type="button"
                   onClick={() => setPending(null)}
                   className="rounded-lg border border-outline-variant px-4 py-2 font-semibold text-on-surface-variant hover:border-primary hover:text-primary"
@@ -458,6 +483,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
             {t("cancel")}
           </button>
           <button
+            ref={importRef}
             type="button"
             onClick={handleImport}
             disabled={format === "unknown" || pending !== null}

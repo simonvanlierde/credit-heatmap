@@ -27,8 +27,10 @@ export function LanguageSelector() {
 
   return (
     <Popover>
+      {/* Broader than "Interface language": the panel also sets the output
+          language, and that is the name people hunt for in the control list. */}
       <PopoverTrigger
-        aria-label={t("interfaceLanguage")}
+        aria-label={t("languageSettings")}
         className="flex size-9 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary"
       >
         <Languages className="size-4" />

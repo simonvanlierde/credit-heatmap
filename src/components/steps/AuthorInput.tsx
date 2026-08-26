@@ -33,6 +33,7 @@ import {
   Fingerprint,
   GripVertical,
   MoreHorizontal,
+  Pencil,
   Plus,
   PlusCircle,
   Send,
@@ -52,6 +53,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { StepHeader } from "@/components/ui/step-header";
 import { announce } from "@/lib/announce";
 import { buildShareUrl } from "@/lib/share";
+import { useCopyStatus } from "@/lib/use-copy-status";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useSettled } from "@/lib/use-settled";
 import { useContributionStore } from "@/store/contribution-store";
@@ -64,15 +66,12 @@ function detectOrcid(text: string): string | null {
   return ORCID_REGEX.test(candidate) ? candidate : null;
 }
 
-/** Written once: the same advice is reachable from the add field and from a row. */
-
 interface OrcidLookupResult {
   firstName: string;
   surname: string;
   displayName: string;
 }
 
-/** Fetch the canonical display name for an ORCID iD; returns name or error text. */
 /**
  * Resolve an ORCID iD to a display name.
  *
@@ -127,6 +126,9 @@ function orcidErrorText(failure: OrcidFailure, t: ReturnType<typeof useTranslati
   return t(key ?? "errOrcidBAD_REQUEST");
 }
 
+// NOTE: a courtesy cap on concurrent ORCID lookups, not app correctness — a
+// plain Promise.all would work; keep the cap so a 100-iD paste doesn't hammer
+// the registry through our proxy.
 async function forEachWithConcurrency<T>(items: T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
   let nextIndex = 0;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -142,6 +144,7 @@ async function forEachWithConcurrency<T>(items: T[], limit: number, task: (item:
 export function AuthorList() {
   const t = useTranslations();
   const {
+    activeDraftId,
     authors,
     addAuthor,
     loadSample,
@@ -169,11 +172,19 @@ export function AuthorList() {
   // Rows that arrive after the app has settled animate in; a restored draft does not.
   const settled = useSettled();
 
+  // A long window on purpose: eight seconds was under WCAG 2.2.1's threshold,
+  // and a screen-reader user still hearing the removal announcement could
+  // lose the Undo mid-route.
   useEffect(() => {
     if (!removed) return;
-    const timer = window.setTimeout(() => setRemoved(null), 8000);
+    const timer = window.setTimeout(() => setRemoved(null), 60000);
     return () => window.clearTimeout(timer);
   }, [removed]);
+
+  // The undo buffer belongs to the draft the row was removed from: restoring
+  // it after a switch would insert one paper's contributor into another.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-runs on draft switch by design
+  useEffect(() => setRemoved(null), [activeDraftId]);
 
   // The t("clearDraft") button is replaced by the Cancel/Clear draft pair,
   // so activating it unmounts the focused element. Carry focus across the swap
@@ -205,18 +216,24 @@ export function AuthorList() {
 
   function handleRemove(author: Author, index: number) {
     removeAuthor(author.id);
+    // No announce() here: the undo bar below mounts as role="status" with the
+    // same fact, and saying it twice reads as an echo.
     setRemoved({ author, index });
     // The button that was just activated is unmounting, which drops focus to
     // <body> and sends a keyboard user back to the top of the document. Hand
     // focus to the row that takes its place instead.
     setFocusAfterRemove(index);
-    announce(t("annContributorRemoved", { name: author.name }));
   }
 
   function undoRemove() {
     if (!removed) return;
-    restoreAuthor(removed.author, removed.index);
-    announce(t("annContributorRestored", { name: removed.author.name }));
+    // restoreAuthor no-ops when the list has refilled to the cap; claiming
+    // the contributor came back when they did not would be a lie.
+    if (restoreAuthor(removed.author, removed.index)) {
+      announce(t("annContributorRestored", { name: removed.author.name }));
+    } else {
+      announce(t("errAtContributorLimit", { limit: MAX_AUTHORS }), { assertive: true });
+    }
     setRemoved(null);
   }
 
@@ -365,6 +382,9 @@ export function AuthorList() {
     reset();
     useContributionStore.persist.clearStorage();
     setClearPending(false);
+    // The cleared roster no longer holds the removed row's neighbours; an
+    // undo would resurrect a contributor into an emptied draft.
+    setRemoved(null);
     announce(t("annDraftCleared"));
   }
 
@@ -386,16 +406,25 @@ export function AuthorList() {
       <label htmlFor="work-title" className="sr-only">
         {t("draftTitleLabel")}
       </label>
-      <input
-        id="work-title"
-        value={title}
-        onChange={(event) => setTitle(event.target.value)}
-        // Read-only until the persisted draft lands, because anything typed
-        // before that is silently overwritten by it.
-        readOnly={!hydrated}
-        placeholder={t("untitledDraft")}
-        className="mb-3 w-full border-b border-outline-variant/30 bg-transparent pb-1 text-sm font-medium text-on-surface outline-none transition-colors placeholder:font-normal placeholder:text-on-surface-variant/60 focus:border-primary"
-      />
+      {/* The pencil is the editability hint: without it the borderless field
+          reads as static gray text and nobody discovers drafts can be named.
+          pointer-events-none, so a click on it lands in the input. */}
+      <div className="relative mb-3">
+        <input
+          id="work-title"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          // Read-only until the persisted draft lands, because anything typed
+          // before that is silently overwritten by it.
+          readOnly={!hydrated}
+          placeholder={t("untitledDraft")}
+          className="peer w-full border-b border-outline-variant/30 bg-transparent pb-1 pr-6 text-sm font-medium text-on-surface outline-none transition-colors placeholder:font-normal placeholder:text-on-surface-variant/60 focus:border-primary"
+        />
+        <Pencil
+          aria-hidden="true"
+          className="pointer-events-none absolute right-0 top-1 h-3.5 w-3.5 text-on-surface-variant/60 transition-opacity peer-focus:opacity-0"
+        />
+      </div>
 
       {authors.length === 0 && !welcomeOpen && (
         <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
@@ -527,7 +556,6 @@ export function AuthorList() {
   );
 }
 
-/** A single draggable contributor row. ORCID UI state is local to the row. */
 /** A set authorship marker, shown as a fact about the paper rather than a control. */
 function MarkerChip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
@@ -568,6 +596,10 @@ function RowMenu({
 }) {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
+  // Set only by "Add ORCID iD": that path reveals an auto-focused field the
+  // trigger-refocus would blur (and its blur handler dismisses it). Every
+  // other close should return focus to the trigger as normal.
+  const openedOrcidRef = useRef(false);
 
   const item =
     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-on-surface transition-colors hover:bg-surface-container";
@@ -586,10 +618,11 @@ function RowMenu({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        // "Add ORCID iD" closes this menu and reveals an auto-focused field.
-        // Returning focus to the trigger on close would blur that field the
-        // instant it appeared, and its blur handler dismisses it again.
-        onCloseAutoFocus={(event) => event.preventDefault()}
+        onCloseAutoFocus={(event) => {
+          if (!openedOrcidRef.current) return;
+          openedOrcidRef.current = false;
+          event.preventDefault();
+        }}
         className="w-60 p-1"
       >
         <button type="button" onClick={onToggleEqual} aria-pressed={equalContribution} className={item}>
@@ -612,6 +645,7 @@ function RowMenu({
           <button
             type="button"
             onClick={() => {
+              openedOrcidRef.current = true;
               onAddOrcid();
               setOpen(false);
             }}
@@ -651,10 +685,11 @@ function AuthorRow({
   const [nameDraft, setNameDraft] = useState(author?.name ?? "");
   const [nameError, setNameError] = useState<string | null>(null);
   const committedRef = useRef(false);
-  const [askCopied, setAskCopied] = useState(false);
-  const askTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  // Clear a pending reset on unmount, so it can't set state on a dead row.
-  useEffect(() => () => clearTimeout(askTimer.current), []);
+  // Same status/announce/reset contract as every other copy affordance.
+  const [askStatus, copyAsk] = useCopyStatus({
+    copied: t("askContributorCopied", { name: author?.name ?? "" }),
+  });
+  const askCopied = askStatus === "copied";
 
   /**
    * Copy a link addressed at this contributor. They open it, tick their own
@@ -662,15 +697,7 @@ function AuthorRow({
    */
   async function handleAsk() {
     if (!author) return;
-    try {
-      await navigator.clipboard.writeText(buildShareUrl(authors, { claimIndex: index, draftId: activeDraftId }));
-      announce(t("askContributorCopied", { name: author.name }));
-      setAskCopied(true);
-      clearTimeout(askTimer.current);
-      askTimer.current = setTimeout(() => setAskCopied(false), 2000);
-    } catch {
-      announce(t("copyFailedMessage"), { assertive: true });
-    }
+    await copyAsk(buildShareUrl(authors, { claimIndex: index, draftId: activeDraftId }));
   }
 
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -853,10 +880,12 @@ function AuthorRow({
 
             {/* Type badge, plus the ORCID trigger while there is nothing to show. */}
             <div className="flex flex-wrap items-center gap-1.5">
+              {/* The changing visible name carries the state; aria-pressed on
+                  top of it double-encoded the same fact inverted ("Author,
+                  pressed" when they are not one). */}
               <button
                 type="button"
                 onClick={() => setAuthorType(author.id, isNonAuthor ? "author" : "non-author")}
-                aria-pressed={isNonAuthor}
                 title={isNonAuthor ? t("contributorTypeSetAuthor") : t("contributorTypeSetNonAuthor")}
                 className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant hover:text-primary transition-colors"
               >
@@ -953,7 +982,7 @@ function AuthorRow({
                   <X className="h-3.5 w-3.5" />
                 </button>
                 {lookedUp === bareOrcid && (
-                  <span className="shrink-0 text-[10px] leading-tight text-primary">{t("nameUpdated")}</span>
+                  <span className="shrink-0 text-[11px] leading-tight text-primary">{t("nameUpdated")}</span>
                 )}
               </>
             ) : editingOrcid ? (
@@ -987,7 +1016,7 @@ function AuthorRow({
             ) : null}
           </div>
         )}
-        {lookupError !== null && <p className="mt-1 pl-20 text-[10px] leading-tight text-error">{lookupError}</p>}
+        {lookupError !== null && <p className="mt-1 pl-20 text-[11px] leading-tight text-error">{lookupError}</p>}
       </div>
     </li>
   );
