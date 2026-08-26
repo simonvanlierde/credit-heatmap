@@ -24,13 +24,6 @@ export const DOI_INPUT_REGEX = /^(?:(?:https?:\/\/(?:dx\.)?doi\.org\/)|(?:doi:))
 /** Upstream deadline. Crossref normally answers well inside this. */
 const CROSSREF_TIMEOUT_MS = 5000;
 
-/**
- * Contact address for Crossref's "polite pool", which gets faster and more
- * reliable service than the anonymous pool. Server-side only, by design: it
- * belongs on the proxy rather than in every client bundle.
- */
-const POLITE_MAILTO = "credit@duinlab.nl";
-
 export interface DoiAuthor {
   name: string;
   orcid?: string;
@@ -78,24 +71,33 @@ export function normalizeDoi(doi: string): string {
     .replace(/^doi:/i, "");
 }
 
-/** Resolve a DOI to its title and contributor list through an injected fetcher. */
-export async function lookupDoiWork(doi: string, fetcher: typeof fetch = fetch): Promise<DoiLookupResult> {
+/**
+ * Resolve a DOI to its title and contributor list through an injected fetcher.
+ *
+ * Pass `mailto` to join Crossref's "polite pool", which gets faster and more
+ * reliable service than the anonymous pool. The address is a parameter rather
+ * than a constant here so it lives in the server route alone and can never be
+ * bundled into the client through this module.
+ */
+export async function lookupDoiWork(
+  doi: string,
+  fetcher: typeof fetch = fetch,
+  mailto?: string,
+): Promise<DoiLookupResult> {
   const normalized = normalizeDoi(doi);
   if (!DOI_INPUT_REGEX.test(normalized)) return fail(400, "INVALID_DOI");
 
+  const politeSuffix = mailto ? `?mailto=${encodeURIComponent(mailto)}` : "";
   let response: Response;
   try {
-    response = await fetcher(
-      `https://api.crossref.org/works/${encodeURIComponent(normalized)}?mailto=${POLITE_MAILTO}`,
-      {
-        headers: { Accept: "application/json" },
-        cache: "force-cache",
-        next: { revalidate: 3600 },
-        // Without a deadline a hung upstream pins the request until the platform
-        // kills it; the catch below already maps the abort to a 502.
-        signal: AbortSignal.timeout(CROSSREF_TIMEOUT_MS),
-      } as RequestInit,
-    );
+    response = await fetcher(`https://api.crossref.org/works/${encodeURIComponent(normalized)}${politeSuffix}`, {
+      headers: { Accept: "application/json" },
+      cache: "force-cache",
+      next: { revalidate: 3600 },
+      // Without a deadline a hung upstream pins the request until the platform
+      // kills it; the catch below already maps the abort to a 502.
+      signal: AbortSignal.timeout(CROSSREF_TIMEOUT_MS),
+    } as RequestInit);
   } catch {
     return fail(502, "UNAVAILABLE");
   }

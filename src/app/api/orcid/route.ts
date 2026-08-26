@@ -1,6 +1,6 @@
 import { isValidOrcid, lookupOrcidPerson, ORCID_REGEX, type OrcidErrorCode } from "@credit-generator/core";
 import { type NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "../rate-limit";
+import { checkRateLimit, checkSameOrigin } from "../rate-limit";
 
 /**
  * Server-side proxy for ORCID public lookups.
@@ -11,6 +11,10 @@ import { checkRateLimit } from "../rate-limit";
  * runs purely in the browser via `@credit-generator/core`.
  */
 export async function POST(request: NextRequest) {
+  // Another site must not be able to spend a visitor's rate-limit bucket.
+  const crossSite = checkSameOrigin(request);
+  if (crossSite) return crossSite;
+
   // Rate-limit before reading the body. Parsing first charged CPU for an
   // arbitrarily large payload on every request, including the ones the limiter
   // was about to reject, so the most expensive step sat outside the guard.

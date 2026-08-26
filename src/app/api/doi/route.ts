@@ -1,6 +1,13 @@
 import { DOI_INPUT_REGEX, type DoiErrorCode, lookupDoiWork, normalizeDoi } from "@credit-generator/core";
 import { type NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "../rate-limit";
+import { checkRateLimit, checkSameOrigin } from "../rate-limit";
+
+/**
+ * Contact address for Crossref's "polite pool", which gets faster and more
+ * reliable service than the anonymous pool. Lives in this server route so it
+ * cannot end up in a client bundle.
+ */
+const POLITE_MAILTO = "credit@duinlab.nl";
 
 /**
  * Server-side proxy for Crossref DOI lookups.
@@ -11,6 +18,10 @@ import { checkRateLimit } from "../rate-limit";
  * the server rather than in every client bundle.
  */
 export async function POST(request: NextRequest) {
+  // Another site must not be able to spend a visitor's rate-limit bucket.
+  const crossSite = checkSameOrigin(request);
+  if (crossSite) return crossSite;
+
   // Rate-limit before reading the body, so the most expensive step stays
   // inside the guard rather than charging CPU for requests we then reject.
   const limited = await checkRateLimit(request);
@@ -30,7 +41,7 @@ export async function POST(request: NextRequest) {
     return errorResponse(400, "INVALID_DOI", "That is not a valid DOI. It should look like 10.1234/abcde.");
   }
 
-  const result = await lookupDoiWork(doi);
+  const result = await lookupDoiWork(doi, fetch, POLITE_MAILTO);
   if (!result.ok) return errorResponse(result.status, result.code, result.error);
   return NextResponse.json(result);
 }

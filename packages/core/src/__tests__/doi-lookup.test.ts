@@ -105,3 +105,16 @@ describe("lookupDoiWork", () => {
     expect(await lookupDoiWork("10.1038/x", fetcher)).toMatchObject({ ok: true, title: "" });
   });
 });
+
+describe("polite pool contact", () => {
+  it("appends the mailto only when the caller provides one", async () => {
+    const fetcher = vi.fn(async (_input: string | URL | Request) =>
+      crossrefResponse({ title: ["T"], author: [{ name: "Jane Smith" }] }),
+    );
+    await lookupDoiWork("10.1038/x", fetcher as unknown as typeof fetch);
+    expect(String(fetcher.mock.calls[0]?.[0])).not.toContain("mailto");
+
+    await lookupDoiWork("10.1038/x", fetcher as unknown as typeof fetch, "polite@example.org");
+    expect(String(fetcher.mock.calls[1]?.[0])).toContain("?mailto=polite%40example.org");
+  });
+});

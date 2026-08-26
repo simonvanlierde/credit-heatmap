@@ -8,8 +8,12 @@ import type { NextConfig } from "next";
  * and `object-src`, so it read as XSS protection while allowing scripts,
  * connections and form posts to any origin. `default-src 'self'` closes that.
  *
- * - `script-src` keeps 'unsafe-inline' for Next's inline bootstrap; tightening
- *   it further needs a nonce threaded through the document.
+ * - `script-src` keeps 'unsafe-inline' for Next's inline bootstrap. Be clear
+ *   about what that costs: with it, script-src is NOT an XSS mitigation — an
+ *   attacker who can inject markup can run script. The real controls against
+ *   that are React's escaping plus connect-src/form-action/object-src limiting
+ *   where anything could exfiltrate to. Dropping 'unsafe-inline' needs a
+ *   per-request nonce threaded through the document.
  * - `img-src` needs blob:/data: for the heatmap PNG (canvas → createObjectURL).
  * - `connect-src 'self'` is enough: the ORCID call goes through /api/orcid.
  *
