@@ -274,7 +274,7 @@ test.describe("Happy path UI flows", () => {
     const coauthorContext = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
     const coauthor = await coauthorContext.newPage();
     await coauthor.goto(askUrl);
-    await expect(coauthor.getByText("You are filling in Rosalind E. Franklin's contributions")).toBeVisible();
+    await expect(onScreen(coauthor, "You are filling in Rosalind E. Franklin's contributions")).toBeVisible();
 
     // She assigns herself a role; someone else's is refused outright.
     await coauthor.getByRole("button", { name: /^Validation for Rosalind E\. Franklin:/ }).click();
@@ -359,7 +359,7 @@ test.describe("Happy path UI flows", () => {
     await expect(other.getByLabel("Name or ORCID iD", { exact: true })).toHaveValue("Erik Nilsson");
   });
 
-  test("a reply lands on the paper it was asked about, not the one you are on", async ({ page, context }) => {
+  test("a reply lands on the paper it was asked about, not the one you are on", async ({ page, context, browser }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/");
 
@@ -385,13 +385,16 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Ask Rosalind E. Franklin to fill this in" }).click();
     const askUrl = await page.evaluate(() => navigator.clipboard.readText());
 
-    // The co-author answers.
-    const coauthor = await context.newPage();
-    await seedStorage(coauthor, { welcomeSeen: true }, { clearFirst: true });
+    // The co-author answers — in their own browser, not a page sharing this
+    // one's localStorage (which the old clearFirst seed silently wiped).
+    const coauthorContext = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
+    const coauthor = await coauthorContext.newPage();
+    await seedStorage(coauthor, { welcomeSeen: true });
     await coauthor.goto(askUrl);
     await coauthor.getByRole("button", { name: /^Validation for Rosalind E\. Franklin:/ }).click();
     await coauthor.getByRole("button", { name: "Copy the link to send back" }).click();
     const returnedUrl = await coauthor.evaluate(() => navigator.clipboard.readText());
+    await coauthorContext.close();
 
     // Meanwhile you have gone back to paper one. The reply must not land here.
     await page.getByRole("button", { name: /^Drafts:/ }).click();
