@@ -2,6 +2,7 @@
 
 import type { Author, RoleTranslator, StatementFormat, UiTranslator } from "@credit-generator/core";
 import {
+  CREDIT_ROLES,
   generateStatement,
   isAllBinary,
   toCsv,
@@ -150,13 +151,11 @@ export function StatementOutput() {
             ) : (
               <Info className="size-4" aria-hidden="true" />
             )}
-            {isReady ? "Ready to export" : `${issues.length} ${issues.length === 1 ? "note" : "notes"} to review`}
+            {isReady ? t("statusReady") : t("statusNotes", { count: issues.length })}
           </span>
-          <span>
-            {authors.length} contributor{authors.length === 1 ? "" : "s"}
-          </span>
-          <span>{assignedRoleCount} of 14 roles used</span>
-          <span>Saved in this browser</span>
+          <span>{t("contributorCount", { count: authors.length })}</span>
+          <span>{t("rolesUsed", { used: assignedRoleCount, total: CREDIT_ROLES.length })}</span>
+          <span>{t("savedInBrowser")}</span>
         </div>
       )}
 

@@ -64,7 +64,7 @@
   "useContributorInitials": "Usar as iniciais dos contribuidores",
   "legendLevel": "Nível",
   "legendKey": "Legenda",
-  "clickToCycle": "Clicar para subir; volta ao início",
+  "clickToCycle": "Clicar para alternar",
   "heatmapLabel": "Mapa de calor",
   "copyHeatmapHint": "Copiar o mapa de calor como imagem PNG",
   "fullDefinition": "Definição completa",
@@ -123,5 +123,12 @@
   "errOrcidNO_NAME": "Esse registo ORCID não indica qualquer nome. Escrever o nome manualmente.",
   "errOrcidUNREACHABLE": "Não foi possível contactar o ORCID. Verificar a ligação e tentar novamente.",
   "welcomeIntro": "Redigir uma declaração de contribuição pronta a submeter, em três passos.",
-  "about": "Acerca"
+  "about": "Acerca",
+  "statusReady": "Pronto para exportar",
+  "statusNotes": "{count, plural, one {# nota a rever} other {# notas a rever}}",
+  "rolesUsed": "{used} de {total} papéis usados",
+  "savedInBrowser": "Guardado neste navegador",
+  "shareWarningTitle": "Esta ligação contém os seus dados",
+  "shareWarningBody": "Qualquer pessoa com esta ligação pode ler todos os nomes, ORCID iD, tipo de contribuidor e atribuição de papéis.",
+  "noContributorsHint": "Adicionar abaixo um nome ou um ORCID iD, colar uma lista completa de autores, ou usar <b>Importar</b> no cabeçalho."
 }

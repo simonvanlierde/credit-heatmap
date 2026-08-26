@@ -15,7 +15,7 @@
  * Precache the build manifest if that ceiling starts to bite.
  */
 
-const CACHE = "credit-generator-v1";
+const CACHE = "credit-matrix-v1";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

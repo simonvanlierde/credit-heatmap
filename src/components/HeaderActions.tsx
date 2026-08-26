@@ -96,10 +96,8 @@ export function HeaderActions() {
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 max-w-[calc(100vw-1.5rem)]">
-            <p className="text-sm font-semibold text-on-surface">This link carries your data</p>
-            <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">
-              Anyone with this link can read every contributor name, ORCID iD, contributor type, and role assignment.
-            </p>
+            <p className="text-sm font-semibold text-on-surface">{t("shareWarningTitle")}</p>
+            <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">{t("shareWarningBody")}</p>
             <button
               type="button"
               onClick={() => void handleShare()}

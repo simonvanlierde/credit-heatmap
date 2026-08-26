@@ -67,7 +67,7 @@
   "useContributorInitials": "Initialen van bijdragers gebruiken",
   "legendLevel": "Niveau",
   "legendKey": "Legenda",
-  "clickToCycle": "Klik om te verhogen; springt terug na de hoogste",
+  "clickToCycle": "Klik om te wisselen",
   "heatmapLabel": "Heatmap",
   "copyHeatmapHint": "De heatmap als PNG-afbeelding kopiëren",
   "fullDefinition": "Volledige definitie",
@@ -123,5 +123,12 @@
   "errOrcidNO_NAME": "Dit ORCID-record bevat geen naam. Typ de naam in plaats daarvan.",
   "errOrcidUNREACHABLE": "ORCID is niet bereikbaar. Controleer uw verbinding en probeer het opnieuw.",
   "welcomeIntro": "Stel in drie stappen een publicatieklare bijdrageverklaring op.",
-  "about": "Over"
+  "about": "Over",
+  "statusReady": "Klaar om te exporteren",
+  "statusNotes": "{count, plural, one {# aandachtspunt} other {# aandachtspunten}}",
+  "rolesUsed": "{used} van {total} rollen gebruikt",
+  "savedInBrowser": "Opgeslagen in deze browser",
+  "shareWarningTitle": "Deze link bevat uw gegevens",
+  "shareWarningBody": "Iedereen met deze link kan elke naam, ORCID iD, bijdragerstype en roltoewijzing lezen.",
+  "noContributorsHint": "Voeg hieronder een naam of ORCID iD toe, plak een volledige auteurslijst, of gebruik <b>Importeren</b> in de koptekst."
 }

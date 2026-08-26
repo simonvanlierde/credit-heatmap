@@ -438,7 +438,7 @@ test.describe("Happy path UI flows", () => {
     const card = page.locator("section[aria-label='Contribution grid'] > div");
     const before = { x: (await exports.boundingBox())?.x, w: (await card.boundingBox())?.width };
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByText("Click to step up; wraps at the top", { exact: true })).toBeVisible();
+    await expect(page.getByText("Click to cycle", { exact: true })).toBeVisible();
     expect((await exports.boundingBox())?.x).toBe(before.x);
     expect((await card.boundingBox())?.width).toBe(before.w);
 
@@ -463,7 +463,7 @@ test.describe("Happy path UI flows", () => {
     const table = page.locator("table");
     const beforeY = (await table.boundingBox())?.y;
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByText("Click to step up; wraps at the top", { exact: true })).toBeVisible();
+    await expect(page.getByText("Click to cycle", { exact: true })).toBeVisible();
     expect((await table.boundingBox())?.y).toBe(beforeY);
 
     // Enough contributors that the 14 role columns are squeezed to their minimum

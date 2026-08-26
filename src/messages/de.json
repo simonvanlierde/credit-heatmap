@@ -64,7 +64,7 @@
   "useContributorInitials": "Initialen der Mitwirkenden verwenden",
   "legendLevel": "Stufe",
   "legendKey": "Legende",
-  "clickToCycle": "Klicken zum Hochstufen; beginnt oben wieder",
+  "clickToCycle": "Klicken zum Wechseln",
   "heatmapLabel": "Heatmap",
   "copyHeatmapHint": "Die Heatmap als PNG-Bild kopieren",
   "fullDefinition": "Vollständige Definition",
@@ -89,7 +89,7 @@
   "statementExportLabel": "Erklärung & Export",
   "removedContributor": "{name} entfernt",
   "skippedEntries": "{count, plural, one {# Eintrag übersprungen} other {# Einträge übersprungen}}",
-  "contributorCount": "{count, plural, =0 {Keine Mitwirkenden} one {# Mitwirkende} other {# Mitwirkende}}",
+  "contributorCount": "{count, plural, =0 {Keine Mitwirkenden} one {# Mitwirkender} other {# Mitwirkende}}",
   "annContributorRemoved": "{name} entfernt. Rückgängig machen ist möglich.",
   "annContributorRestored": "{name} wiederhergestellt.",
   "annRoleAssigned": "{role} für {name}: {level}",
@@ -123,5 +123,12 @@
   "errOrcidNO_NAME": "Dieser ORCID-Datensatz enthält keinen Namen. Geben Sie den Namen stattdessen ein.",
   "errOrcidUNREACHABLE": "ORCID war nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
   "welcomeIntro": "Erstellen Sie in drei Schritten eine einreichungsfertige Beitragserklärung.",
-  "about": "Über"
+  "about": "Über",
+  "statusReady": "Bereit zum Export",
+  "statusNotes": "{count, plural, one {# Hinweis zu prüfen} other {# Hinweise zu prüfen}}",
+  "rolesUsed": "{used} von {total} Rollen belegt",
+  "savedInBrowser": "In diesem Browser gespeichert",
+  "shareWarningTitle": "Dieser Link enthält Ihre Daten",
+  "shareWarningBody": "Wer diesen Link hat, kann jeden Namen, jede ORCID iD, jeden Beitragstyp und jede Rollenzuweisung lesen.",
+  "noContributorsHint": "Fügen Sie unten einen Namen oder eine ORCID iD hinzu, fügen Sie eine ganze Autorenliste ein, oder nutzen Sie <b>Importieren</b> in der Kopfzeile."
 }

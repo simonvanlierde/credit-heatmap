@@ -64,7 +64,7 @@
   "useContributorInitials": "Use contributor initials",
   "legendLevel": "Level",
   "legendKey": "Key",
-  "clickToCycle": "Click to step up; wraps at the top",
+  "clickToCycle": "Click to cycle",
   "heatmapLabel": "Heatmap",
   "copyHeatmapHint": "Copy the heatmap as a PNG image",
   "fullDefinition": "Full definition",
@@ -123,5 +123,12 @@
   "errOrcidNO_NAME": "That ORCID record lists no name. Type the name instead.",
   "errOrcidUNREACHABLE": "Could not reach ORCID. Check your connection and try again.",
   "welcomeIntro": "Draft a manuscript-ready contribution statement in three steps.",
-  "about": "About"
+  "about": "About",
+  "statusReady": "Ready to export",
+  "statusNotes": "{count, plural, one {# note to review} other {# notes to review}}",
+  "rolesUsed": "{used} of {total} roles used",
+  "savedInBrowser": "Saved in this browser",
+  "shareWarningTitle": "This link carries your data",
+  "shareWarningBody": "Anyone with this link can read every contributor name, ORCID iD, contributor type, and role assignment.",
+  "noContributorsHint": "Add a name or an ORCID iD below, paste a whole author list, or use <b>Import</b> in the header."
 }

@@ -390,8 +390,7 @@ export function AuthorList() {
         <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
           <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
           <p className="text-sm text-on-surface-variant">
-            {t("noContributorsYet")} Add a name or an ORCID iD below, paste a whole author list, or use{" "}
-            <strong>Import</strong> in the header.
+            {t("noContributorsYet")} {t.rich("noContributorsHint", { b: (chunks) => <strong>{chunks}</strong> })}
           </p>
           {/* Only for returning/dismissed users (welcomeSeen) with the card closed:
               on a first run the welcome card owns this action, so the button is never
