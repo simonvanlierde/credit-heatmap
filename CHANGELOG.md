@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - 2026-08-27
+## [0.3.0] - 2026-08-27
 
 ### Added
 
@@ -34,6 +34,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   into a word processor keeps the emphasis on each label. Editors that want plain text still get it.
 - A unit test layer for the app itself (Vitest on jsdom), covering the store and the `src/lib`
   helpers. The domain package and the Playwright suite already had their own.
+- Bulk assignment: set or clear every role for one contributor, or one role across every
+  contributor, from a popover in the contribution step.
+- Undo for a removed contributor, and an explicit "Clear local draft" action with a confirmation.
+- Rate limiting and stricter input validation on the upstream proxies. Both share one Worker
+  binding, `API_RATE_LIMITER`; without it they fail open, unthrottled, and say so once in the
+  invocation log.
+- End-to-end coverage of the critical workflows, and release verification in CI. The whole
+  Playwright suite now runs on every pull request; it previously ran only the accessibility scans,
+  so a regression in import, undo, ORCID lookup, persistence, or export could merge green.
+- `PRODUCT.md` and `DESIGN.md`, documenting the product brief and the design system.
+- Arrow-key navigation in the contribution grid: the matrix is one tab stop, and Arrow, Home, and
+  End move between cells, so crossing it no longer takes a tab press per cell.
 
 ### Changed
 
@@ -45,39 +57,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - UI copy: device-neutral *Select* for grid interactions, *Non-author* for the non-author
   contributor type, one neutral copy-failure announcement, and a localizable detected-format
   label.
-- One rate limiter now covers both upstream proxies, so the Worker binding is `API_RATE_LIMITER`
-  rather than `ORCID_RATE_LIMITER`. **A deploy that does not rename it leaves both proxies
-  unthrottled**, which is logged but does not fail the request.
 - The persisted draft is stored as a map of drafts rather than a single workspace.
-
-### Fixed
-
-- A share link no longer overwrites the paper you are working on: a whole draft someone sent opens
-  as a new draft beside your own, and a reply whose draft is not in this browser is refused with a
-  message instead of merging into whichever paper happened to be open.
-- The title and the add-contributor field are read-only until the persisted draft has been restored.
-  The store rehydrates from a mount effect, so there was a window in which the interface was live
-  but still empty, and anything typed into it was overwritten the moment the draft landed.
-- Renaming a contributor no longer clears the authorship markers set on them. Every mutation
-  rebuilds the contributor through `createAuthor`, and two rebuild sites were dropping the fields.
-
-## [0.3.0] - 2026-08-26
-
-### Added
-
-- Bulk assignment: set or clear every role for one contributor, or one role across every
-  contributor, from a popover in the contribution step.
-- Undo for a removed contributor, and an explicit "Clear local draft" action with a confirmation.
-- Rate limiting and stricter input validation on the `/api/orcid` proxy.
-- End-to-end coverage of the critical workflows, and release verification in CI. The whole
-  Playwright suite now runs on every pull request; it previously ran only the accessibility scans,
-  so a regression in import, undo, ORCID lookup, persistence, or export could merge green.
-- `PRODUCT.md` and `DESIGN.md`, documenting the product brief and the design system.
-- Arrow-key navigation in the contribution grid: the matrix is one tab stop, and Arrow, Home, and
-  End move between cells, so crossing it no longer takes a tab press per cell.
-
-### Changed
-
 - The desktop workspace fits one viewport: the page no longer scrolls, and each of the three panes
   scrolls its own content. Short, zoomed, and narrow windows keep ordinary document flow.
 - First-run guidance is a modal over the workspace instead of a band above it, so dismissing it no
@@ -91,6 +71,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A share link no longer overwrites the paper you are working on: a whole draft someone sent opens
+  as a new draft beside your own, and a reply whose draft is not in this browser is refused with a
+  message instead of merging into whichever paper happened to be open.
+- The title and the add-contributor field are read-only until the persisted draft has been restored.
+  The store rehydrates from a mount effect, so there was a window in which the interface was live
+  but still empty, and anything typed into it was overwritten the moment the draft landed.
+- Renaming a contributor no longer clears the authorship markers set on them. Every mutation
+  rebuilds the contributor through `createAuthor`, and two rebuild sites were dropping the fields.
 - An ORCID iD attached to a contributor gets its own line, instead of pushing the contributor row
   onto a second line.
 - Responsive and accessibility fixes across the contributor row, grid, and export controls.
@@ -184,8 +172,7 @@ Persisted local drafts migrate automatically.
   contribution heatmap, JATS4R XML / CSV / JSON / Markdown exports, ORCID lookup,
   share links, and a framework-agnostic `@credit-generator/core` domain package.
 
-[Unreleased]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.3.0...v0.4.0
+[Unreleased]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.3.0...HEAD
 [0.3.0]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.1.0...v0.1.1
