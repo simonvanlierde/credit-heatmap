@@ -22,68 +22,15 @@ function compressedHash(payload: string): string {
 }
 
 describe("share links", () => {
-  it("round-trips a plain draft with no claim and no draft id", async () => {
-    const decoded = await decodeShareHash(hashOf(await buildShareUrl(draft())));
-
-    expect(decoded?.authors.map((author) => author.name)).toEqual(["Jane A. Smith", "Bob White"]);
-    expect(decoded?.claimIndex).toBeNull();
-    expect(decoded?.draftId).toBeNull();
-  });
-
   it("compresses the payload, not just encodes it", async () => {
     const authors = Array.from({ length: 10 }, (_, i) =>
       createAuthor(`Author ${i} Name`, { contributions: [{ role: "Software", score: 66 }] }),
     );
-    const fragment = hashOf(await buildShareUrl(authors));
-    const uncompressed = Buffer.from(toSharePayload(authors)).toString("base64url");
+    const fragment = hashOf(await buildShareUrl({ authors }));
+    const uncompressed = Buffer.from(toSharePayload({ authors })).toString("base64url");
 
     // The exact ratio is not the contract; shorter than plain base64 is.
     expect(fragment.length).toBeLessThan(uncompressed.length / 2);
-  });
-
-  it("carries the claim and the draft it was asked about", async () => {
-    const url = await buildShareUrl(draft(), { claimIndex: 1, draftId: "paper-2" });
-    expect(url).toContain("&c=1");
-    expect(url).toContain("&d=paper-2");
-
-    const decoded = await decodeShareHash(hashOf(url));
-    expect(decoded?.claimIndex).toBe(1);
-    // Without this, a reply merges into whatever draft happens to be open.
-    expect(decoded?.draftId).toBe("paper-2");
-  });
-
-  it("reads the parameters in either order", async () => {
-    const decoded = await decodeShareHash(`${hashOf(await buildShareUrl(draft()))}&d=paper-2&c=0`);
-    expect(decoded?.claimIndex).toBe(0);
-    expect(decoded?.draftId).toBe("paper-2");
-    expect(decoded?.authors).toHaveLength(2);
-  });
-
-  it("still opens a link built before draft ids existed", async () => {
-    // A missing id means "the open draft".
-    const decoded = await decodeShareHash(`${hashOf(await buildShareUrl(draft()))}&c=1`);
-    expect(decoded?.claimIndex).toBe(1);
-    expect(decoded?.draftId).toBeNull();
-    expect(decoded?.authors).toHaveLength(2);
-  });
-
-  it("ignores parameters that are not what they claim to be", async () => {
-    const base = hashOf(await buildShareUrl(draft()));
-    expect((await decodeShareHash(`${base}&c=notanumber`))?.claimIndex).toBeNull();
-    expect((await decodeShareHash(`${base}&c=99999`))?.claimIndex).toBeNull();
-    // A hand-edited id is only ever used to look up a local draft, so a value
-    // outside the expected shape is dropped rather than parsed.
-    expect((await decodeShareHash(`${base}&d=${"x".repeat(120)}`))?.draftId).toBeNull();
-    expect((await decodeShareHash(`${base}&d=../../etc`))?.draftId).toBeNull();
-  });
-
-  it("degrades a truncated percent escape to a missing draft id, not a throw", async () => {
-    // A mail client can cut a link mid-escape; decodeURIComponent would throw
-    // URIError on "%", and this is called from a mount effect.
-    const base = hashOf(await buildShareUrl(draft()));
-    const decoded = await decodeShareHash(`${base}&c=1&d=%`);
-    expect(decoded?.claimIndex).toBe(1);
-    expect(decoded?.draftId).toBeNull();
   });
 
   it("returns null for a hash that is not a share link", async () => {
@@ -98,5 +45,34 @@ describe("share links", () => {
     // ~2 MB of zeros deflates to a few kB but must not decode past the cap.
     const bomb = compressedHash("0".repeat(2_000_000));
     expect(await decodeShareHash(bomb)).toBeNull();
+  });
+
+  it("round-trips a full v2 envelope through the fragment", async () => {
+    const authors = draft();
+    const url = await buildShareUrl({
+      authors,
+      title: "Eel cognition",
+      claimId: authors[1]?.id,
+      sourceDraftId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      reply: true,
+    });
+    expect(url).toContain("#s=");
+    expect(url).not.toContain("&"); // the envelope lives inside the payload now
+
+    const decoded = await decodeShareHash(hashOf(url));
+    expect(decoded?.claimId).toBe(authors[1]?.id);
+    expect(decoded?.sourceDraftId).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    expect(decoded?.reply).toBe(true);
+    expect(decoded?.title).toBe("Eel cognition");
+    expect(decoded?.authors.map((a) => a.id)).toEqual(authors.map((a) => a.id));
+  });
+
+  it("returns null for a v1-era link with trailing parameters", async () => {
+    const base = hashOf(await buildShareUrl({ authors: draft() }));
+    expect(await decodeShareHash(`${base}&c=1&d=paper-2`)).toBeNull();
+  });
+
+  it("returns null for a v1 payload", async () => {
+    expect(await decodeShareHash(compressedHash(JSON.stringify({ v: 1, a: [{ n: "Jane Smith", s: [] }] })))).toBeNull();
   });
 });
