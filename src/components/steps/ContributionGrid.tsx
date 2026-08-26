@@ -869,7 +869,9 @@ function GridLegend({
             where switching modes reflowed the whole header and shifted the matrix. */}
         {graded && (
           <span>
-            {t("clickToCycle")} <span className="hidden md:inline">{t("levelKeysHint")}</span>
+            {/* A language-neutral separator: the two hints are separate
+                sentences, and jamming them read as one run-on label. */}
+            {t("clickToCycle")} <span className="hidden md:inline">· {t("levelKeysHint")}</span>
           </span>
         )}
       </span>

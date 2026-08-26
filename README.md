@@ -18,7 +18,7 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
 
 **Try it:** [credit.duinlab.nl](https://credit.duinlab.nl)
 
-![The CRediT Matrix workspace in three columns: contributors on the left, an editable contribution grid in the middle, and the generated statement with export controls on the right. One contributor row is hovered, showing its authorship markers and the button that asks that person to fill in their own roles](docs/screenshots/hero.png)
+![The CRediT Matrix workspace in three columns: contributors on the left, an editable contribution grid in the middle, and the generated statement with export controls on the right. One contributor row is hovered, showing its controls and the row menu that holds the ask-a-co-author action](docs/screenshots/hero.png)
 
 ## What it does
 
