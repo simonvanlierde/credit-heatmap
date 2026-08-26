@@ -43,6 +43,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   someone sent opens as a new draft beside your own; a reply to a request lands on the draft it was
   asked about, switching to it first, and a reply whose draft is not in this browser says so instead
   of merging into whichever paper happened to be open.
+- The title and the add-contributor field are read-only until the persisted draft has been restored.
+  The store rehydrates from a mount effect, so there was a window in which the interface was live but
+  still empty, and anything typed into it was overwritten the moment the draft landed.
 - Renaming a contributor no longer clears the authorship markers set on them. Every mutation
   rebuilds the contributor through `createAuthor`, and two rebuild sites were dropping the fields.
 

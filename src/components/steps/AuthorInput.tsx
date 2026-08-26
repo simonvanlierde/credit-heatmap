@@ -49,6 +49,7 @@ import { useTranslations } from "use-intl";
 import { StepHeader } from "@/components/ui/step-header";
 import { announce } from "@/lib/announce";
 import { buildShareUrl } from "@/lib/share";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useSettled } from "@/lib/use-settled";
 import { useContributionStore } from "@/store/contribution-store";
 
@@ -165,6 +166,7 @@ export function AuthorList() {
     welcomeSeen,
   } = useContributionStore();
 
+  const hydrated = useHydrated();
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [removed, setRemoved] = useState<{ author: Author; index: number } | null>(null);
@@ -401,6 +403,9 @@ export function AuthorList() {
         id="work-title"
         value={title}
         onChange={(event) => setTitle(event.target.value)}
+        // Read-only until the persisted draft lands, because anything typed
+        // before that is silently overwritten by it.
+        readOnly={!hydrated}
         placeholder={t("untitledDraft")}
         className="mb-3 w-full border-b border-outline-variant/30 bg-transparent pb-1 text-sm font-medium text-on-surface outline-none transition-colors placeholder:font-normal placeholder:text-on-surface-variant/60 focus:border-primary"
       />
@@ -481,6 +486,7 @@ export function AuthorList() {
           }}
           onKeyDown={handleNewNameKeyDown}
           onPaste={handleAddPaste}
+          readOnly={!hydrated}
           placeholder={t("addPlaceholder")}
           aria-label={t("addContributor")}
           className="flex-1 min-w-0 text-ellipsis bg-surface-container-low border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none px-3 py-2 text-sm rounded-t text-on-surface placeholder-outline transition-colors"
