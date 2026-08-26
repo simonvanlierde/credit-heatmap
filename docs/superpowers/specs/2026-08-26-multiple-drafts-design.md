@@ -36,12 +36,12 @@ Theme already lives outside this store and stays there.
 
 ## Migration
 
-Persist version 6. The migration wraps whatever v5 held into a single draft, gives
+Persist version 7. The migration wraps whatever v6 held into a single draft, gives
 it a generated id, makes it active, and stamps `updatedAt`. An untitled draft keeps
 `title: ""`; the UI renders the fallback label, so no fake title is written into
 the data.
 
-The existing v0–v5 fixups run before the wrap, unchanged. A store that arrives with
+The existing v0–v6 fixups run before the wrap, unchanged. A store that arrives with
 no authors still produces one empty active draft — the app must never rehydrate into
 "no active draft", which would be an unrenderable state.
 
@@ -86,7 +86,7 @@ Delete asks for confirmation, because it is the one irreversible action here.
 
 - Store unit tests: create, switch, rename, duplicate, delete-active,
   delete-the-last-one, the 50-draft cap, and `reset` leaving other drafts alone.
-- Migration tests from a realistic v5 blob and from an empty one.
+- Migration tests from a realistic v6 blob and from an empty one.
 - One end-to-end test: build a draft, create a second, switch back, and assert the
   first draft's authors and heatmap colour both survived.
 

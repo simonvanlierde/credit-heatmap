@@ -37,8 +37,10 @@ Beside `orcid-lookup.ts`, same shape.
 - `lookupDoiWork(doi, fetcher = fetch)` returns
   `{ ok: true, title, authors: Array<{ name, orcid? }> }` or
   `{ ok: false, status, code, error }`.
-- Codes: `INVALID_DOI` (400), `NOT_FOUND` (404), `NO_AUTHORS` (404, the record
-  resolved but lists no contributors), `UNAVAILABLE` (502).
+- Codes: `INVALID_DOI` (400), `NOT_FOUND` (404), `NO_AUTHORS` (422, the record
+  resolved but lists no contributors), `UNAVAILABLE` (502). The status union in
+  `doi-lookup.ts` is its own type — 422 is new here and does not widen
+  `OrcidLookupResult`.
 - A `AbortSignal.timeout` deadline, as in `lookupOrcidPerson`.
 - The Crossref response is parsed with Zod, not trusted: `message.title` is an
   array, `message.author` entries carry `given`/`family`/`name`/`ORCID` in
@@ -56,8 +58,8 @@ Rate-limit before reading the body, as that route now does.
 ### Store
 
 `title: string` joins the persisted state, with `setTitle`. It is draft data, so
-`reset` clears it. Persist version bumps; the migration only has to default the
-new key to `""`.
+`reset` clears it. Persist goes to version 6; the migration only has to default
+the new key to `""`. (The drafts spec then takes it to version 7.)
 
 The title has two consumers beyond display: the export filename, and the drafts
 feature specced separately, which reuses this field rather than adding its own.
