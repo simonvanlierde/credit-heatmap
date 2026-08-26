@@ -21,6 +21,68 @@ function makeAuthors() {
   return authors;
 }
 
+describe("generateStatement, as HTML", () => {
+  it("bolds the prefix and each leading label, and keeps the text identical", () => {
+    const authors = makeAuthors();
+    const html = generateStatement(authors, { format: "by-role", asHtml: true });
+
+    expect(html).toBe(
+      "<p><strong>CRediT:</strong> <strong>Conceptualization</strong>: Jane Smith, Bob White; " +
+        "<strong>Investigation</strong>: Bob White; <strong>Software</strong>: Jane Smith</p>",
+    );
+    // The rich and plain forms must say the same thing: they travel together on
+    // the clipboard, and the recipient sees whichever their editor prefers.
+    expect(stripTags(html)).toBe(generateStatement(authors, { format: "by-role" }));
+  });
+
+  it("bolds the contributor in a by-author statement", () => {
+    const html = generateStatement(makeAuthors(), { format: "by-author", asHtml: true });
+    expect(html).toContain("<strong>Jane Smith</strong>: Conceptualization, Software");
+  });
+
+  it("escapes characters that would otherwise be markup", () => {
+    const authors = parseAuthorText("O'Brien & Sons <lab>");
+    const first = authors[0];
+    if (!first) throw new Error("expected an author");
+    const conc = first.contributions[0];
+    if (!conc) throw new Error("expected contributions");
+    conc.score = 100;
+
+    const html = generateStatement(authors, { format: "by-author", asHtml: true });
+    expect(html).toContain("&amp;");
+    expect(html).toContain("&lt;lab&gt;");
+    // An apostrophe is left alone: it needs no escaping in element text, and
+    // `&apos;` is the entity older word processors render literally.
+    expect(html).toContain("O'Brien");
+    expect(html).not.toContain("&apos;");
+  });
+
+  it("puts the acknowledgements line in its own paragraph", () => {
+    const authors = makeAuthors();
+    const bob = authors[1];
+    if (!bob) throw new Error("expected 2 authors");
+    bob.contributorType = "non-author";
+
+    const html = generateStatement(authors, { format: "by-role", asHtml: true });
+    expect(html.match(/<p>/g)).toHaveLength(2);
+    expect(html).toContain("<strong>Acknowledgements:</strong>");
+  });
+
+  it("returns an empty string when nobody has contributions", () => {
+    expect(generateStatement(parseAuthorText("Jane Smith"), { format: "by-role", asHtml: true })).toBe("");
+  });
+});
+
+/** Crude tag strip, enough to compare the HTML statement against the plain one. */
+function stripTags(html: string): string {
+  return html
+    .replace(/<\/p>\s*<p>/g, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
 describe("generateStatement", () => {
   it("by-role format uses full names", () => {
     const stmt = generateStatement(makeAuthors(), { format: "by-role" });

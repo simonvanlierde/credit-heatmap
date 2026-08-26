@@ -30,7 +30,50 @@ export interface StatementOptions {
    * together on the single `CRediT:` line.
    */
   separateAcknowledgements?: boolean;
+  /**
+   * Emit HTML rather than plain text: each line becomes a `<p>`, and the
+   * `CRediT:` prefix plus each leading label (the role in a by-role statement,
+   * the contributor in a by-author one) is wrapped in `<strong>`.
+   *
+   * Both forms carry identical wording, because they travel together on the
+   * clipboard and the recipient's editor picks one.
+   */
+  asHtml?: boolean;
 }
+
+/**
+ * How one statement flavour renders its pieces. The text formatter is the
+ * identity; the HTML one escapes and emphasizes.
+ */
+interface Formatter {
+  /** Plain text that must survive as text. */
+  text: (value: string) => string;
+  /** The leading label of a segment, and the line prefix. */
+  strong: (value: string) => string;
+  /** Join the CRediT and Acknowledgements lines. */
+  join: (lines: string[]) => string;
+}
+
+/**
+ * Escape element text. Deliberately not `escapeXml`: that turns an apostrophe
+ * into `&apos;`, which some word processors render literally, and apostrophes
+ * are common in author names.
+ */
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+const TEXT_FORMATTER: Formatter = {
+  text: (value) => value,
+  strong: (value) => value,
+  join: (lines) => lines.join("\n\n"),
+};
+
+const HTML_FORMATTER: Formatter = {
+  text: escapeHtml,
+  strong: (value) => `<strong>${escapeHtml(value)}</strong>`,
+  join: (lines) => lines.map((line) => `<p>${line}</p>`).join(""),
+};
 
 /**
  * Generate a CRediT author statement.
@@ -61,19 +104,21 @@ export function generateStatement(authors: Author[], options: StatementOptions):
     translateRole = DEFAULT_ROLE_TRANSLATOR,
     translateUi = DEFAULT_UI_TRANSLATOR,
     separateAcknowledgements = true,
+    asHtml = false,
   } = options;
+  const fmt = asHtml ? HTML_FORMATTER : TEXT_FORMATTER;
   const useInitials = format === "by-author-short" || format === "by-role-short";
   const byRole = format === "by-role" || format === "by-role-short";
 
   const body = (people: Author[]): string =>
     byRole
-      ? generateByRole(people, useInitials, showLevels, translateRole, translateUi)
-      : generateByAuthor(people, useInitials, showLevels, translateRole, translateUi);
+      ? generateByRole(people, useInitials, showLevels, translateRole, translateUi, fmt)
+      : generateByAuthor(people, useInitials, showLevels, translateRole, translateUi, fmt);
 
   // Combined: everyone (authors and non-authors) on one CRediT line.
   if (!separateAcknowledgements) {
     const allBody = body(authors);
-    return allBody ? `CRediT: ${allBody}` : "";
+    return allBody ? fmt.join([`${fmt.strong("CRediT:")} ${allBody}`]) : "";
   }
 
   // Split: named authors on the CRediT line, non-authors on Acknowledgements.
@@ -82,10 +127,10 @@ export function generateStatement(authors: Author[], options: StatementOptions):
 
   const lines: string[] = [];
   const creditBody = body(namedAuthors);
-  if (creditBody) lines.push(`CRediT: ${creditBody}`);
+  if (creditBody) lines.push(`${fmt.strong("CRediT:")} ${creditBody}`);
   const ackBody = body(nonAuthors);
-  if (ackBody) lines.push(`${translateUi("acknowledgements")}: ${ackBody}`);
-  return lines.join("\n\n");
+  if (ackBody) lines.push(`${fmt.strong(`${translateUi("acknowledgements")}:`)} ${ackBody}`);
+  return fmt.join(lines);
 }
 
 /** Annotate a role or contributor label with its non-lead level: "label (Equal)". */
@@ -103,6 +148,7 @@ function generateByRole(
   showLevels: boolean,
   translateRole: RoleTranslator,
   translateUi: UiTranslator,
+  fmt: Formatter,
 ): string {
   // Collect contributor labels per role, in author order. Keyed on the
   // canonical English role; localized only when emitting the line.
@@ -112,7 +158,7 @@ function generateByRole(
     const label = useInitials ? author.initials : author.name.replace(/\s+/g, " ").trim();
     for (const contrib of activeContributions(author)) {
       const list = roleMap.get(contrib.role) ?? [];
-      list.push(showLevels ? withLevel(label, contrib.score, translateUi) : label);
+      list.push(fmt.text(showLevels ? withLevel(label, contrib.score, translateUi) : label));
       roleMap.set(contrib.role, list);
     }
   }
@@ -122,7 +168,7 @@ function generateByRole(
   // Emit in canonical CRediT order, not first-author-encounter order, so the
   // statement matches the documented role sequence regardless of who contributed.
   const parts = CREDIT_ROLES.filter((r) => roleMap.has(r.name)).map(
-    (r) => `${translateRole(r.name)}: ${(roleMap.get(r.name) ?? []).join(", ")}`,
+    (r) => `${fmt.strong(translateRole(r.name))}: ${(roleMap.get(r.name) ?? []).join(", ")}`,
   );
 
   return parts.join("; ");
@@ -135,6 +181,7 @@ function generateByAuthor(
   showLevels: boolean,
   translateRole: RoleTranslator,
   translateUi: UiTranslator,
+  fmt: Formatter,
 ): string {
   const parts: string[] = [];
 
@@ -148,7 +195,7 @@ function generateByAuthor(
       showLevels ? withLevel(translateRole(c.role), c.score, translateUi) : translateRole(c.role),
     );
 
-    parts.push(`${label}: ${roleList.join(", ")}`);
+    parts.push(`${fmt.strong(label)}: ${roleList.map(fmt.text).join(", ")}`);
   }
 
   if (parts.length === 0) return "";

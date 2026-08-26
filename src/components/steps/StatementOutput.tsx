@@ -19,8 +19,9 @@ import { SegmentedControl } from "@/components/ui/segmented";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StepHeader } from "@/components/ui/step-header";
 import { Switch } from "@/components/ui/switch";
+import { copyRichText } from "@/lib/copy-rich-text";
 import { useCopyStatus } from "@/lib/use-copy-status";
-import { useOutputTranslators } from "@/lib/use-output-translators";
+import { useCreditTranslators } from "@/lib/use-credit-translators";
 import { useSettled } from "@/lib/use-settled";
 import { download } from "@/lib/utils";
 import { useContributionStore } from "@/store/contribution-store";
@@ -52,7 +53,8 @@ const DATA_FORMATS: Record<
 
 export function StatementOutput() {
   const { authors } = useContributionStore();
-  const { translateRole, translateUi } = useOutputTranslators();
+  const { translateRole, translateUi } = useCreditTranslators();
+  const outputLocale = useContributionStore((s) => s.outputLocale);
   const t = useTranslations();
   // Last beat of the population sequence; see .enter-fade in globals.css.
   const settled = useSettled();
@@ -73,13 +75,14 @@ export function StatementOutput() {
   const format: StatementFormat =
     grouping === "by-role" ? (acronyms ? "by-role-short" : "by-role") : acronyms ? "by-author-short" : "by-author";
 
-  const statement = generateStatement(authors, {
+  const statementOptions = {
     format,
     showLevels,
     translateRole,
     translateUi,
     separateAcknowledgements: separateAck,
-  });
+  };
+  const statement = generateStatement(authors, statementOptions);
   const issues = validateContributions(authors);
   const hasAuthors = authors.length > 0;
   const assignedRoleCount = new Set(
@@ -160,6 +163,10 @@ export function StatementOutput() {
         // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region with no focusable content needs a tab stop, or keyboard users cannot reach the overflow (axe scrollable-region-focusable).
         tabIndex={0}
         aria-label={t("a11yGeneratedStatement")}
+        // The statement is written in the *output* language, which need not be
+        // the page's language. Declaring it lets a screen reader switch
+        // pronunciation instead of reading Dutch with English rules.
+        lang={outputLocale}
         className="relative z-10 min-h-[3.5rem] border-l border-primary bg-surface-container-low p-3 rounded-r focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary desk:min-h-0 desk:overflow-y-auto"
         style={{ fontFamily: "var(--font-headline)" }}
       >
@@ -215,12 +222,16 @@ export function StatementOutput() {
 
       {/* One action row: copy the statement (primary), export a data format, and
           the badge anchored at the right. The groups wrap onto their own lines
-          in the narrow 2xl column, so the "Export data" label carries the
+          in the narrow 2xl column, so the t("exportData") label carries the
           separation rather than a divider that would be left orphaned. */}
       <div className="relative z-10 flex flex-wrap items-center gap-x-4 gap-y-3">
         <button
           type="button"
-          onClick={() => copyText(statement)}
+          onClick={() =>
+            // The HTML flavour is built on demand: it is only ever needed at
+            // the moment of the copy, never for the rendered pane.
+            copyText(() => copyRichText(statement, generateStatement(authors, { ...statementOptions, asHtml: true })))
+          }
           disabled={!statement}
           className="inline-flex items-center justify-center gap-2 px-5 py-2 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary-container transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
