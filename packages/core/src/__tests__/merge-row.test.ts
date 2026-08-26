@@ -19,6 +19,13 @@ function returned(edit: (authors: ReturnType<typeof draft>) => void) {
   return authors;
 }
 
+/** The id of the row at `index`, the way a claim link carries it. */
+function idAt(authors: { id: string }[], index: number): string {
+  const author = authors[index];
+  if (!author) throw new Error(`expected a row at ${index}`);
+  return author.id;
+}
+
 function scoreFor(author: { contributions: { role: string; score: number }[] }, role: string): number {
   return author.contributions.find((contribution) => contribution.role === role)?.score ?? 0;
 }
@@ -33,7 +40,7 @@ describe("mergeContributorRow", () => {
       carol.contributions = [{ role: "Software", score: 0 }];
     });
 
-    const result = mergeContributorRow(draft(), incoming, incoming[1]?.id);
+    const result = mergeContributorRow(draft(), incoming, idAt(incoming, 1));
 
     expect(result.merged?.name).toBe("Bob White");
     expect(scoreFor(result.authors[1] as never, "Investigation")).toBe(100);
@@ -47,7 +54,7 @@ describe("mergeContributorRow", () => {
       bob.contributions = [];
     });
 
-    const result = mergeContributorRow(draft(), incoming, incoming[1]?.id);
+    const result = mergeContributorRow(draft(), incoming, idAt(incoming, 1));
     expect(scoreFor(result.authors[1] as never, "Investigation")).toBe(0);
   });
 
@@ -55,7 +62,7 @@ describe("mergeContributorRow", () => {
     // The position says who answered, never who they are in your list: an
     // unrecognised contributor must not land on whoever sits at that index.
     const incoming = [createAuthor("Erik Nilsson", { contributions: [{ role: "Software", score: 100 }] })];
-    const result = mergeContributorRow(draft(), incoming, incoming[0]?.id);
+    const result = mergeContributorRow(draft(), incoming, idAt(incoming, 0));
 
     expect(result.authors[0]?.name).toBe("Jane A. Smith");
     expect(scoreFor(result.authors[0] as never, "Conceptualization")).toBe(100);
@@ -70,7 +77,7 @@ describe("mergeContributorRow", () => {
       jane.contributions = [{ role: "Supervision", score: 100 }];
     });
 
-    const result = mergeContributorRow(draft(), incoming, incoming[0]?.id);
+    const result = mergeContributorRow(draft(), incoming, idAt(incoming, 0));
 
     expect(result.merged).not.toBeNull();
     // Their roles land, and so does the spelling they chose for themselves.
@@ -82,21 +89,21 @@ describe("mergeContributorRow", () => {
     const current = [createAuthor("Anne de Vries")];
     const incoming = [createAuthor("anne  DE vries", { contributions: [{ role: "Methodology", score: 100 }] })];
 
-    const result = mergeContributorRow(current, incoming, incoming[0]?.id);
+    const result = mergeContributorRow(current, incoming, idAt(incoming, 0));
     expect(scoreFor(result.authors[0] as never, "Methodology")).toBe(100);
   });
 
   it("takes their ORCID as answered: filling a gap, correcting yours, or clearing it", () => {
     const current = [createAuthor("Bob White")];
     const incoming = [createAuthor("Bob White", { orcid: JANE_ORCID })];
-    expect(mergeContributorRow(current, incoming, incoming[0]?.id).authors[0]?.orcid).toBe(JANE_ORCID);
+    expect(mergeContributorRow(current, incoming, idAt(incoming, 0)).authors[0]?.orcid).toBe(JANE_ORCID);
 
     const held = [createAuthor("Bob White", { orcid: "0000-0001-5109-3700" })];
-    expect(mergeContributorRow(held, incoming, incoming[0]?.id).authors[0]?.orcid).toBe(JANE_ORCID);
+    expect(mergeContributorRow(held, incoming, idAt(incoming, 0)).authors[0]?.orcid).toBe(JANE_ORCID);
 
     const cleared = [createAuthor("Bob White", { orcid: JANE_ORCID })];
     const withoutId = [createAuthor("Bob White")];
-    expect(mergeContributorRow(cleared, withoutId, withoutId[0]?.id).authors[0]?.orcid).toBeUndefined();
+    expect(mergeContributorRow(cleared, withoutId, idAt(withoutId, 0)).authors[0]?.orcid).toBeUndefined();
   });
 
   it("keeps your row id while shipping the name they typed for themselves", () => {
@@ -117,7 +124,7 @@ describe("mergeContributorRow", () => {
       bob.equalContribution = true;
     });
 
-    const result = mergeContributorRow(draft(), incoming, incoming[1]?.id);
+    const result = mergeContributorRow(draft(), incoming, idAt(incoming, 1));
     expect(result.authors[1]?.corresponding).toBe(true);
     expect(result.authors[1]?.equalContribution).toBe(true);
   });
@@ -125,7 +132,7 @@ describe("mergeContributorRow", () => {
   it("reports someone who matches nobody, rather than silently doing nothing", () => {
     const incoming = [createAuthor("Erik Nilsson", { contributions: [{ role: "Software", score: 100 }] })];
 
-    const result = mergeContributorRow(draft(), incoming, incoming[0]?.id);
+    const result = mergeContributorRow(draft(), incoming, idAt(incoming, 0));
 
     expect(result.merged).toBeNull();
     expect(result.unmatched?.name).toBe("Erik Nilsson");
@@ -146,7 +153,7 @@ describe("mergeContributorRow", () => {
 
   it("leaves the rest of the list in its original order", () => {
     const incoming = draft();
-    const result = mergeContributorRow(draft(), incoming, incoming[1]?.id);
+    const result = mergeContributorRow(draft(), incoming, idAt(incoming, 1));
     expect(result.authors.map((author) => author.name)).toEqual(["Jane A. Smith", "Bob White", "Carol Davis"]);
   });
 });
@@ -159,7 +166,7 @@ describe("name matching robustness", () => {
     const current = [createAuthor("Renée Dupont", { contributions: [{ role: "Software", score: 0 }] })];
     const incoming = [createAuthor("Renée DUPONT", { contributions: [{ role: "Software", score: 100 }] })];
 
-    const result = mergeContributorRow(current, incoming, incoming[0]?.id);
+    const result = mergeContributorRow(current, incoming, idAt(incoming, 0));
     expect(result.unmatched).toBeNull();
     // The normalization-insensitive match still lands the row; the spelling
     // the co-author typed for themselves is the one that ships (their string
