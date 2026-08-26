@@ -34,16 +34,16 @@ the draft in its fragment and comes back the same way.
 
 ## Rationale
 
-The deciding argument is not cost or effort — ORCID OAuth suits this audience
+The deciding argument is not cost or effort. ORCID OAuth suits this audience
 and an edge database is readily available. It is what the data *is*.
 
 A stored draft holds the names and ORCID iDs of **third parties who never
 visited the site**. Storing those server-side means processing personal data of
-identifiable people who gave no consent, which brings a lawful basis, a
-retention policy, a privacy notice, and deletion requests — permanently, for a
-free tool with one maintainer. Today the honest answer to "what do you keep
-about my co-authors" is *nothing; it is in their browser*. That answer is worth
-more than the convenience it costs.
+identifiable people who gave no consent. That brings a lawful basis, a
+retention policy, a privacy notice, and deletion requests. These obligations are
+permanent, for a free tool with one maintainer. Today the honest answer to
+"what do you keep about my co-authors" is *nothing; it is in their browser*.
+That answer is worth more than the convenience it costs.
 
 Two further points:
 
