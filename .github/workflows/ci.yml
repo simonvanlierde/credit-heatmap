@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: pnpm/setup@v2
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2
         with:
           runtime: node@26
           cache: true
@@ -45,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: pnpm/setup@v2
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2
         with:
           runtime: node@26
           cache: true
@@ -79,17 +79,31 @@ jobs:
 
       # The whole Playwright suite gates every push/PR: the axe scans *and*
       # the critical-workflow specs (import, undo, ORCID lookup, persistence,
-      # bulk assign, export). Running only a11y.spec.ts here let a regression
-      # in any of those merge with CI fully green, since e2e.yml is opt-in.
+      # bulk assign, export). Running only a subset here once let a regression
+      # in the rest merge with CI fully green.
       #
       # Workers are left at Playwright's default (half the runner's cores).
       # Against a production build the suite runs 62s serially and 46s on two
       # workers, and the one test that failed under load was an unscoped
       # locator, not a shared-state problem: `retries: 2` covers the rest.
+      # Retries also hide flakes, so watch the report's "flaky" lines: a test
+      # that starts passing only on retry is a bare locator racing the
+      # announce() duplicate (see e2e/happy-path.spec.ts's onScreen helper),
+      # not noise to ignore.
       - name: Run Playwright suite
         env:
           CI: true
         run: pnpm exec playwright test
+
+      # trace: "on-first-retry" is already set, so failures produce traces;
+      # without this step they were thrown away and every red run had to be
+      # reproduced locally.
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-traces
+          path: test-results
 
   build:
     name: Build
@@ -98,7 +112,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: pnpm/setup@v2
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2
         with:
           runtime: node@26
           cache: true
