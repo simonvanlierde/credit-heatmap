@@ -58,8 +58,9 @@ Rate-limit before reading the body, as that route now does.
 ### Store
 
 `title: string` joins the persisted state, with `setTitle`. It is draft data, so
-`reset` clears it. Persist goes to version 6; the migration only has to default
-the new key to `""`. (The drafts spec then takes it to version 7.)
+`reset` clears it. The persist version bumps, with no migration: the app has no
+users yet, so a stored draft from an older shape is discarded rather than
+carried forward.
 
 The title has two consumers beyond display: the export filename, and the drafts
 feature specced separately, which reuses this field rather than adding its own.

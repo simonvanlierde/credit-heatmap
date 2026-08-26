@@ -34,16 +34,13 @@ Theme already lives outside this store and stays there.
 
 `title` is introduced by the DOI import work and moves into `Draft` here.
 
-## Migration
+## Persistence
 
-Persist version 7. The migration wraps whatever v6 held into a single draft, gives
-it a generated id, makes it active, and stamps `updatedAt`. An untitled draft keeps
-`title: ""`; the UI renders the fallback label, so no fake title is written into
-the data.
-
-The existing v0–v6 fixups run before the wrap, unchanged. A store that arrives with
-no authors still produces one empty active draft — the app must never rehydrate into
-"no active draft", which would be an unrenderable state.
+The persist version bumps and the existing `migrate` function goes away. The app
+has no users yet, so a stored draft in the old single-draft shape is discarded on
+load rather than migrated. Rehydrating into "no active draft" is still an
+unrenderable state, so the store creates one empty active draft whenever the
+persisted map is missing or empty.
 
 ## Selectors
 
@@ -86,7 +83,8 @@ Delete asks for confirmation, because it is the one irreversible action here.
 
 - Store unit tests: create, switch, rename, duplicate, delete-active,
   delete-the-last-one, the 50-draft cap, and `reset` leaving other drafts alone.
-- Migration tests from a realistic v6 blob and from an empty one.
+- Rehydration tests: an empty persisted map and a stale-version blob both land
+  on one empty active draft.
 - One end-to-end test: build a draft, create a second, switch back, and assert the
   first draft's authors and heatmap colour both survived.
 
