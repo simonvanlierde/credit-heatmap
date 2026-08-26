@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Fingerprint, Sparkles, TableProperties, TextQuote, X } from "lucide-react";
+import { ExternalLink, Files, Fingerprint, Send, Sparkles, TableProperties, TextQuote, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 import { StepNumber } from "@/components/ui/step-number";
@@ -121,9 +121,24 @@ export function WelcomeCard() {
         </ol>
 
         {/* Not a fourth step: these are the two things people reach for once
-            they have made one statement, and burying them entirely means
-            nobody finds them. */}
-        <p className="text-sm leading-relaxed text-on-surface-variant">{t("welcomeBeyond")}</p>
+            they have made one statement. As one prose sentence nobody found
+            them; two labeled items keep them scannable without adding a step. */}
+        <div className="grid grid-cols-1 gap-x-8 gap-y-4 border-t border-outline-variant/20 pt-5 sm:grid-cols-2">
+          {(
+            [
+              { icon: Files, titleKey: "welcomeDraftsTitle", bodyKey: "welcomeDraftsBody" },
+              { icon: Send, titleKey: "welcomeAskTitle", bodyKey: "welcomeAskBody" },
+            ] as const
+          ).map(({ icon: Icon, titleKey, bodyKey }) => (
+            <div key={titleKey} className="flex gap-3">
+              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-on-surface-variant" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-on-surface">{t(titleKey)}</p>
+                <p className="mt-1 text-sm leading-relaxed text-on-surface-variant">{t(bodyKey)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           {hasAuthors ? (
