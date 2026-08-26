@@ -186,7 +186,7 @@ export function HeaderActions() {
               disabled={authors.length === 0}
               aria-label={t("a11yShareLink")}
               title={t("a11yShareLink")}
-              className="flex size-9 items-center justify-center gap-2 rounded-lg border border-primary/30 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-4"
+              className="touch-target flex size-9 items-center justify-center gap-2 rounded-lg border border-primary/30 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-4"
             >
               {shareStatus === "copied" ? (
                 <Check className="h-4 w-4" />
@@ -220,7 +220,7 @@ export function HeaderActions() {
           type="button"
           onClick={() => setImportOpen(true)}
           aria-label={t("import")}
-          className="flex size-9 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-primary-container sm:w-auto sm:px-5"
+          className="touch-target flex size-9 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-primary-container sm:w-auto sm:px-5"
         >
           <Upload className="h-4 w-4" />
           <span className="sr-only sm:not-sr-only">{t("import")}</span>

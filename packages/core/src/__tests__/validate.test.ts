@@ -22,9 +22,12 @@ describe("validateContributions", () => {
     // Bob has nothing assigned.
 
     const issues = validateContributions(authors);
+    const bob = authors[1];
+    expect(bob).toBeDefined();
     expect(issues).toContainEqual({
       level: "warning",
       code: "authorNoRoles",
+      authorId: bob?.id,
       authorName: "Bob White",
       message: "Bob White has no assigned CRediT roles.",
     });

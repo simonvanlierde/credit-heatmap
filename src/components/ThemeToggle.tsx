@@ -22,7 +22,7 @@ export function ThemeToggle() {
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={mounted ? t(isDark ? "switchToLightTheme" : "switchToDarkTheme") : t("toggleTheme")}
-      className="flex items-center justify-center size-9 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors"
+      className="touch-target flex items-center justify-center size-9 rounded-lg text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors"
     >
       {/* Placeholder size during SSR avoids layout shift on mount. */}
       {mounted && (isDark ? <Sun className="size-4" /> : <Moon className="size-4" />)}

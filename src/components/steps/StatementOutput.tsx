@@ -141,7 +141,14 @@ export function StatementOutput() {
       {hasAuthors && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-on-surface-variant" role="status">
           <span
-            className={`inline-flex items-center gap-1.5 font-medium ${isReady ? "text-primary" : "text-on-surface"}`}
+            // Keyed on readiness so the flip remounts the chip and the house
+            // entrance plays once — the quiet acknowledgment that the statement
+            // is done. Gated on `settled` like every other entrance, so a
+            // restored draft that is already ready stays still on load.
+            key={isReady ? "ready" : "notes"}
+            className={`inline-flex items-center gap-1.5 font-medium ${isReady ? "text-primary" : "text-on-surface"} ${
+              settled ? "enter-rise" : ""
+            }`}
           >
             {isReady ? (
               <CheckCircle2 className="size-4" aria-hidden="true" />
@@ -209,7 +216,9 @@ export function StatementOutput() {
                 : t("validationRoleUnassigned", { role: translateInterfaceRole(issue.role) });
             return (
               <li
-                key={`${issue.code}-${text}`}
+                // The id breaks ties: two contributors can share a name, and
+                // then code+text alone collides (a real duplicate-key error).
+                key={issue.code === "authorNoRoles" ? `${issue.code}-${issue.authorId}` : `${issue.code}-${issue.role}`}
                 className={`flex items-start gap-2 text-xs rounded px-3 py-2 ${
                   issue.level === "warning"
                     ? "bg-error-container/30 text-error"

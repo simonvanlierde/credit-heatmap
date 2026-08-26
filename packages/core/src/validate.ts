@@ -5,7 +5,8 @@ import type { CreditRoleName } from "./credit-roles.js";
 export type ValidationLevel = "warning" | "info";
 
 export type ValidationIssue =
-  | { level: "warning"; code: "authorNoRoles"; authorName: string; message: string }
+  // authorId keys the rendered list: two contributors can share a name.
+  | { level: "warning"; code: "authorNoRoles"; authorId: string; authorName: string; message: string }
   | { level: "info"; code: "roleUnassigned"; role: CreditRoleName; message: string };
 
 /** Roles most journals expect to be assigned to at least one contributor. */
@@ -29,6 +30,7 @@ export function validateContributions(authors: Author[]): ValidationIssue[] {
       issues.push({
         level: "warning",
         code: "authorNoRoles",
+        authorId: author.id,
         authorName: author.name || "An author",
         message: `${author.name || "An author"} has no assigned CRediT roles.`,
       });
