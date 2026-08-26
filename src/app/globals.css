@@ -263,6 +263,26 @@ body {
   }
 }
 
+/*
+ * A row action that keeps quiet until its row is hovered.
+ *
+ * Gated on a hover-capable pointer, not on width alone. A tablet or a touch
+ * laptop is wide enough to pass any width breakpoint and still has no hover,
+ * so hiding the action there puts it out of reach entirely — and these are
+ * real actions (mark a corresponding author, ask a co-author, delete a draft),
+ * not decoration. Keyboard users reach them through :focus-visible.
+ */
+@media (hover: hover) and (min-width: 40rem) {
+  .reveal-on-hover {
+    opacity: 0;
+  }
+
+  .group:hover .reveal-on-hover,
+  .reveal-on-hover:focus-visible {
+    opacity: 1;
+  }
+}
+
 html,
 body {
   max-width: 100%;

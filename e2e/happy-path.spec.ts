@@ -26,6 +26,17 @@ async function asReturningVisitor(page: Page) {
   );
 }
 
+/**
+ * The on-screen copy of a message. Errors are both rendered next to the field
+ * and pushed to the assertive live region, which mounts the same string a frame
+ * later; a bare `getByText` then matches twice and trips strict mode. Which of
+ * the two the locator sees is a race, so it passes on an idle machine and fails
+ * under parallel load. Excluding the visually-hidden region settles it.
+ */
+function onScreen(page: Page, text: string) {
+  return page.getByText(text).and(page.locator(":not(.sr-only)"));
+}
+
 test.describe("Happy path UI flows", () => {
   test.beforeEach(async ({ page }) => {
     await asReturningVisitor(page);
@@ -281,6 +292,7 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
     // Ask the second contributor (Bob White) to fill in his own row.
+    await page.getByRole("button", { name: "Actions for Bob White" }).click();
     await page.getByRole("button", { name: "Ask Bob White to fill this in" }).click();
     const askUrl = await page.evaluate(() => navigator.clipboard.readText());
     expect(askUrl).toContain("&c=1");
@@ -373,6 +385,7 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Import", exact: true }).click();
     await page.locator("#import-text").fill("Jane A. Smith\nBob White");
     await page.getByRole("button", { name: "Import data" }).click();
+    await page.getByRole("button", { name: "Actions for Bob White" }).click();
     await page.getByRole("button", { name: "Ask Bob White to fill this in" }).click();
     const askUrl = await page.evaluate(() => navigator.clipboard.readText());
 
@@ -593,7 +606,11 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
     const orcidField = page.getByLabel("ORCID iD", { exact: true });
-    await page.getByRole("button", { name: "Add ORCID iD" }).first().click();
+    await page
+      .getByRole("button", { name: /^Actions for / })
+      .first()
+      .click();
+    await page.getByRole("button", { name: "Add ORCID iD" }).click();
 
     // Shape-valid but checksum-invalid: the store rejects it, so the row has to
     // say why rather than silently closing the input.
@@ -642,7 +659,11 @@ test.describe("Happy path UI flows", () => {
     const row = page.locator("section[aria-label=Contributors] .space-y-1 > *").first();
     const plainHeight = (await row.boundingBox())?.height ?? 0;
 
-    await page.getByRole("button", { name: "Add ORCID iD" }).first().click();
+    await page
+      .getByRole("button", { name: /^Actions for / })
+      .first()
+      .click();
+    await page.getByRole("button", { name: "Add ORCID iD" }).click();
     const field = page.getByLabel("ORCID iD", { exact: true });
     await field.fill("0000-0002-1825-0097");
     await field.press("Enter");
@@ -790,7 +811,7 @@ test.describe("Happy path UI flows", () => {
     await field.press("Enter");
 
     // The stub controls this text, so it is deterministic.
-    await expect(page.getByText("No ORCID record matches that iD.")).toBeVisible();
+    await expect(onScreen(page, "No ORCID record matches that iD.")).toBeVisible();
     // No contributor row at all, and specifically none named after the iD.
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
     await expect(page.locator("section[aria-label=Contributors]").getByRole("listitem")).toHaveCount(0);

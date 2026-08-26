@@ -290,8 +290,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
             {t("importTitle")}
           </h2>
           <p id="import-description" className="text-sm text-on-surface-variant mt-1">
-            Paste author names, or upload a CSV, JSON, or JATS4R XML file from a previous session. A JSON or XML import
-            restores contribution scores as well as names.
+            {t("importDescription")}
           </p>
           <button
             type="button"

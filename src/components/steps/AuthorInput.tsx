@@ -29,8 +29,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   AtSign,
+  Check,
   Fingerprint,
   GripVertical,
+  MoreHorizontal,
   Plus,
   PlusCircle,
   Send,
@@ -46,6 +48,7 @@ import {
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { StepHeader } from "@/components/ui/step-header";
 import { announce } from "@/lib/announce";
 import { buildShareUrl } from "@/lib/share";
@@ -75,10 +78,9 @@ interface OrcidLookupResult {
  *
  * Returns a failure *code*, not a message: this runs outside React, so it
  * cannot translate. The caller holds `t` and renders the code. The server's
- * English text rides along as `fallback` for a code this client does not know
- * — new server codes then degrade to readable English instead of a blank.
+ * Unknown server codes use the localized generic failure message.
  */
-type OrcidFailure = { code: string; fallback: string };
+type OrcidFailure = { code: string };
 
 async function fetchOrcidName(orcid: string): Promise<{ displayName: string } | OrcidFailure> {
   try {
@@ -88,23 +90,18 @@ async function fetchOrcidName(orcid: string): Promise<{ displayName: string } | 
       body: JSON.stringify({ id: normalizeOrcid(orcid) }),
     });
     if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as { code?: string; error?: string } | null;
-      return {
-        code: data?.code ?? "BAD_REQUEST",
-        fallback: data?.error ?? "The ORCID lookup failed. Try again, or type the name.",
-      };
+      const data = (await res.json().catch(() => null)) as { code?: string } | null;
+      return { code: data?.code ?? "BAD_REQUEST" };
     }
     const result = (await res.json()) as OrcidLookupResult;
     if (!result.displayName.trim()) {
-      return { code: "NO_NAME", fallback: "That ORCID record lists no name. Type the name instead." };
+      return { code: "NO_NAME" };
     }
     return { displayName: result.displayName };
   } catch {
     // The ORCID proxy is the one path that needs a network: the rest of the app
     // works offline, so say which half is unavailable rather than blaming ORCID.
-    return navigator.onLine
-      ? { code: "UNREACHABLE", fallback: "Could not reach ORCID. Check your connection and try again." }
-      : { code: "OFFLINE", fallback: "You are offline, so ORCID lookups are unavailable. Type the name instead." };
+    return { code: navigator.onLine ? "UNREACHABLE" : "OFFLINE" };
   }
 }
 
@@ -127,14 +124,7 @@ const ORCID_ERROR_KEYS = {
 /** Render an ORCID failure in the interface language. */
 function orcidErrorText(failure: OrcidFailure, t: ReturnType<typeof useTranslations>): string {
   const key = ORCID_ERROR_KEYS[failure.code as keyof typeof ORCID_ERROR_KEYS];
-  // An unknown code means the server is newer than this client: show the
-  // English text it sent rather than nothing.
-  return key ? t(key) : failure.fallback;
-}
-
-/** `plural(1, "entry", "entries")`: the counted noun, matched to its count. */
-function plural(count: number, singular: string, pluralForm = `${singular}s`): string {
-  return count === 1 ? singular : pluralForm;
+  return t(key ?? "errOrcidBAD_REQUEST");
 }
 
 async function forEachWithConcurrency<T>(items: T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
@@ -220,13 +210,13 @@ export function AuthorList() {
     // <body> and sends a keyboard user back to the top of the document. Hand
     // focus to the row that takes its place instead.
     setFocusAfterRemove(index);
-    announce(`${author.name} removed. Undo is available.`);
+    announce(t("annContributorRemoved", { name: author.name }));
   }
 
   function undoRemove() {
     if (!removed) return;
     restoreAuthor(removed.author, removed.index);
-    announce(`${removed.author.name} restored.`);
+    announce(t("annContributorRestored", { name: removed.author.name }));
     setRemoved(null);
   }
 
@@ -245,16 +235,16 @@ export function AuthorList() {
 
   // Announce reorder by contributor name; @dnd-kit's default announcements key
   // off the opaque author id, which reads as meaningless to a screen reader.
-  const nameForId = (id: UniqueIdentifier) => authors.find((a) => a.id === id)?.name || "contributor";
+  const nameForId = (id: UniqueIdentifier) => authors.find((a) => a.id === id)?.name || t("contributorColumn");
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up contributor ${nameForId(active.id)}.`,
+    onDragStart: ({ active }) => t("dndPickedUp", { name: nameForId(active.id) }),
     onDragOver: ({ active, over }) =>
-      over ? `Contributor ${nameForId(active.id)} is over ${nameForId(over.id)}.` : undefined,
+      over ? t("dndOver", { name: nameForId(active.id), target: nameForId(over.id) }) : undefined,
     onDragEnd: ({ active, over }) =>
       over
-        ? `Contributor ${nameForId(active.id)} was dropped onto ${nameForId(over.id)}.`
-        : `Reorder of ${nameForId(active.id)} was cancelled.`,
-    onDragCancel: ({ active }) => `Reorder of ${nameForId(active.id)} was cancelled.`,
+        ? t("dndDropped", { name: nameForId(active.id), target: nameForId(over.id) })
+        : t("dndCancelled", { name: nameForId(active.id) }),
+    onDragCancel: ({ active }) => t("dndCancelled", { name: nameForId(active.id) }),
   };
 
   /** Seed a row from an ORCID iD, then fill its name from the registry. */
@@ -305,16 +295,13 @@ export function AuthorList() {
     });
 
     const addedCount = acceptedTokens.length - rejected.length - badChecksum.length;
-    const added = `Added ${addedCount} ${plural(addedCount, "contributor")}.`;
+    const added = t("annContributorsAdded", { count: addedCount });
     const problems = [
-      rejected.length > 0 &&
-        `Skipped ${rejected.length} ${plural(rejected.length, "entry", "entries")} with no name (${rejected.join(", ")}).`,
+      rejected.length > 0 && t("annEntriesSkippedNoName", { count: rejected.length, entries: rejected.join(", ") }),
       badChecksum.length > 0 &&
-        `Skipped ${badChecksum.length} ORCID ${plural(badChecksum.length, "iD")} with an invalid check digit (${badChecksum.join(", ")}).`,
-      failed.length > 0 &&
-        `Could not look up ${failed.length} ORCID ${plural(failed.length, "iD")} (${failed.join(", ")}). Those rows are named after their iD; rename them by hand.`,
-      skippedForLimit > 0 &&
-        `Skipped ${skippedForLimit} ${plural(skippedForLimit, "contributor")}: a draft holds at most ${MAX_AUTHORS}.`,
+        t("annOrcidChecksumsSkipped", { count: badChecksum.length, ids: badChecksum.join(", ") }),
+      failed.length > 0 && t("annOrcidLookupsFailed", { count: failed.length, ids: failed.join(", ") }),
+      skippedForLimit > 0 && t("annContributorsSkippedLimit", { count: skippedForLimit, limit: MAX_AUTHORS }),
     ].filter(Boolean);
 
     if (problems.length === 0) {
@@ -336,7 +323,7 @@ export function AuthorList() {
     // "that doesn't look like a name" (false) or, for an ORCID, cleared the
     // input and silently did nothing. addMany already reports this separately.
     if (authors.length >= MAX_AUTHORS) {
-      const message = `A draft holds at most ${MAX_AUTHORS} contributors. Remove one to add another.`;
+      const message = t("errAtContributorLimit", { limit: MAX_AUTHORS });
       setAddError(message);
       announce(message, { assertive: true });
       return;
@@ -366,7 +353,7 @@ export function AuthorList() {
     } else if (addAuthor(trimmed)) {
       setNewName("");
     } else {
-      setAddError("That doesn’t look like a name. It needs at least one letter.");
+      setAddError(t("errNameNoLetter"));
     }
   }
 
@@ -541,41 +528,101 @@ export function AuthorList() {
 }
 
 /** A single draggable contributor row. ORCID UI state is local to the row. */
-/**
- * A small pill for one of the two authorship markers that sit outside CRediT.
- *
- * Same shape as the contributor-type badge beside it, but hidden until the row
- * is hovered while the marker is unset: an unmarked contributor is the normal
- * case and should not carry two extra badges.
- */
-function MarkerToggle({
-  active,
-  icon,
-  label,
-  title,
-  onClick,
-}: {
-  active: boolean;
-  icon: ReactNode;
-  label: string;
-  title: string;
-  onClick: () => void;
-}) {
+/** A set authorship marker, shown as a fact about the paper rather than a control. */
+function MarkerChip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      title={title}
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-[color,background-color,opacity] ${
-        active
-          ? "bg-primary/10 text-primary"
-          : "text-on-surface-variant hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
-      }`}
-    >
+    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
       {icon}
       {label}
-    </button>
+    </span>
+  );
+}
+
+/**
+ * The per-contributor actions, behind one disclosure.
+ *
+ * Inline, these were five chips on every row: on a phone that is three lines
+ * per contributor, and this pane is where vertical space is worth most. Behind
+ * a menu they also stop depending on hover, which a tablet does not have.
+ */
+function RowMenu({
+  name,
+  equalContribution,
+  corresponding,
+  canAddOrcid,
+  askCopied,
+  onToggleEqual,
+  onToggleCorresponding,
+  onAsk,
+  onAddOrcid,
+}: {
+  name: string;
+  equalContribution: boolean;
+  corresponding: boolean;
+  canAddOrcid: boolean;
+  askCopied: boolean;
+  onToggleEqual: () => void;
+  onToggleCorresponding: () => void;
+  onAsk: () => void;
+  onAddOrcid: () => void;
+}) {
+  const t = useTranslations();
+  const [open, setOpen] = useState(false);
+
+  const item =
+    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-on-surface transition-colors hover:bg-surface-container";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={t("contributorActions", { name })}
+          title={t("contributorActions", { name })}
+          className="touch-target inline-flex items-center rounded-full px-1.5 py-0.5 text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        // "Add ORCID iD" closes this menu and reveals an auto-focused field.
+        // Returning focus to the trigger on close would blur that field the
+        // instant it appeared, and its blur handler dismisses it again.
+        onCloseAutoFocus={(event) => event.preventDefault()}
+        className="w-60 p-1"
+      >
+        <button type="button" onClick={onToggleEqual} aria-pressed={equalContribution} className={item}>
+          <Users className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
+          {equalContribution ? t("equalContributionUnset") : t("equalContributionSet")}
+        </button>
+        <button type="button" onClick={onToggleCorresponding} aria-pressed={corresponding} className={item}>
+          <AtSign className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
+          {corresponding ? t("correspondingUnset") : t("correspondingSet")}
+        </button>
+        <button type="button" onClick={onAsk} className={item}>
+          {askCopied ? (
+            <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+          ) : (
+            <Send className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
+          )}
+          {askCopied ? t("askCopied") : t("askContributor", { name })}
+        </button>
+        {canAddOrcid && (
+          <button
+            type="button"
+            onClick={() => {
+              onAddOrcid();
+              setOpen(false);
+            }}
+            className={item}
+          >
+            <Plus className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
+            {t("addOrcid")}
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -591,6 +638,8 @@ function AuthorRow({
   const t = useTranslations();
   const { activeDraftId, authors, updateAuthorName, updateAuthorOrcid, setAuthorType, setAuthorMarker } =
     useContributionStore();
+  const claimIndex = useContributionStore((s) => s.claimIndex);
+  const isClaimed = claimIndex === index;
   const author = authors[index];
 
   const [loading, setLoading] = useState(false);
@@ -602,6 +651,10 @@ function AuthorRow({
   const [nameDraft, setNameDraft] = useState(author?.name ?? "");
   const [nameError, setNameError] = useState<string | null>(null);
   const committedRef = useRef(false);
+  const [askCopied, setAskCopied] = useState(false);
+  const askTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Clear a pending reset on unmount, so it can't set state on a dead row.
+  useEffect(() => () => clearTimeout(askTimer.current), []);
 
   /**
    * Copy a link addressed at this contributor. They open it, tick their own
@@ -612,6 +665,9 @@ function AuthorRow({
     try {
       await navigator.clipboard.writeText(buildShareUrl(authors, { claimIndex: index, draftId: activeDraftId }));
       announce(t("askContributorCopied", { name: author.name }));
+      setAskCopied(true);
+      clearTimeout(askTimer.current);
+      askTimer.current = setTimeout(() => setAskCopied(false), 2000);
     } catch {
       announce(t("copyFailedMessage"), { assertive: true });
     }
@@ -675,7 +731,7 @@ function AuthorRow({
     } else {
       updateAuthorName(authorId, result.displayName);
       setLookedUp(orcid);
-      announce(`Name updated from ORCID: ${result.displayName}`);
+      announce(t("annNameFromOrcid", { name: result.displayName }));
     }
   }
 
@@ -728,9 +784,15 @@ function AuthorRow({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group rounded-lg border border-transparent px-2 py-0.5 hover:border-outline-variant/30 hover:bg-surface-container-low transition-colors duration-150 ${
-        isDragging ? "relative z-10 bg-surface shadow-md" : ""
-      }`}
+      // The row a claimed link asks for. The banner names the person, but in a
+      // twelve-author list that still leaves them hunting, so the row says so
+      // itself — tint, rule, and a worded badge, never colour alone.
+      aria-current={isClaimed ? "true" : undefined}
+      className={`group rounded-lg border px-2 py-0.5 transition-colors duration-150 ${
+        isClaimed
+          ? "border-primary/40 bg-primary/5"
+          : "border-transparent hover:border-outline-variant/30 hover:bg-surface-container-low"
+      } ${isDragging ? "relative z-10 bg-surface shadow-md" : ""}`}
     >
       {/* The entrance lives on this wrapper, not on the row: @dnd-kit owns the
           sortable node's inline transform and transition, and an inline
@@ -795,57 +857,41 @@ function AuthorRow({
                 type="button"
                 onClick={() => setAuthorType(author.id, isNonAuthor ? "author" : "non-author")}
                 aria-pressed={isNonAuthor}
-                title={
-                  isNonAuthor
-                    ? "Acknowledged (non-author) contributor. Click to mark as author."
-                    : "Author. Click to mark as acknowledged (non-author) contributor."
-                }
+                title={isNonAuthor ? t("contributorTypeSetAuthor") : t("contributorTypeSetNonAuthor")}
                 className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant hover:text-primary transition-colors"
               >
                 {isNonAuthor ? <UserMinus className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
                 {isNonAuthor ? t("contributorTypeNonAuthor") : t("contributorTypeAuthor")}
               </button>
-              {/* The two markers CRediT has no term for. Hidden until hovered
-                  while unset, so an unmarked row stays quiet; always visible
-                  once set, because it now says something about the paper. */}
-              <MarkerToggle
-                active={author.equalContribution}
-                icon={<Users className="h-3 w-3" />}
-                label={t("equalContributionShort")}
-                title={author.equalContribution ? t("equalContributionUnset") : t("equalContributionSet")}
-                onClick={() => setAuthorMarker(author.id, "equalContribution", !author.equalContribution)}
-              />
-              <MarkerToggle
-                active={author.corresponding}
-                icon={<AtSign className="h-3 w-3" />}
-                label={t("correspondingShort")}
-                title={author.corresponding ? t("correspondingUnset") : t("correspondingSet")}
-                onClick={() => setAuthorMarker(author.id, "corresponding", !author.corresponding)}
-              />
-              <button
-                type="button"
-                onClick={() => void handleAsk()}
-                aria-label={t("askContributor", { name: author.name })}
-                title={t("askContributor", { name: author.name })}
-                className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-[color,opacity] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
-              >
-                <Send className="h-3 w-3" />
-                {t("ask")}
-              </button>
-              {!hasOrcid && !editingOrcid && (
-                // Short label: the trigger is hover-revealed but still occupies its
-                // width, and "ORCID iD" pushed this row onto a second line in the
-                // narrow contributors column.
-                <button
-                  type="button"
-                  onClick={() => setEditingOrcid(true)}
-                  aria-label={t("addOrcid")}
-                  className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-[color,opacity] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
-                >
-                  <Plus className="h-3 w-3" />
-                  {t("orcidShort")}
-                </button>
+              {isClaimed && (
+                // No icon: the neighbouring type chip already carries UserCheck,
+                // and two identical glyphs side by side read as a mistake.
+                <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  {t("claimedRowBadge")}
+                </span>
               )}
+              {/* Set markers stay on the row: they say something about the paper,
+                  not about what you can do to it. */}
+              {author.equalContribution && (
+                <MarkerChip icon={<Users className="h-3 w-3" />} label={t("equalContributionShort")} />
+              )}
+              {author.corresponding && (
+                <MarkerChip icon={<AtSign className="h-3 w-3" />} label={t("correspondingShort")} />
+              )}
+              {/* Everything you can *do* to one contributor lives behind one
+                  disclosure. Five inline chips per row cost three lines on a
+                  phone, and this pane is where vertical space is worth most. */}
+              <RowMenu
+                name={author.name}
+                equalContribution={author.equalContribution}
+                corresponding={author.corresponding}
+                canAddOrcid={!hasOrcid && !editingOrcid}
+                askCopied={askCopied}
+                onToggleEqual={() => setAuthorMarker(author.id, "equalContribution", !author.equalContribution)}
+                onToggleCorresponding={() => setAuthorMarker(author.id, "corresponding", !author.corresponding)}
+                onAsk={() => void handleAsk()}
+                onAddOrcid={() => setEditingOrcid(true)}
+              />
             </div>
           </div>
 
@@ -880,7 +926,7 @@ function AuthorRow({
                   {!orcidValid && (
                     <span className="shrink-0 text-error">
                       <span aria-hidden="true">✗</span>
-                      <span className="sr-only">(invalid ORCID iD)</span>
+                      <span className="sr-only">({t("a11yInvalidOrcid")})</span>
                     </span>
                   )}
                   <span className="sr-only">{t("opensInNewTab")}</span>
@@ -892,7 +938,7 @@ function AuthorRow({
                     onClick={() => void lookup(bareOrcid)}
                     aria-label={t("lookupOrcidName")}
                     title={t("lookupOrcidName")}
-                    className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] text-primary transition-opacity hover:underline disabled:opacity-50 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                    className="reveal-on-hover ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] text-primary transition-opacity hover:underline disabled:opacity-50"
                   >
                     <UserSearch className="h-3.5 w-3.5" />
                     {loading && t("lookingUp")}

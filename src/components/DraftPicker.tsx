@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Copy, FilePlus2, Files, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Copy, FilePlus2, Files, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslations } from "use-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -138,8 +138,15 @@ export function DraftPicker() {
                       draft.id === activeDraftId ? "text-primary" : "text-on-surface"
                     }`}
                   >
-                    <span className="w-full truncate text-sm font-medium">
-                      {draft.title.trim() || t("untitledDraft")}
+                    <span className="flex w-full items-center gap-1.5">
+                      <span className="min-w-0 truncate text-sm font-medium">
+                        {draft.title.trim() || t("untitledDraft")}
+                      </span>
+                      {/* The open draft is marked, not merely tinted: colour
+                          alone is not a distinction everyone can see. */}
+                      {draft.id === activeDraftId && (
+                        <Check className="h-3.5 w-3.5 shrink-0" aria-label={t("activeDraft")} />
+                      )}
                     </span>
                     <span className="text-[11px] text-on-surface-variant">
                       {t("contributorCount", { count: draft.contributorCount })}
@@ -150,7 +157,7 @@ export function DraftPicker() {
                     onClick={() => handleDuplicate(draft.id)}
                     aria-label={t("duplicateDraft")}
                     title={t("duplicateDraft")}
-                    className="rounded p-1.5 text-on-surface-variant transition-[color,opacity] hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+                    className="rounded p-1.5 text-on-surface-variant reveal-on-hover transition-[color,opacity] hover:text-primary"
                   >
                     <Copy className="h-3.5 w-3.5" />
                   </button>
@@ -159,7 +166,7 @@ export function DraftPicker() {
                     onClick={() => setPendingDelete(draft.id)}
                     aria-label={t("deleteDraft")}
                     title={t("deleteDraft")}
-                    className="rounded p-1.5 text-on-surface-variant transition-[color,opacity] hover:text-error sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+                    className="rounded p-1.5 text-on-surface-variant reveal-on-hover transition-[color,opacity] hover:text-error"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
