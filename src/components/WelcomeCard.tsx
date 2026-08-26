@@ -55,7 +55,12 @@ export function WelcomeCard() {
     const onHydrated = () => {
       setHydrated(true);
       const state = useContributionStore.getState();
-      if (!state.welcomeSeen) state.openWelcome();
+      // A claim or merge banner is the onboarding for a link arrival, so the
+      // welcome must not land on top of it. The hash is still here at
+      // hydration (the router strips it later), and `welcomeSeen` stays false
+      // so a later plain visit still gets greeted.
+      const arrivedOnShareLink = window.location.hash.startsWith("#s=");
+      if (!state.welcomeSeen && !arrivedOnShareLink) state.openWelcome();
     };
     if (useContributionStore.persist.hasHydrated()) onHydrated();
     return useContributionStore.persist.onFinishHydration(onHydrated);

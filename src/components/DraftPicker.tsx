@@ -1,11 +1,11 @@
 "use client";
 
-import { Check, ChevronDown, Copy, FilePlus2, Files, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Copy, FilePlus2, Files, Lock, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { announce } from "@/lib/announce";
-import { MAX_DRAFTS, useContributionStore } from "@/store/contribution-store";
+import { type DraftClaim, MAX_DRAFTS, useContributionStore } from "@/store/contribution-store";
 
 /** Only what a row shows. The rest of a draft is nobody's business here. */
 interface DraftRow {
@@ -13,6 +13,7 @@ interface DraftRow {
   title: string;
   contributorCount: number;
   updatedAt: number;
+  claim: DraftClaim | null;
 }
 
 /**
@@ -47,11 +48,13 @@ export function DraftPicker() {
   const switchDraft = useContributionStore((s) => s.switchDraft);
   const duplicateDraft = useContributionStore((s) => s.duplicateDraft);
   const deleteDraft = useContributionStore((s) => s.deleteDraft);
+  const claim = useContributionStore((s) => s.claim);
+  const clearClaimFor = useContributionStore((s) => s.clearClaimFor);
 
   // The live draft is substituted in rather than read from the map: the map
   // copy is only as fresh as the last time the draft was parked.
   const rows: DraftRow[] = [
-    { id: activeDraftId, title, contributorCount: authors.length, updatedAt: Number.POSITIVE_INFINITY },
+    { id: activeDraftId, title, contributorCount: authors.length, updatedAt: Number.POSITIVE_INFINITY, claim },
     ...Object.values(drafts)
       .filter((draft) => draft.id !== activeDraftId)
       .map((draft) => ({
@@ -59,6 +62,7 @@ export function DraftPicker() {
         title: draft.title,
         contributorCount: draft.authors.length,
         updatedAt: draft.updatedAt,
+        claim: draft.claim,
       })),
   ].sort((a, b) => b.updatedAt - a.updatedAt);
 
@@ -164,6 +168,23 @@ export function DraftPicker() {
                       {t("contributorCount", { count: draft.contributorCount })}
                     </span>
                   </button>
+                  {/* Always visible, not reveal-on-hover: it doubles as the
+                      lock indicator. Duplicate and delete stay available — the
+                      lock governs the roster, not the draft. */}
+                  {draft.claim && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearClaimFor(draft.id);
+                        announce(t("annClaimUnlocked"));
+                      }}
+                      aria-label={t("claimUnlock")}
+                      title={`${t("claimLockedDraft")} — ${t("claimUnlock")}`}
+                      className="rounded p-1.5 text-on-surface-variant transition-colors hover:text-primary"
+                    >
+                      <Lock className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleDuplicate(draft.id)}

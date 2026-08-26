@@ -33,6 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StepHeader } from "@/components/ui/step-header";
 import { Switch } from "@/components/ui/switch";
 import { announce } from "@/lib/announce";
+import { useClaimLock } from "@/lib/use-claim-lock";
 import { useCopyStatus } from "@/lib/use-copy-status";
 import { useCreditTranslators } from "@/lib/use-credit-translators";
 import { useSettled } from "@/lib/use-settled";
@@ -84,6 +85,10 @@ export function ContributionGrid() {
     interfaceRoleLanguage,
   } = useCreditTranslators();
   const t = useTranslations();
+  // The store already refuses locked edits; this makes the grid look refused
+  // too, instead of offering controls that silently do nothing.
+  const { locked, editableAuthorId } = useClaimLock();
+  const isFrozen = (authorId: string) => locked && authorId !== editableAuthorId;
   // Second beat of the population sequence; see .enter-fade in globals.css.
   const settled = useSettled();
   const [acronyms, setAcronyms] = useState(true);
@@ -141,6 +146,7 @@ export function ContributionGrid() {
   ];
 
   function handleCellClick(author: Author, roleIndex: number, score: number) {
+    if (isFrozen(author.id)) return;
     if (inputMode === "levels") {
       // Step up to the next level, wrapping at the top. An off-cycle score from
       // imported data (say 50) simply steps up to the level above it.
@@ -180,7 +186,12 @@ export function ContributionGrid() {
 
   const firstAuthor = authors[0];
   if (!firstAuthor) return null;
-  const selectedAuthor = authors.find((author) => author.id === selectedAuthorId) ?? firstAuthor;
+  // On a locked draft the only editable row is the claimee's, so open there
+  // rather than on whoever happens to sort first.
+  const selectedAuthor =
+    authors.find((author) => author.id === selectedAuthorId) ??
+    (locked ? authors.find((author) => author.id === editableAuthorId) : undefined) ??
+    firstAuthor;
   const bulkAuthor = authors.find((author) => author.id === bulkAuthorId) ?? firstAuthor;
   const parsedBulkRoleIndex = Number.parseInt(bulkRoleIndex, 10);
   // Yes/no has one "assigned" value; levels asks which one.
@@ -208,7 +219,9 @@ export function ContributionGrid() {
     // Direct entry: 0–3 set none/supporting/equal/lead without cycling, so a
     // keyboard user never has to destroy a value to correct an overshoot. In
     // yes/no mode only 0 and 1 mean anything.
-    const digit = "0123".indexOf(event.key);
+    // Arrow/Home/End still work on a frozen cell — only the value keys stop, so
+    // a claimee can still read their way across the matrix.
+    const digit = isFrozen(author.id) ? -1 : "0123".indexOf(event.key);
     if (digit !== -1) {
       const score = graded ? (LEVEL_CYCLE[digit] ?? 0) : digit === 0 ? 0 : digit === 1 ? 100 : null;
       if (score === null) return;
@@ -257,6 +270,7 @@ export function ContributionGrid() {
   const renderCell = (author: Author, roleIndex: number, row: number, col: number) => {
     const role = CREDIT_ROLES[roleIndex];
     const score = author.contributions[roleIndex]?.score ?? 0;
+    const frozen = isFrozen(author.id);
     const level = translateUi(graded ? scoreToLevel(score) : score > 0 ? "contributed" : "none");
     const fill = score > 0 ? heatCellColor(heatmapMonoColor, graded ? score : 100) : null;
     const label = t("a11yRoleAssignment", {
@@ -277,8 +291,12 @@ export function ContributionGrid() {
           // A toggle only in yes/no mode: pressed semantics misdescribe a
           // four-way value, whose level the accessible name carries instead.
           aria-pressed={graded ? undefined : score > 0}
+          // aria-disabled, not disabled: a disabled button drops out of the
+          // roving tab order, which would strand arrow navigation on a locked
+          // draft. The handlers refuse instead.
+          aria-disabled={frozen || undefined}
           onContextMenu={
-            graded
+            graded && !frozen
               ? (event) => {
                   event.preventDefault();
                   setPicker({
@@ -300,9 +318,9 @@ export function ContributionGrid() {
           // as the matrix twitching rather than as feedback.
           // Empty cells get a hairline ring: fill-on-fill alone is ~1.2:1
           // against the card, which loses the click target on dim displays.
-          className={`contribution-cell flex h-7 w-full items-center justify-center rounded transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] hover:ring-2 hover:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-            fill ? "" : "ring-1 ring-inset ring-outline/70"
-          }`}
+          className={`contribution-cell flex h-7 w-full items-center justify-center rounded transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            frozen ? "cursor-not-allowed opacity-40" : "hover:ring-2 hover:ring-primary/50"
+          } ${fill ? "" : "ring-1 ring-inset ring-outline/70"}`}
           style={{ backgroundColor: fill ?? "var(--color-surface-container-high)" }}
         >
           {fill && (
@@ -328,83 +346,89 @@ export function ContributionGrid() {
             value={inputMode}
             onChange={setInputMode}
           />
-          <Popover>
-            <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
-              <ListChecks className="size-3.5" aria-hidden="true" />
-              {t("bulkAssign")}
-            </PopoverTrigger>
-            <PopoverContent align="end" className="grid w-72 max-w-[calc(100vw-2rem)] gap-4">
-              {graded && (
-                <div className="grid gap-2 text-xs font-semibold text-on-surface">
-                  <span id="bulk-level">{t("bulkAssignLevel")}</span>
-                  <Select value={bulkLevel} onValueChange={setBulkLevel}>
-                    <SelectTrigger className="w-full text-xs font-normal" aria-labelledby="bulk-level">
+          {/* Every bulk action is list-wide, which a claim freezes outright. */}
+          {!locked && (
+            <Popover>
+              <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
+                <ListChecks className="size-3.5" aria-hidden="true" />
+                {t("bulkAssign")}
+              </PopoverTrigger>
+              <PopoverContent align="end" className="grid w-72 max-w-[calc(100vw-2rem)] gap-4">
+                {graded && (
+                  <div className="grid gap-2 text-xs font-semibold text-on-surface">
+                    <span id="bulk-level">{t("bulkAssignLevel")}</span>
+                    <Select value={bulkLevel} onValueChange={setBulkLevel}>
+                      <SelectTrigger className="w-full text-xs font-normal" aria-labelledby="bulk-level">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ASSIGNABLE_LEVELS.map(({ key, score }) => (
+                          <SelectItem key={key} value={String(score)}>
+                            {translateUi(key)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {/* A <legend> renders unreliably inside a `display: grid` fieldset,
+                  so the group is labelled by a plain heading instead. */}
+                <fieldset aria-labelledby="bulk-one-contributor" className="grid gap-2">
+                  <p id="bulk-one-contributor" className="mb-1 text-xs font-semibold text-on-surface">
+                    {t("bulkOneContributor")}
+                  </p>
+                  <Select value={bulkAuthor?.id} onValueChange={setBulkAuthorId}>
+                    <SelectTrigger className="w-full text-xs" aria-label={t("a11yBulkContributor")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {ASSIGNABLE_LEVELS.map(({ key, score }) => (
-                        <SelectItem key={key} value={String(score)}>
-                          {translateUi(key)}
+                      {authors.map((author) => (
+                        <SelectItem key={author.id} value={author.id}>
+                          {author.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              )}
-              {/* A <legend> renders unreliably inside a `display: grid` fieldset,
-                  so the group is labelled by a plain heading instead. */}
-              <fieldset aria-labelledby="bulk-one-contributor" className="grid gap-2">
-                <p id="bulk-one-contributor" className="mb-1 text-xs font-semibold text-on-surface">
-                  {t("bulkOneContributor")}
-                </p>
-                <Select value={bulkAuthor?.id} onValueChange={setBulkAuthorId}>
-                  <SelectTrigger className="w-full text-xs" aria-label={t("a11yBulkContributor")}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {authors.map((author) => (
-                      <SelectItem key={author.id} value={author.id}>
-                        {author.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="grid grid-cols-2 gap-2">
-                  <BulkButton onClick={() => runBulk(() => setAllAuthorScores(bulkAuthor.id, assignScore))}>
-                    {t("bulkAssignAll")}
-                  </BulkButton>
-                  <BulkButton onClick={() => runBulk(() => setAllAuthorScores(bulkAuthor.id, 0))}>
-                    {t("bulkClearAll")}
-                  </BulkButton>
-                </div>
-              </fieldset>
-              <fieldset aria-labelledby="bulk-one-role" className="grid gap-2 border-t border-outline-variant/30 pt-3">
-                <p id="bulk-one-role" className="mb-1 text-xs font-semibold text-on-surface">
-                  {t("bulkOneRole")}
-                </p>
-                <Select value={bulkRoleIndex} onValueChange={setBulkRoleIndex}>
-                  <SelectTrigger className="w-full text-xs" aria-label={t("a11yBulkRole")}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CREDIT_ROLES.map((role, roleIndex) => (
-                      <SelectItem key={role.name} value={String(roleIndex)}>
-                        {translateInterfaceRole(role.name)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="grid grid-cols-2 gap-2">
-                  <BulkButton onClick={() => runBulk(() => setRoleScores(parsedBulkRoleIndex, assignScore))}>
-                    {t("bulkAssignToAll")}
-                  </BulkButton>
-                  <BulkButton onClick={() => runBulk(() => setRoleScores(parsedBulkRoleIndex, 0))}>
-                    {t("bulkClearRole")}
-                  </BulkButton>
-                </div>
-              </fieldset>
-            </PopoverContent>
-          </Popover>
+                  <div className="grid grid-cols-2 gap-2">
+                    <BulkButton onClick={() => runBulk(() => setAllAuthorScores(bulkAuthor.id, assignScore))}>
+                      {t("bulkAssignAll")}
+                    </BulkButton>
+                    <BulkButton onClick={() => runBulk(() => setAllAuthorScores(bulkAuthor.id, 0))}>
+                      {t("bulkClearAll")}
+                    </BulkButton>
+                  </div>
+                </fieldset>
+                <fieldset
+                  aria-labelledby="bulk-one-role"
+                  className="grid gap-2 border-t border-outline-variant/30 pt-3"
+                >
+                  <p id="bulk-one-role" className="mb-1 text-xs font-semibold text-on-surface">
+                    {t("bulkOneRole")}
+                  </p>
+                  <Select value={bulkRoleIndex} onValueChange={setBulkRoleIndex}>
+                    <SelectTrigger className="w-full text-xs" aria-label={t("a11yBulkRole")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CREDIT_ROLES.map((role, roleIndex) => (
+                        <SelectItem key={role.name} value={String(roleIndex)}>
+                          {translateInterfaceRole(role.name)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <BulkButton onClick={() => runBulk(() => setRoleScores(parsedBulkRoleIndex, assignScore))}>
+                      {t("bulkAssignToAll")}
+                    </BulkButton>
+                    <BulkButton onClick={() => runBulk(() => setRoleScores(parsedBulkRoleIndex, 0))}>
+                      {t("bulkClearRole")}
+                    </BulkButton>
+                  </div>
+                </fieldset>
+              </PopoverContent>
+            </Popover>
+          )}
           <Popover>
             <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
               <Settings2 className="size-3.5" aria-hidden="true" />
@@ -495,13 +519,16 @@ export function ContributionGrid() {
                   type="button"
                   // Same as the desktop cell: pressed semantics only fit yes/no.
                   aria-pressed={graded ? undefined : score > 0}
+                  // No roving tab order to protect here, so the plain disabled
+                  // idiom (as the export buttons use) fits.
+                  disabled={isFrozen(selectedAuthor.id)}
                   aria-label={t("a11yRoleAssignment", {
                     role: translateInterfaceRole(role.name),
                     name: selectedAuthor.name,
                     level,
                   })}
                   onClick={() => handleCellClick(selectedAuthor, roleIndex, score)}
-                  className={`contribution-cell flex min-h-11 min-w-24 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  className={`contribution-cell flex min-h-11 min-w-24 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 ${
                     score > 0 ? "shadow-sm" : "bg-surface-container-high text-on-surface-variant"
                   }`}
                   // Measured, not hardcoded white: the pale fills (light presets,
