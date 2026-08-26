@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { PERSIST_KEY, PERSIST_VERSION } from "../src/store/persist-meta";
 
 /**
  * Automated accessibility scans. axe-core catches a subset of WCAG issues
@@ -48,13 +49,17 @@ function contributorRows(page: Page) {
 }
 
 async function asReturningVisitor(page: Page) {
-  await page.addInitScript(() => {
-    if (window.localStorage.getItem("credit-generator-state")) return;
-    window.localStorage.setItem(
-      "credit-generator-state",
-      JSON.stringify({ state: { authors: [], welcomeSeen: true }, version: 1 }),
-    );
-  });
+  // Key and version come from the store; see the note in persist-meta.ts.
+  await page.addInitScript(
+    ([key, version]) => {
+      if (window.localStorage.getItem(key as string)) return;
+      window.localStorage.setItem(
+        key as string,
+        JSON.stringify({ state: { authors: [], welcomeSeen: true }, version }),
+      );
+    },
+    [PERSIST_KEY, PERSIST_VERSION] as const,
+  );
 }
 
 test.describe("Accessibility (axe-core)", () => {
@@ -63,7 +68,7 @@ test.describe("Accessibility (axe-core)", () => {
   });
 
   test("first-run welcome modal has no detectable violations", async ({ page }) => {
-    await page.addInitScript(() => window.localStorage.removeItem("credit-generator-state"));
+    await page.addInitScript((key) => window.localStorage.removeItem(key), PERSIST_KEY);
     await page.goto("/");
     await expect(page.locator("dialog#getting-started")).toBeVisible();
     const results = await scan(page);

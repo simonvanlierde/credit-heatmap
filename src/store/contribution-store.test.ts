@@ -1,9 +1,9 @@
 import { createAuthor } from "@credit-generator/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { announce } from "@/lib/announce";
+import { requestStorageFullAnnouncement } from "@/lib/announce";
 import { MAX_DRAFTS, useContributionStore } from "./contribution-store";
 
-vi.mock("@/lib/announce", () => ({ announce: vi.fn() }));
+vi.mock("@/lib/announce", () => ({ requestStorageFullAnnouncement: vi.fn() }));
 
 const initial = useContributionStore.getState();
 
@@ -238,17 +238,21 @@ describe("contribution store", () => {
       expect(Object.keys(persisted).sort()).toEqual(["activeDraftId", "drafts", "uiLocale", "welcomeSeen"]);
     });
 
-    /**
-     * The version stays at 1 until launch, so MIGRATIONS is empty — but the
-     * machinery is in place, because the first post-launch bump is exactly the
-     * moment it is too late to add it. These pin the behaviour around an empty
-     * chain so a future step slots in without rediscovering the contract.
-     */
-    it("runs a migration for an older version, even with no steps yet", () => {
+    it("migrates legacy Portuguese and Chinese locale aliases", () => {
       const migrate = useContributionStore.persist.getOptions().migrate;
       expect(migrate).toBeDefined();
-      // No steps between 0 and 1, so the state passes through untouched.
-      expect(migrate?.({ title: "kept" }, 0)).toEqual({ title: "kept" });
+      expect(
+        migrate?.(
+          {
+            uiLocale: "pt",
+            drafts: { paper: { outputLocale: "zh" } },
+          },
+          1,
+        ),
+      ).toMatchObject({
+        uiLocale: "pt-PT",
+        drafts: { paper: { outputLocale: "zh-Hans" } },
+      });
     });
 
     it("discards a draft from a newer version rather than guessing", () => {
@@ -274,6 +278,9 @@ describe("contribution store", () => {
     it("says so once when the browser refuses to save", () => {
       const storage = useContributionStore.persist.getOptions().storage;
       if (!storage) throw new Error("expected a storage adapter");
+      // Writes are refused before the restore lands; this is about the ones
+      // after it, where a full quota is the realistic failure.
+      const hydrated = vi.spyOn(useContributionStore.persist, "hasHydrated").mockReturnValue(true);
       // Spy on the instance, not Storage.prototype: the test environment's
       // localStorage is a plain in-memory stand-in (see src/test-setup.ts).
       const full = vi.spyOn(globalThis.localStorage, "setItem").mockImplementation(() => {
@@ -284,9 +291,9 @@ describe("contribution store", () => {
       storage.setItem("credit-generator-state", { state: {}, version: 1 });
 
       // Once per run of failures, not once per keystroke.
-      expect(announce).toHaveBeenCalledTimes(1);
-      expect(announce).toHaveBeenCalledWith(expect.stringContaining("storage is full"), { assertive: true });
+      expect(requestStorageFullAnnouncement).toHaveBeenCalledTimes(1);
       full.mockRestore();
+      hydrated.mockRestore();
     });
 
     it("survives a normalize/denormalize round trip", () => {

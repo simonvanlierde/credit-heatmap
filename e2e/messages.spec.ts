@@ -6,6 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import { AVAILABLE_LOCALES } from "@credit-generator/core";
 import { expect, type Page, test } from "@playwright/test";
+import { PERSIST_KEY, PERSIST_VERSION } from "../src/store/persist-meta";
 
 /**
  * Interface messages live in the app (`src/messages`), not in core: they are
@@ -25,6 +26,10 @@ const LOCALES = readdirSync(MESSAGES_DIR)
   .filter((f: string) => f.endsWith(".json"))
   .map((f: string) => f.replace(".json", ""));
 const TRANSLATED = LOCALES.filter((l: string) => l !== "en");
+const MESSAGE_FILE_ALIASES: Partial<Record<(typeof AVAILABLE_LOCALES)[number]["code"], string>> = {
+  "pt-PT": "pt",
+  "zh-Hans": "zh",
+};
 
 /** Placeholder names an ICU message declares: {name}, {count, plural, ...}. */
 const placeholders = (s: string) => new Set([...s.matchAll(/\{(\w+)[,}]/g)].map((m) => m[1]));
@@ -32,7 +37,8 @@ const placeholders = (s: string) => new Set([...s.matchAll(/\{(\w+)[,}]/g)].map(
 test.describe("interface messages", () => {
   test("ships a catalog for every locale the language picker offers", () => {
     for (const { code } of AVAILABLE_LOCALES) {
-      expect(LOCALES, `the picker offers "${code}" but src/messages/${code}.json is missing`).toContain(code);
+      const fileLocale = MESSAGE_FILE_ALIASES[code] ?? code;
+      expect(LOCALES, `the picker offers "${code}" but its message catalog is missing`).toContain(fileLocale);
     }
   });
 
@@ -107,15 +113,14 @@ test.describe("interface messages", () => {
 test.describe("rendering a non-English locale", () => {
   const seed = (page: Page, uiLocale: string, outputLocale: string) =>
     page.addInitScript(
-      ([ui, out]) => {
+      ([ui, out, key, version]) => {
         window.localStorage.setItem(
-          "credit-generator-state",
-          // Must match the store's persist version, or migrate/merge rewrite
-          // the seed and it silently does nothing.
-          JSON.stringify({ state: { authors: [], welcomeSeen: true, uiLocale: ui, outputLocale: out }, version: 1 }),
+          key as string,
+          JSON.stringify({ state: { authors: [], welcomeSeen: true, uiLocale: ui, outputLocale: out }, version }),
         );
       },
-      [uiLocale, outputLocale],
+      // Key and version come from the store; see the note in persist-meta.ts.
+      [uiLocale, outputLocale, PERSIST_KEY, PERSIST_VERSION] as const,
     );
 
   test("translates the interface and declares the document language", async ({ page }) => {

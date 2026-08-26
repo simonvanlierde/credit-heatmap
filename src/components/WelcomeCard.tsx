@@ -11,19 +11,19 @@ const STEPS = [
     n: 1,
     icon: Fingerprint,
     titleKey: "welcomeStepContributors" as const,
-    body: "Type a name, or paste a whole author list. Paste an ORCID iD and the app fills the name in for you.",
+    bodyKey: "welcomeBodyContributors" as const,
   },
   {
     n: 2,
     icon: TableProperties,
     titleKey: "welcomeStepRoles" as const,
-    body: "Click cells in the grid to mark which of the 14 CRediT roles each contributor took on.",
+    bodyKey: "welcomeBodyRoles" as const,
   },
   {
     n: 3,
     icon: TextQuote,
     titleKey: "welcomeStepExport" as const,
-    body: "The statement updates as you go. Copy it, or download the heatmap, XML, CSV, JSON, or Markdown.",
+    bodyKey: "welcomeBodyExport" as const,
   },
 ];
 
@@ -106,7 +106,7 @@ export function WelcomeCard() {
         </div>
 
         <ol className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-3">
-          {STEPS.map(({ n, icon: Icon, titleKey, body }) => (
+          {STEPS.map(({ n, icon: Icon, titleKey, bodyKey }) => (
             <li key={n} className="flex gap-3">
               <StepNumber n={n} className="mt-0.5 h-7 w-7 text-sm" />
               <div className="min-w-0">
@@ -114,11 +114,16 @@ export function WelcomeCard() {
                   <Icon className="h-3.5 w-3.5 text-on-surface-variant" aria-hidden="true" />
                   {t(titleKey)}
                 </p>
-                <p className="mt-1 text-sm leading-relaxed text-on-surface-variant">{body}</p>
+                <p className="mt-1 text-sm leading-relaxed text-on-surface-variant">{t(bodyKey)}</p>
               </div>
             </li>
           ))}
         </ol>
+
+        {/* Not a fourth step: these are the two things people reach for once
+            they have made one statement, and burying them entirely means
+            nobody finds them. */}
+        <p className="text-sm leading-relaxed text-on-surface-variant">{t("welcomeBeyond")}</p>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           {hasAuthors ? (

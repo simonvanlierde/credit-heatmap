@@ -1,6 +1,7 @@
 // biome-ignore lint/correctness/noNodejsModules: Playwright tests run in Node.
 import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
+import { PERSIST_KEY, PERSIST_VERSION } from "../src/store/persist-meta";
 
 /**
  * Most flows exercise the workspace, not the first-run welcome. That welcome is
@@ -10,13 +11,19 @@ import { expect, type Page, test } from "@playwright/test";
  * The first-run modal itself is covered by its own tests.
  */
 async function asReturningVisitor(page: Page) {
-  await page.addInitScript(() => {
-    if (window.localStorage.getItem("credit-generator-state")) return;
-    window.localStorage.setItem(
-      "credit-generator-state",
-      JSON.stringify({ state: { authors: [], welcomeSeen: true }, version: 1 }),
-    );
-  });
+  // The key and version come from the store, never restated here: a fixture
+  // stamped with a version the store no longer accepts is silently discarded,
+  // and the failure surfaces as the welcome modal eating the first click.
+  await page.addInitScript(
+    ([key, version]) => {
+      if (window.localStorage.getItem(key as string)) return;
+      window.localStorage.setItem(
+        key as string,
+        JSON.stringify({ state: { authors: [], welcomeSeen: true }, version }),
+      );
+    },
+    [PERSIST_KEY, PERSIST_VERSION] as const,
+  );
 }
 
 test.describe("Happy path UI flows", () => {
@@ -26,7 +33,7 @@ test.describe("Happy path UI flows", () => {
 
   test("the first-run welcome opens as a modal and dismisses to the workspace", async ({ page }) => {
     // Opt back out of the returning-visitor seed: this is the first-run path.
-    await page.addInitScript(() => window.localStorage.removeItem("credit-generator-state"));
+    await page.addInitScript((key) => window.localStorage.removeItem(key), PERSIST_KEY);
     await page.goto("/");
 
     const welcome = page.locator("dialog#getting-started");
@@ -221,7 +228,11 @@ test.describe("Happy path UI flows", () => {
     await page.locator("#import-text").fill("<a><b>");
     await page.getByRole("button", { name: "Import data" }).click();
 
-    await expect(page.locator("dialog").getByText(/^XML parse error:/)).toBeVisible();
+    // The parser's own English text is no longer surfaced: the dialog reports a
+    // localized failure instead, so this asserts the message people actually see.
+    await expect(
+      page.locator("dialog").getByText("Could not import those contributors.", { exact: false }),
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
     await expect(page.locator("#import-text")).toBeVisible();
   });
@@ -276,15 +287,15 @@ test.describe("Happy path UI flows", () => {
 
     // Bob opens it in his own browser and sees whose row it is.
     const bob = await context.newPage();
-    await bob.addInitScript(() => {
+    await bob.addInitScript(
       // A different person, on a different machine: nothing of this draft is
       // stored for him. The welcome is seeded away so it cannot swallow clicks.
-      window.localStorage.clear();
-      window.localStorage.setItem(
-        "credit-generator-state",
-        JSON.stringify({ state: { welcomeSeen: true }, version: 1 }),
-      );
-    });
+      ([key, version]) => {
+        window.localStorage.clear();
+        window.localStorage.setItem(key as string, JSON.stringify({ state: { welcomeSeen: true }, version }));
+      },
+      [PERSIST_KEY, PERSIST_VERSION] as const,
+    );
     await bob.goto(askUrl);
     await expect(bob.getByText("You are filling in Bob White's contributions")).toBeVisible();
 
@@ -315,12 +326,11 @@ test.describe("Happy path UI flows", () => {
 
     // Someone else's browser, already holding a paper of their own.
     const other = await context.newPage();
-    await other.addInitScript(() => {
-      window.localStorage.setItem(
-        "credit-generator-state",
-        JSON.stringify({ state: { welcomeSeen: true }, version: 1 }),
-      );
-    });
+    await other.addInitScript(
+      ([key, version]) =>
+        window.localStorage.setItem(key as string, JSON.stringify({ state: { welcomeSeen: true }, version })),
+      [PERSIST_KEY, PERSIST_VERSION] as const,
+    );
     await other.goto("/");
     await other.getByRole("button", { name: "Import", exact: true }).click();
     await other.locator("#import-text").fill("Erik Nilsson");
@@ -368,13 +378,13 @@ test.describe("Happy path UI flows", () => {
 
     // Bob answers.
     const bob = await context.newPage();
-    await bob.addInitScript(() => {
-      window.localStorage.clear();
-      window.localStorage.setItem(
-        "credit-generator-state",
-        JSON.stringify({ state: { welcomeSeen: true }, version: 1 }),
-      );
-    });
+    await bob.addInitScript(
+      ([key, version]) => {
+        window.localStorage.clear();
+        window.localStorage.setItem(key as string, JSON.stringify({ state: { welcomeSeen: true }, version }));
+      },
+      [PERSIST_KEY, PERSIST_VERSION] as const,
+    );
     await bob.goto(askUrl);
     await bob.getByRole("button", { name: /^Validation for Bob White:/ }).click();
     await bob.getByRole("button", { name: "Copy the link to send back" }).click();
@@ -449,23 +459,22 @@ test.describe("Happy path UI flows", () => {
   });
 
   /**
-   * Persisted state stays at version 1 until launch, so there are no migration
-   * steps yet — but a draft from a *newer* build can still turn up (a rolled
-   * back deploy, a second tab on an older bundle). There is no way to walk a
-   * schema backwards, so it is discarded rather than half-understood.
+   * A draft from a newer build can turn up after a rolled-back deploy or in a
+   * second tab on an older bundle. There is no way to walk a schema backwards,
+   * so it is discarded rather than half-understood.
    */
   test("discards a draft saved under a newer schema version", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
-    await page.evaluate(() => {
-      const raw = window.localStorage.getItem("credit-generator-state");
+    await page.evaluate((key) => {
+      const raw = window.localStorage.getItem(key);
       if (!raw) throw new Error("expected persisted state");
       const persisted = JSON.parse(raw) as { version: number };
       persisted.version = 99;
-      window.localStorage.setItem("credit-generator-state", JSON.stringify(persisted));
-    });
+      window.localStorage.setItem(key, JSON.stringify(persisted));
+    }, PERSIST_KEY);
     await page.reload();
 
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
@@ -484,8 +493,8 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
-    await page.evaluate(() => {
-      const raw = window.localStorage.getItem("credit-generator-state");
+    await page.evaluate((key) => {
+      const raw = window.localStorage.getItem(key);
       if (!raw) throw new Error("expected persisted state");
       const persisted = JSON.parse(raw) as {
         state: { activeDraftId: string; drafts: Record<string, { authors: { name: string }[] }> };
@@ -496,8 +505,8 @@ test.describe("Happy path UI flows", () => {
       if (!(first && second)) throw new Error("expected the sample's contributors");
       first.name = "A".repeat(600); // past the length cap
       second.name = "12345"; // no letters, so createAuthor rejects it
-      window.localStorage.setItem("credit-generator-state", JSON.stringify(persisted));
-    });
+      window.localStorage.setItem(key, JSON.stringify(persisted));
+    }, PERSIST_KEY);
     await page.reload();
 
     // The two unusable rows are dropped; the third survives.

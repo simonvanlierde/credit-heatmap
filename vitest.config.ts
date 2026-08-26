@@ -20,7 +20,7 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     restoreMocks: true,
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["./src/test-setup.ts"],
     coverage: {
       provider: "v8",
@@ -31,6 +31,9 @@ export default defineConfig({
       exclude: ["src/**/*.test.ts", "src/**/*.d.ts", "src/test-setup.ts"],
     },
   },
+  // The app's tsconfig sets `jsx: preserve` for Next's own compiler, so the
+  // test build has to be told how to handle JSX itself.
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

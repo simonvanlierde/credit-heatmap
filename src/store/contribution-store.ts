@@ -1,4 +1,4 @@
-import type { Author, CreditRoleName } from "@credit-generator/core";
+import type { Author, CreditRoleName, LocaleCode } from "@credit-generator/core";
 import {
   CREDIT_ROLES,
   createAuthor,
@@ -8,13 +8,15 @@ import {
   isValidOrcid,
   MAX_AUTHOR_NAME_LENGTH,
   MAX_AUTHORS,
+  normalizeLocaleCode,
   normalizeOrcid,
   parseAuthorText,
 } from "@credit-generator/core";
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import { announce } from "@/lib/announce";
+import { requestStorageFullAnnouncement } from "@/lib/announce";
+import { PERSIST_KEY, PERSIST_VERSION } from "./persist-meta";
 
 export type InputMode = "toggle" | "levels";
 
@@ -31,7 +33,7 @@ export interface Draft {
   authors: Author[];
   inputMode: InputMode;
   heatmapMonoColor: string;
-  outputLocale: string;
+  outputLocale: LocaleCode;
   /** Last write, in epoch milliseconds. Orders the picker. */
   updatedAt: number;
 }
@@ -46,13 +48,13 @@ interface ContributionState {
   inputMode: InputMode;
   heatmapMonoColor: string;
   /** Language for the generated statement + human-facing exports (role names only). */
-  outputLocale: string;
+  outputLocale: LocaleCode;
   /**
    * Language for the app's own interface. Separate from `outputLocale` on
    * purpose: a researcher may want a Dutch interface while submitting an
    * English statement to an English-language journal.
    */
-  uiLocale: string;
+  uiLocale: LocaleCode;
   /** Whether the first-run welcome has ever been shown. Persisted; only ever set
    *  true, so returning users are never auto-greeted again. */
   welcomeSeen: boolean;
@@ -107,8 +109,8 @@ interface ContributionState {
   toggleContribution: (authorId: string, roleIndex: number) => void;
   setInputMode: (mode: InputMode) => void;
   setHeatmapMonoColor: (color: string) => void;
-  setOutputLocale: (locale: string) => void;
-  setUiLocale: (locale: string) => void;
+  setOutputLocale: (locale: LocaleCode) => void;
+  setUiLocale: (locale: LocaleCode) => void;
   openWelcome: () => void;
   closeWelcome: () => void;
   reset: () => void;
@@ -220,9 +222,6 @@ function stashLive(state: ContributionState): void {
   state.drafts[state.activeDraftId] = liveDraft(state);
 }
 
-/** Current persisted shape. See the `version` note in the persist config. */
-const PERSIST_VERSION = 1;
-
 /**
  * One entry per version bump, keyed by the version it produces.
  *
@@ -230,7 +229,23 @@ const PERSIST_VERSION = 1;
  * it and returns it in its own shape, e.g.
  *   2: (state) => ({ ...state, heatmapMonoColor: state.color ?? DEFAULT_MONO_COLOR }),
  */
-const MIGRATIONS: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {};
+const MIGRATIONS: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {
+  2: (state) => ({
+    ...state,
+    uiLocale: normalizeLocaleCode(state.uiLocale),
+    drafts:
+      state.drafts !== null && typeof state.drafts === "object"
+        ? Object.fromEntries(
+            Object.entries(state.drafts).map(([id, value]) => [
+              id,
+              value !== null && typeof value === "object"
+                ? { ...value, outputLocale: normalizeLocaleCode((value as Record<string, unknown>).outputLocale) }
+                : value,
+            ]),
+          )
+        : state.drafts,
+  }),
+};
 
 /** Run every migration between the persisted version and the current one. */
 function migratePersisted(persisted: unknown, from: number): unknown {
@@ -270,7 +285,7 @@ function repairSingleDraft(value: unknown, id: string): Draft {
     authors: repairAuthors(raw.authors),
     inputMode: raw.inputMode === "levels" ? "levels" : "toggle",
     heatmapMonoColor: typeof raw.heatmapMonoColor === "string" ? raw.heatmapMonoColor : DEFAULT_MONO_COLOR,
-    outputLocale: typeof raw.outputLocale === "string" ? raw.outputLocale : "en",
+    outputLocale: normalizeLocaleCode(raw.outputLocale),
     updatedAt: typeof raw.updatedAt === "number" ? raw.updatedAt : 0,
   };
 }
@@ -312,7 +327,7 @@ function hydrateDrafts(persisted: unknown): Partial<ContributionState> {
     inputMode: active.inputMode,
     heatmapMonoColor: active.heatmapMonoColor,
     outputLocale: active.outputLocale,
-    ...(typeof state.uiLocale === "string" ? { uiLocale: state.uiLocale } : {}),
+    uiLocale: normalizeLocaleCode(state.uiLocale),
     ...(typeof state.welcomeSeen === "boolean" ? { welcomeSeen: state.welcomeSeen } : {}),
   };
 }
@@ -337,6 +352,12 @@ function announcingStorage(): StateStorage {
     },
     setItem: (key, value) => {
       if (typeof window === "undefined") return;
+      // Never write before the restore has happened. Persist saves on every
+      // change, hydrated or not, so a change made in the window between first
+      // paint and the rehydrate would save the *empty* initial state over the
+      // draft in storage — and the rehydrate that follows would then read that
+      // emptied value back. One early keystroke could erase a saved paper.
+      if (!useContributionStore.persist.hasHydrated()) return;
       try {
         window.localStorage.setItem(key, value);
         warned = false;
@@ -345,10 +366,7 @@ function announcingStorage(): StateStorage {
         // the live region. Say it once per run of failures.
         if (warned) return;
         warned = true;
-        announce(
-          "This draft could not be saved: the browser's storage is full. Export it, or delete a draft you no longer need.",
-          { assertive: true },
-        );
+        requestStorageFullAnnouncement();
       }
     },
   };
@@ -642,12 +660,12 @@ export const useContributionStore = create<ContributionState>()(
 
       setOutputLocale: (locale) =>
         set((state) => {
-          state.outputLocale = locale;
+          state.outputLocale = normalizeLocaleCode(locale);
         }),
 
       setUiLocale: (locale) =>
         set((state) => {
-          state.uiLocale = locale;
+          state.uiLocale = normalizeLocaleCode(locale);
         }),
 
       // Open marks it seen too: once the card has been shown (first run or an
@@ -684,7 +702,7 @@ export const useContributionStore = create<ContributionState>()(
         }),
     })),
     {
-      name: "credit-generator-state",
+      name: PERSIST_KEY,
       storage: createJSONStorage(announcingStorage),
       /**
        * Stays at 1 until launch. There are no users, so the persisted shape can
