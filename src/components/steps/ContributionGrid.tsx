@@ -292,7 +292,6 @@ export function ContributionGrid() {
                 </Select>
                 <div className="grid grid-cols-2 gap-2">
                   <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, assignScore)}>
-                    {/* biome-ignore lint/security/noSecrets: a message key, not a credential. */}
                     {t("bulkAssignToAll")}
                   </BulkButton>
                   <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, 0)}>{t("bulkClearRole")}</BulkButton>

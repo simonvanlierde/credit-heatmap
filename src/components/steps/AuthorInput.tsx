@@ -158,6 +158,8 @@ export function AuthorList() {
     removeAuthor,
     reset,
     restoreAuthor,
+    setTitle,
+    title,
     updateAuthorName,
     welcomeOpen,
     welcomeSeen,
@@ -389,6 +391,19 @@ export function AuthorList() {
   return (
     <div className="flex flex-col bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4 desk:h-full desk:overflow-y-auto">
       <StepHeader n={1} title={t("stepContributors")} className="mb-3" />
+
+      {/* The work's title. Quiet by design — it is optional, it names the draft
+          in the picker, and a DOI import fills it in. */}
+      <label htmlFor="work-title" className="sr-only">
+        {t("draftTitleLabel")}
+      </label>
+      <input
+        id="work-title"
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+        placeholder={t("untitledDraft")}
+        className="mb-3 w-full border-b border-outline-variant/30 bg-transparent pb-1 text-sm font-medium text-on-surface outline-none transition-colors placeholder:font-normal placeholder:text-on-surface-variant/60 focus:border-primary"
+      />
 
       {authors.length === 0 && !welcomeOpen && (
         <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">

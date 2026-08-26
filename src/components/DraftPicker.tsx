@@ -32,7 +32,6 @@ export function DraftPicker() {
   const activeDraftId = useContributionStore((s) => s.activeDraftId);
   const title = useContributionStore((s) => s.title);
   const authors = useContributionStore((s) => s.authors);
-  const setTitle = useContributionStore((s) => s.setTitle);
   const createDraft = useContributionStore((s) => s.createDraft);
   const switchDraft = useContributionStore((s) => s.switchDraft);
   const duplicateDraft = useContributionStore((s) => s.duplicateDraft);
@@ -102,22 +101,6 @@ export function DraftPicker() {
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 max-w-[calc(100vw-1.5rem)] p-0">
-        <div className="border-b border-outline-variant/20 px-4 py-3">
-          <label
-            htmlFor="draft-title"
-            className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant"
-          >
-            {t("draftTitleLabel")}
-          </label>
-          <input
-            id="draft-title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder={t("untitledDraft")}
-            className="mt-1 w-full bg-transparent text-sm text-on-surface outline-none placeholder:text-on-surface-variant/60"
-          />
-        </div>
-
         <ul className="max-h-64 overflow-y-auto py-1">
           {rows.map((draft) => (
             <li key={draft.id} className="group flex items-center gap-1 px-2">

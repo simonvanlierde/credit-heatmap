@@ -18,7 +18,7 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
 
 **Try it:** [credit.duinlab.nl](https://credit.duinlab.nl)
 
-![The CRediT Matrix workspace: a contributors list beside an editable contribution grid, with the generated statement and export controls below](docs/screenshots/hero.png)
+![The CRediT Matrix workspace: a titled draft with its contributors on the left, one row hovered to show its authorship markers and the button that asks that person to fill in their own roles, an editable contribution grid in the middle, and the generated statement with export controls on the right](docs/screenshots/hero.png)
 
 ## What it does
 
@@ -118,6 +118,11 @@ To run the Worker yourself, set your own domain and bindings in
 pnpm preview        # build + run the Worker locally
 pnpm deploy         # build + deploy to your Cloudflare account
 ```
+
+Both upstream proxies (`/api/orcid`, `/api/doi`) share one rate-limiter binding, `API_RATE_LIMITER`.
+If it is missing, they fail open: the lookups keep working, unthrottled, and say so once in the
+invocation log. After changing the binding, check the first deploy's logs for
+`API_RATE_LIMITER binding missing`.
 
 ## Roadmap
 

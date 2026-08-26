@@ -11,6 +11,36 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Offline support: a service worker caches the app's own files, so a draft survives a lost
   connection, and a web app manifest makes it installable. The ORCID lookup is the one path that
   still needs a network, and now says so.
+- DOI import: paste a DOI to fill the contributor list, their ORCID iDs, and the work's title from
+  the published record, through a new `/api/doi` proxy to Crossref. Roles stay empty, because
+  published records do not carry them.
+- Drafts, one per paper. A picker in the header switches, renames, duplicates, and deletes them, up
+  to fifty. They live in this browser, as everything else does.
+- Collecting contributions from co-authors: send each person a link addressed to their own row.
+  They tick what they did and send the same link back; importing it takes that row alone and
+  discards anything they changed about anyone else.
+- Shared first authorship and corresponding authors, which CRediT has no term for. They are noted
+  under the statement and the Markdown table, carried as columns in CSV, and written as JATS4R
+  `equal-contrib` and `corresp` attributes.
+- Rich-text copy: the statement now goes to the clipboard as HTML alongside plain text, so pasting
+  into a word processor keeps the emphasis on each label. Editors that want plain text still get it.
+- A unit test layer for the app itself (Vitest on jsdom), covering the store and the `src/lib`
+  helpers. The domain package and the Playwright suite already had their own.
+
+### Changed
+
+- Share links encode contributions positionally instead of repeating all fourteen role names per
+  contributor. A ten-author link falls from roughly 18 kB to 1.4 kB, which is the difference
+  between a link that survives an email client and one that does not. Older links still open.
+- One rate limiter now covers both upstream proxies, so the Worker binding is `API_RATE_LIMITER`
+  rather than `ORCID_RATE_LIMITER`. **A deploy that does not rename it leaves both proxies
+  unthrottled**, which is logged but does not fail the request.
+- The persisted draft is stored as a map of drafts rather than a single workspace.
+
+### Fixed
+
+- Renaming a contributor no longer clears the authorship markers set on them. Every mutation
+  rebuilds the contributor through `createAuthor`, and two rebuild sites were dropping the fields.
 
 ## [0.3.0] - 2026-08-26
 

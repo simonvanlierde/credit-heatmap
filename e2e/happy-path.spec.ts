@@ -330,9 +330,10 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
+    // The title lives in the workspace; the picker lists the drafts by it.
+    await page.getByLabel("Draft title").fill("First paper");
     const picker = page.getByRole("button", { name: /^Drafts:/ });
     await picker.click();
-    await page.getByLabel("Draft title").fill("First paper");
     await page.getByRole("button", { name: "New draft" }).click();
 
     // The new draft is empty; the first one is untouched behind it.
