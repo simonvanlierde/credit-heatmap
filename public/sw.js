@@ -13,6 +13,10 @@
  * NOTE: nothing is precached, so the first visit must happen online, and a
  * chunk that has never loaded (a locale, a lazy modal) is missing offline.
  * Precache the build manifest if that ceiling starts to bite.
+ *
+ * NOTE: the runtime cache is never pruned, so content-hashed chunks from past
+ * deploys accumulate until the browser evicts the whole cache under storage
+ * pressure. Add age-based eviction on activate if that starts to bite.
  */
 
 const CACHE = "credit-matrix-v1";
@@ -78,6 +82,12 @@ async function refresh(request) {
 }
 
 async function cachePut(request, response) {
-  const cache = await caches.open(CACHE);
-  await cache.put(request, response);
+  // Best-effort: a failed write (storage quota, some private modes) must not
+  // cost the caller a response the network already delivered.
+  try {
+    const cache = await caches.open(CACHE);
+    await cache.put(request, response);
+  } catch {
+    // Only the offline copy is lost; the live response was already returned.
+  }
 }
