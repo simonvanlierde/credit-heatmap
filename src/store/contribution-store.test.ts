@@ -238,16 +238,18 @@ describe("contribution store", () => {
       expect(Object.keys(persisted).sort()).toEqual(["activeDraftId", "drafts", "uiLocale", "welcomeSeen"]);
     });
 
-    it("migrates legacy Portuguese and Chinese locale aliases", () => {
-      const migrate = useContributionStore.persist.getOptions().migrate;
-      expect(migrate).toBeDefined();
+    it("normalizes legacy Portuguese and Chinese locale aliases on load", () => {
+      // Owned by the repair pass in `merge`, which runs on every load, not by
+      // a migration step: a version bump is not required for a legacy alias.
+      const options = useContributionStore.persist.getOptions();
       expect(
-        migrate?.(
+        options.merge?.(
           {
             uiLocale: "pt",
+            activeDraftId: "paper",
             drafts: { paper: { outputLocale: "zh" } },
           },
-          1,
+          store(),
         ),
       ).toMatchObject({
         uiLocale: "pt-PT",
@@ -339,6 +341,47 @@ describe("contribution store", () => {
       ) as { authors: { name: string }[] };
 
       expect(merged.authors.map((a) => a.name)).toEqual(["Jane A. Smith"]);
+    });
+
+    it("clears an unreadable persisted value rather than failing hydration forever", () => {
+      // A truncated write from a crashed tab. Left in place, zustand's
+      // JSON.parse would reject hydration on every visit: hasHydrated never
+      // flips, the inputs stay readOnly, and the write guard drops every save.
+      const storage = useContributionStore.persist.getOptions().storage;
+      if (!storage) throw new Error("expected a storage adapter");
+      globalThis.localStorage.setItem("credit-generator-state", "{truncated");
+
+      expect(storage.getItem("credit-generator-state")).toBeNull();
+      // Removed, not just skipped: the next save must not sit behind it.
+      expect(globalThis.localStorage.getItem("credit-generator-state")).toBeNull();
+    });
+
+    it("drops a malformed iD or contributions list, not the contributor", () => {
+      // createAuthor throws on a bad ORCID and iterates contributions, and it
+      // runs inside the reducer on every list edit: a field that would throw
+      // there must cost the field, never the workspace.
+      const merge = useContributionStore.persist.getOptions().merge;
+      const good = createAuthor("Jane A. Smith");
+      const merged = merge?.(
+        {
+          activeDraftId: "d1",
+          drafts: {
+            d1: {
+              authors: [
+                { ...good, orcid: "not-an-orcid" },
+                { ...createAuthor("Bob White"), contributions: "corrupt" },
+                { ...createAuthor("Carol Davis"), contributions: [null, { role: "Software", score: 100 }] },
+              ],
+            },
+          },
+        },
+        initial,
+      ) as typeof initial;
+
+      expect(merged.authors.map((a) => a.name)).toEqual(["Jane A. Smith", "Bob White", "Carol Davis"]);
+      expect(merged.authors[0]?.orcid).toBeUndefined();
+      expect(merged.authors[1]?.contributions).toEqual([]);
+      expect(merged.authors[2]?.contributions).toEqual([{ role: "Software", score: 100 }]);
     });
 
     it("leaves a persisted draft alone when nothing is wrong with it", () => {

@@ -9,8 +9,9 @@
  * click. That has cost real debugging time; importing these two names is what
  * stops it recurring.
  *
- * Bump `PERSIST_VERSION` when the persisted shape changes, and add the matching
- * step to `MIGRATIONS` in contribution-store.ts.
+ * Bump `PERSIST_VERSION` when the persisted shape changes. There is no
+ * migration registry until launch: the repair pass in contribution-store.ts
+ * normalizes on every load, and a bump only invalidates newer drafts.
  */
 export const PERSIST_VERSION = 2;
 

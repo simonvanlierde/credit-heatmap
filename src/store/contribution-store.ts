@@ -10,7 +10,6 @@ import {
   MAX_AUTHORS,
   normalizeLocaleCode,
   normalizeOrcid,
-  parseAuthorText,
 } from "@credit-generator/core";
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
@@ -92,11 +91,11 @@ interface ContributionState {
   duplicateDraft: (draftId: string) => string | null;
   deleteDraft: (draftId: string) => void;
   loadSample: () => void;
-  setAuthorsFromText: (text: string) => void;
   /** Adds a contributor and returns its id; null when the name has no letters to parse. */
   addAuthor: (name: string, orcid?: string) => string | null;
   removeAuthor: (authorId: string) => void;
-  restoreAuthor: (author: Author, index: number) => void;
+  /** Re-insert a removed contributor. False when the cap or a duplicate id refuses it. */
+  restoreAuthor: (author: Author, index: number) => boolean;
   moveAuthor: (fromIndex: number, toIndex: number) => void;
   updateAuthorName: (authorId: string, name: string) => boolean;
   updateAuthorOrcid: (authorId: string, orcid: string) => void;
@@ -223,43 +222,16 @@ function stashLive(state: ContributionState): void {
 }
 
 /**
- * One entry per version bump, keyed by the version it produces.
- *
- * Empty until launch. A step receives the state as the previous version left
- * it and returns it in its own shape, e.g.
- *   2: (state) => ({ ...state, heatmapMonoColor: state.color ?? DEFAULT_MONO_COLOR }),
+ * There are no per-version migration steps: `hydrateDrafts` repairs and
+ * normalizes the whole persisted shape on every load anyway (see its doc), so
+ * until launch a shape change only needs a version bump to invalidate newer
+ * drafts. A draft from a *newer* build may hold fields this one does not
+ * understand, and there is no way to walk backwards: start fresh rather than
+ * guess. A real migration registry comes back with the first post-launch bump.
  */
-const MIGRATIONS: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {
-  2: (state) => ({
-    ...state,
-    uiLocale: normalizeLocaleCode(state.uiLocale),
-    drafts:
-      state.drafts !== null && typeof state.drafts === "object"
-        ? Object.fromEntries(
-            Object.entries(state.drafts).map(([id, value]) => [
-              id,
-              value !== null && typeof value === "object"
-                ? { ...value, outputLocale: normalizeLocaleCode((value as Record<string, unknown>).outputLocale) }
-                : value,
-            ]),
-          )
-        : state.drafts,
-  }),
-};
-
-/** Run every migration between the persisted version and the current one. */
 function migratePersisted(persisted: unknown, from: number): unknown {
   if (persisted === null || typeof persisted !== "object") return {};
-  // A draft from a *newer* build may hold fields this one does not understand,
-  // and no step exists to walk backwards. Start fresh rather than guess.
-  if (from > PERSIST_VERSION) return {};
-
-  let state = persisted as Record<string, unknown>;
-  for (let version = from + 1; version <= PERSIST_VERSION; version += 1) {
-    const step = MIGRATIONS[version];
-    if (step) state = step(state);
-  }
-  return state;
+  return from > PERSIST_VERSION ? {} : persisted;
 }
 
 /** Drop anything from a draft's contributor list that would make a later edit throw. */
@@ -273,7 +245,19 @@ function repairAuthors(authors: unknown): Author[] {
       // list edit rather than at load, which is far harder to diagnose.
       return typeof name === "string" && name.length <= MAX_AUTHOR_NAME_LENGTH && isUsableAuthorName(name);
     })
-    .slice(0, MAX_AUTHORS);
+    .slice(0, MAX_AUTHORS)
+    .map((author) => ({
+      ...author,
+      // Same reasoning as the name check: createAuthor throws on an invalid
+      // iD, and normalizeContributions iterates the array and dereferences
+      // each entry. A malformed field costs that field, not the workspace.
+      orcid: typeof author.orcid === "string" && isValidOrcid(author.orcid) ? author.orcid : undefined,
+      contributions: Array.isArray(author.contributions)
+        ? author.contributions.filter(
+            (c) => c !== null && typeof c === "object" && typeof c.role === "string" && typeof c.score === "number",
+          )
+        : [],
+    }));
 }
 
 /** Rebuild one persisted draft, filling anything missing or malformed. */
@@ -346,7 +330,29 @@ function announcingStorage(): StateStorage {
   return {
     // Guarded rather than assumed: this module is imported during the server
     // render, where there is no localStorage at all.
-    getItem: (key) => (typeof window === "undefined" ? null : window.localStorage.getItem(key)),
+    getItem: (key) => {
+      if (typeof window === "undefined") return null;
+      // An unreadable value must not escape as a throw: createJSONStorage
+      // JSON.parses whatever this returns, and a parse failure aborts
+      // hydration with hasHydrated never set — inputs stay readOnly and the
+      // setItem guard below drops every write, on every visit, until the user
+      // clears localStorage by hand. A truncated value from a crashed tab is
+      // exactly the case hydrateDrafts exists for, but repair only runs after
+      // a successful parse. Probe here and drop what cannot be read, so the
+      // app hydrates its defaults and persistence resumes.
+      try {
+        const raw = window.localStorage.getItem(key);
+        if (raw !== null) JSON.parse(raw);
+        return raw;
+      } catch {
+        try {
+          window.localStorage.removeItem(key);
+        } catch {
+          // Storage blocked entirely (SecurityError): nothing to clean up.
+        }
+        return null;
+      }
+    },
     removeItem: (key) => {
       if (typeof window !== "undefined") window.localStorage.removeItem(key);
     },
@@ -496,13 +502,6 @@ export const useContributionStore = create<ContributionState>()(
           state.authors = normalizeAuthors(buildSampleAuthors());
         }),
 
-      setAuthorsFromText: (text) =>
-        set((state) => {
-          const parsed = parseAuthorText(text);
-          const existing = new Map(state.authors.map((author) => [author.name, author]));
-          state.authors = normalizeAuthors(parsed.map((author) => existing.get(author.name) ?? author));
-        }),
-
       addAuthor: (name, orcid) => {
         const trimmed = name.trim();
         if (!trimmed) return null;
@@ -531,7 +530,8 @@ export const useContributionStore = create<ContributionState>()(
           state.authors = normalizeAuthors(state.authors);
         }),
 
-      restoreAuthor: (author, index) =>
+      restoreAuthor: (author, index) => {
+        let restored = false;
         set((state) => {
           if (state.authors.some((candidate) => candidate.id === author.id)) return;
           // Undo can arrive after the list refilled to the cap; without this
@@ -540,7 +540,10 @@ export const useContributionStore = create<ContributionState>()(
           if (state.authors.length >= MAX_AUTHORS) return;
           state.authors.splice(Math.max(0, Math.min(index, state.authors.length)), 0, author);
           state.authors = normalizeAuthors(state.authors);
-        }),
+          restored = true;
+        });
+        return restored;
+      },
 
       moveAuthor: (fromIndex, toIndex) =>
         set((state) => {
