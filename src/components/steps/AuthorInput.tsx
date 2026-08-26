@@ -692,6 +692,7 @@ function AuthorRow({
   const rowLocked = locked && !isClaimed;
   const markAsked = useContributionStore((s) => s.markAsked);
   const askedAt = useContributionStore((s) => (author === undefined ? undefined : s.asked[author.id]));
+  const isRecentReply = useContributionStore((s) => s.recentReply !== null && s.recentReply === author?.id);
 
   const [loading, setLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -846,7 +847,7 @@ function AuthorRow({
       // itself — tint, rule, and a worded badge, never colour alone.
       aria-current={isClaimed ? "true" : undefined}
       className={`group rounded-lg border px-2 py-0.5 transition-colors duration-150 ${
-        isClaimed
+        isClaimed || isRecentReply
           ? "border-primary/40 bg-primary/5"
           : "border-transparent hover:border-outline-variant/30 hover:bg-surface-container-low"
       } ${isDragging ? "relative z-10 bg-surface shadow-md" : ""}`}
@@ -944,6 +945,17 @@ function AuthorRow({
               )}
               {author.corresponding && (
                 <MarkerChip icon={<AtSign className="h-3 w-3" />} label={t("correspondingShort")} />
+              )}
+              {/* A reply just landed here: the status strip says so at the
+                  top, and this badge says so on the row itself. Gone on the
+                  next draft switch (or an undo). */}
+              {isRecentReply && (
+                <span
+                  title={t("mergedRowBadgeTitle")}
+                  className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary"
+                >
+                  {t("mergedRowBadge")}
+                </span>
               )}
               {/* An open ask: quiet, because it is a reminder, not a state of
                   the paper. It comes down by itself when the reply merges. */}

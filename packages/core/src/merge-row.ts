@@ -13,11 +13,13 @@ export interface MergeResult {
 /**
  * Fold one co-author's returned draft back into yours.
  *
- * Only their own row is taken. A co-author working from a copy of the draft can
- * change anyone's roles, and those edits are discarded on purpose: each person
- * answers for themselves, and a stale copy must not be able to overwrite the
- * eleven rows they were not asked about. That is the whole conflict story —
- * there is no diff to review and no per-cell merge.
+ * Only their own row is taken, and on that row they are the authority: the
+ * name, iD, type, roles, and markers they set on themselves replace yours. A
+ * cleared value is an answer, and nobody spells a person's name better than
+ * they do. Edits they made to anyone else are discarded on purpose: each
+ * person answers for themselves, and a stale copy must not be able to
+ * overwrite the rows they were not asked about. That is the whole conflict
+ * story — there is no diff to review and no per-cell merge.
  *
  * `claimId` selects who answered, out of the list they returned. It is not
  * used to decide who they are in *your* list: matching runs by id, then
@@ -35,19 +37,10 @@ export function mergeContributorRow(current: Author[], incoming: Author[], claim
   const existing = current[index];
   if (!existing) return { authors: current, merged: null, unmatched: claimed };
 
-  const merged: Author = {
-    ...existing,
-    // Their contributions replace yours wholesale: a role they cleared is an
-    // answer, and merging by "keep the higher score" would make it impossible
-    // for anyone to correct a role you had guessed at.
-    contributions: claimed.contributions,
-    equalContribution: claimed.equalContribution,
-    corresponding: claimed.corresponding,
-    contributorType: claimed.contributorType,
-    // Their name and iD fill a gap, but never overwrite what you already hold:
-    // the corresponding author's spelling of the byline is the one that ships.
-    ...(existing.orcid ? {} : claimed.orcid ? { orcid: claimed.orcid } : {}),
-  };
+  // Their whole row replaces yours; only the id stays, so the row keeps its
+  // place in every id-keyed lookup. The derived name fields travel with the
+  // name and are re-derived by the store's normalization on load anyway.
+  const merged: Author = { ...claimed, id: existing.id };
 
   const authors = [...current];
   authors[index] = merged;

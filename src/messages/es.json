@@ -178,6 +178,8 @@
   "askCopied": "Enlace copiado",
   "askedChip": "Solicitado",
   "askedChipTitle": "Se le pidió completar su fila; desaparece cuando llega la respuesta.",
+  "mergedRowBadge": "Actualizado",
+  "mergedRowBadgeTitle": "Completado a partir de la respuesta que acaba de abrir.",
   "activeDraft": "Abierto",
   "askContributorCopied": "Enlace copiado. Envíeselo a {name}.",
   "mergedRowInto": "Los roles de {name} se completaron en «{title}».",

@@ -83,6 +83,12 @@ interface ContributionState {
   claim: DraftClaim | null;
   /** Ask timestamps for the live draft, by contributor id. See `Draft.asked`. */
   asked: Record<string, number>;
+  /**
+   * The contributor whose row a just-opened reply filled in. Ephemeral: it
+   * points at what changed until the next draft switch, so the status strip's
+   * message has a matching mark on the row itself.
+   */
+  recentReply: string | null;
   /** Whether the welcome card is currently open. Ephemeral (not persisted), so a
    *  "How it works" re-open never survives a reload as a fake first run. */
   welcomeOpen: boolean;
@@ -99,6 +105,8 @@ interface ContributionState {
   setClaim: (claim: DraftClaim | null) => void;
   /** Unlock a draft's claim, active or parked. */
   clearClaimFor: (draftId: string) => void;
+  /** Point at (or clear) the row a just-opened reply filled in. */
+  setRecentReply: (contributorId: string | null) => void;
   /** Record that this contributor's ask link was copied just now. */
   markAsked: (contributorId: string) => void;
   /** Forget the ask, because the reply landed (or the merge was undone). */
@@ -234,6 +242,8 @@ function applyDraft(state: ContributionState, draft: Draft): void {
   state.outputLocale = draft.outputLocale;
   state.claim = draft.claim;
   state.asked = draft.asked;
+  // The highlight describes a moment, not the draft: leaving the draft ends it.
+  state.recentReply = null;
 }
 
 /** A fresh, empty draft. */
@@ -558,6 +568,7 @@ export const useContributionStore = create<ContributionState>()(
       welcomeOpen: false,
       claim: null,
       asked: {},
+      recentReply: null,
 
       createDraft: () => {
         let created: string | null = null;
@@ -659,6 +670,11 @@ export const useContributionStore = create<ContributionState>()(
           }
           const target = state.drafts[draftId];
           if (target) target.claim = null;
+        }),
+
+      setRecentReply: (contributorId) =>
+        set((state) => {
+          state.recentReply = contributorId;
         }),
 
       markAsked: (contributorId) =>

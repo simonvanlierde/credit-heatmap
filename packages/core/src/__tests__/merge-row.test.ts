@@ -73,9 +73,9 @@ describe("mergeContributorRow", () => {
     const result = mergeContributorRow(draft(), incoming, incoming[0]?.id);
 
     expect(result.merged).not.toBeNull();
-    // Their roles land; your spelling of the byline stands.
+    // Their roles land, and so does the spelling they chose for themselves.
     expect(scoreFor(result.authors[0] as never, "Supervision")).toBe(100);
-    expect(result.authors[0]?.name).toBe("Jane A. Smith");
+    expect(result.authors[0]?.name).toBe("Jane Alexandra Smith");
   });
 
   it("matches on name when neither side carries an iD, ignoring case and spacing", () => {
@@ -86,13 +86,27 @@ describe("mergeContributorRow", () => {
     expect(scoreFor(result.authors[0] as never, "Methodology")).toBe(100);
   });
 
-  it("fills an ORCID you do not have, but never overwrites one you do", () => {
+  it("takes their ORCID as answered: filling a gap, correcting yours, or clearing it", () => {
     const current = [createAuthor("Bob White")];
     const incoming = [createAuthor("Bob White", { orcid: JANE_ORCID })];
     expect(mergeContributorRow(current, incoming, incoming[0]?.id).authors[0]?.orcid).toBe(JANE_ORCID);
 
     const held = [createAuthor("Bob White", { orcid: "0000-0001-5109-3700" })];
-    expect(mergeContributorRow(held, incoming, incoming[0]?.id).authors[0]?.orcid).toBe("0000-0001-5109-3700");
+    expect(mergeContributorRow(held, incoming, incoming[0]?.id).authors[0]?.orcid).toBe(JANE_ORCID);
+
+    const cleared = [createAuthor("Bob White", { orcid: JANE_ORCID })];
+    const withoutId = [createAuthor("Bob White")];
+    expect(mergeContributorRow(cleared, withoutId, withoutId[0]?.id).authors[0]?.orcid).toBeUndefined();
+  });
+
+  it("keeps your row id while shipping the name they typed for themselves", () => {
+    const jane = createAuthor("Jane A. Smith", { orcid: JANE_ORCID });
+    const reply = { ...jane, name: "Jane Alexandra Smith" };
+
+    const result = mergeContributorRow([jane], [reply], jane.id);
+
+    expect(result.merged?.name).toBe("Jane Alexandra Smith");
+    expect(result.merged?.id).toBe(jane.id);
   });
 
   it("carries the markers the co-author set on themselves", () => {
@@ -147,7 +161,10 @@ describe("name matching robustness", () => {
 
     const result = mergeContributorRow(current, incoming, incoming[0]?.id);
     expect(result.unmatched).toBeNull();
-    expect(result.merged?.name).toBe("Renée Dupont");
+    // The normalization-insensitive match still lands the row; the spelling
+    // the co-author typed for themselves is the one that ships (their string
+    // is NFD, so compare normalized rather than byte-for-byte).
+    expect(result.merged?.name.normalize("NFC")).toBe("Renée DUPONT");
     expect(result.authors[0]?.contributions.find((c) => c.role === "Software")?.score).toBe(100);
   });
 });

@@ -71,20 +71,28 @@ test("full round trip: ask → locked fill → reply link click → visible merg
 
   await pageB.getByRole("button", { name: /^Investigation for Bob White:/ }).click();
   await expect(pageB.getByRole("button", { name: "Investigation for Bob White: Contributed" })).toBeVisible();
+  // On their own row the co-author is the authority — the name they type ships.
+  const ownName = pageB.getByLabel("Name or ORCID iD", { exact: true }).nth(1);
+  await ownName.fill("Bob B. White");
+  await ownName.press("Enter");
   await pageB.getByRole("button", { name: "Copy the link to send back" }).click();
   const replyLink = await pageB.evaluate(() => navigator.clipboard.readText());
 
   // The originator CLICKS the reply — no Import knowledge required.
   await pageA.goto(replyLink);
-  await expect(onScreen(pageA, /Bob White's roles were filled in/)).toBeVisible();
-  await expect(pageA.getByRole("button", { name: "Investigation for Bob White: Contributed" })).toBeVisible();
+  await expect(onScreen(pageA, /Bob B\. White's roles were filled in/)).toBeVisible();
+  await expect(pageA.getByRole("button", { name: "Investigation for Bob B. White: Contributed" })).toBeVisible();
+  // The row itself says what changed: the corrected name and an Updated mark.
+  await expect(pageA.getByLabel("Name or ORCID iD", { exact: true }).nth(1)).toHaveValue("Bob B. White");
+  await expect(pageA.getByText("Updated", { exact: true })).toBeVisible();
   // The reply answers the ask, so the chip comes down.
   await expect(pageA.getByText("Asked", { exact: true })).toHaveCount(0);
 
-  // Undo restores the pre-merge roster — and reopens the ask.
+  // Undo restores the pre-merge roster — name included — and reopens the ask.
   await pageA.getByRole("button", { name: "Undo" }).click();
   await expect(pageA.getByRole("button", { name: "Investigation for Bob White: None" })).toBeVisible();
   await expect(pageA.getByRole("button", { name: /^Remove / })).toHaveCount(2);
+  await expect(pageA.getByText("Updated", { exact: true })).toHaveCount(0);
   await expect(pageA.getByText("Asked", { exact: true })).toBeVisible();
 
   await originator.close();

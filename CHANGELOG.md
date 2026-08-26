@@ -21,8 +21,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   draft to the recipient's own row; a banner explains the lock, builds the reply link, and can
   release the draft into an ordinary one. The lock and the banner survive a refresh, and
   re-opening the same request resumes it instead of forking a duplicate.
-- Replies merge on open. The originator clicks the returned link — or pastes it into Import — and
-  that one row lands on the paper it was asked about, confirmed by a visible banner with an Undo.
+- Replies merge on open. The originator clicks the returned link (or pastes it into Import) and
+  that one row lands on the paper it was asked about, confirmed by a visible banner with an Undo
+  and an *Updated* mark on the row itself. On their own row the co-author is the authority: the
+  name, iD, and author status they set on themselves ship back with their roles.
 - A visible status strip for share and merge outcomes. These previously reached only screen
   readers, so a merge, a refusal, or a broken link looked like nothing happened.
 - Shared first authorship and corresponding authors, which CRediT has no term for. They are noted
@@ -36,7 +38,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - Share links carry everything in one compressed fragment: the roster with stable contributor
-  ids, the draft title, and — on requests and replies — whom the link addresses and which draft
+  ids, the draft title, and, on requests and replies, whom the link addresses and which draft
   it came from. A ten-author link is roughly 1.4 kB instead of 18 kB, which is the difference
   between a link that survives an email client and one that does not. **Links built by earlier
   versions no longer open**; they fail with a visible message and leave the open draft untouched.

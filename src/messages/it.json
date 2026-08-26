@@ -178,6 +178,8 @@
   "askCopied": "Link copiato",
   "askedChip": "Richiesto",
   "askedChipTitle": "Invitato a compilare la propria riga; scompare all'arrivo della risposta.",
+  "mergedRowBadge": "Aggiornato",
+  "mergedRowBadgeTitle": "Compilato dalla risposta appena aperta.",
   "activeDraft": "Aperta",
   "askContributorCopied": "Link copiato. Invialo a {name}.",
   "mergedRowInto": "I ruoli di {name} sono stati inseriti in «{title}».",

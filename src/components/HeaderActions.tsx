@@ -39,6 +39,7 @@ export function HeaderActions() {
   const deleteDraft = useContributionStore((s) => s.deleteDraft);
   const markAsked = useContributionStore((s) => s.markAsked);
   const clearAsked = useContributionStore((s) => s.clearAsked);
+  const setRecentReply = useContributionStore((s) => s.setRecentReply);
   const decodedOnMount = useRef(false);
 
   // Rehydrate persisted state on the client (the store skips hydration at
@@ -131,6 +132,9 @@ export function HeaderActions() {
       const mergedId = result.merged.id;
       const askedAt = useContributionStore.getState().asked[mergedId];
       if (askedAt !== undefined) clearAsked(mergedId);
+      // Mark the row itself, so the status strip's message has a visible
+      // counterpart where the change actually landed.
+      setRecentReply(mergedId);
       const title = useContributionStore.getState().title.trim() || t("untitledDraft");
       showStatus({
         kind: "success",
@@ -144,6 +148,7 @@ export function HeaderActions() {
             if (useContributionStore.getState().activeDraftId !== target) return;
             loadAuthors(before);
             if (askedAt !== undefined) markAsked(mergedId);
+            setRecentReply(null);
             announce(t("annMergeUndone"));
           },
         },
