@@ -40,7 +40,6 @@ export function HeaderActions() {
   const markAsked = useContributionStore((s) => s.markAsked);
   const clearAsked = useContributionStore((s) => s.clearAsked);
   const setRecentReply = useContributionStore((s) => s.setRecentReply);
-  const recentReplyTimer = useRef<number | undefined>(undefined);
   const decodedOnMount = useRef(false);
 
   // Rehydrate persisted state on the client (the store skips hydration at
@@ -134,14 +133,10 @@ export function HeaderActions() {
       const askedAt = useContributionStore.getState().asked[mergedId];
       if (askedAt !== undefined) clearAsked(mergedId);
       // Mark the row itself, so the status strip's message has a visible
-      // counterpart where the change actually landed. The mark lives as long
-      // as the strip's undo window, then goes down on its own — unless a
-      // newer merge (checked by id below) has taken the mark over.
+      // counterpart where the change actually landed. The strip owns the
+      // mark's lifetime through onDismiss below: dismissing, undoing, timing
+      // out, or being replaced all take the mark down with the message.
       setRecentReply(mergedId);
-      window.clearTimeout(recentReplyTimer.current);
-      recentReplyTimer.current = window.setTimeout(() => {
-        if (useContributionStore.getState().recentReply === mergedId) setRecentReply(null);
-      }, 60000);
       const title = useContributionStore.getState().title.trim() || t("untitledDraft");
       showStatus({
         kind: "success",
@@ -158,6 +153,11 @@ export function HeaderActions() {
             setRecentReply(null);
             announce(t("annMergeUndone"));
           },
+        },
+        onDismiss: () => {
+          // Guarded by id: a newer merge owns the mark by now, and this
+          // strip's departure must not take the newer mark down.
+          if (useContributionStore.getState().recentReply === mergedId) setRecentReply(null);
         },
       });
       return null;

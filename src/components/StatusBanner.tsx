@@ -9,6 +9,12 @@ export interface Status {
   kind: "success" | "error";
   message: string;
   action?: { label: string; onAct: () => void };
+  /**
+   * Runs when the strip leaves for any reason — the dismiss button, the
+   * timeout, the action, or a newer status replacing it — so anything shown
+   * alongside the strip (a row mark, a cell halo) can leave with it.
+   */
+  onDismiss?: () => void;
 }
 
 // Module-level fan-out, same pattern as announce(): any client module can show
@@ -32,19 +38,35 @@ export function StatusBanner() {
   const [status, setStatus] = useState<Status | null>(null);
 
   useEffect(() => {
-    const onStatus = (next: Status) => setStatus(next);
+    const onStatus = (next: Status) =>
+      setStatus((previous) => {
+        // A replaced strip was still dismissed: its companions leave with it.
+        if (previous !== next) previous?.onDismiss?.();
+        return next;
+      });
     listeners.add(onStatus);
     return () => {
       listeners.delete(onStatus);
     };
   }, []);
 
+  function dismiss() {
+    status?.onDismiss?.();
+    setStatus(null);
+  }
+
   // Successes leave on their own; errors stay until dismissed. A success
   // carrying an action (Undo) gets the same 60s the contributor-removal undo
   // gives, for the same WCAG 2.2.1 reason.
   useEffect(() => {
     if (!status || status.kind === "error") return;
-    const timer = window.setTimeout(() => setStatus(null), status.action ? 60000 : 10000);
+    const timer = window.setTimeout(
+      () => {
+        status.onDismiss?.();
+        setStatus(null);
+      },
+      status.action ? 60000 : 10000,
+    );
     return () => window.clearTimeout(timer);
   }, [status]);
 
@@ -70,7 +92,7 @@ export function StatusBanner() {
             type="button"
             onClick={() => {
               status.action?.onAct();
-              setStatus(null);
+              dismiss();
             }}
             className="shrink-0 rounded-md px-2 py-1 font-semibold text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
@@ -79,7 +101,7 @@ export function StatusBanner() {
         )}
         <button
           type="button"
-          onClick={() => setStatus(null)}
+          onClick={dismiss}
           aria-label={t("statusDismiss")}
           className="shrink-0 rounded p-1 text-on-surface-variant transition-colors hover:text-on-surface"
         >

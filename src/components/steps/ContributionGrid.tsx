@@ -326,7 +326,9 @@ export function ContributionGrid() {
           className={`contribution-cell flex h-7 w-full items-center justify-center rounded transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             frozen ? "cursor-not-allowed opacity-40" : "hover:ring-2 hover:ring-primary/50"
           } ${fill ? "" : "ring-1 ring-inset ring-outline/70"} ${
-            recent ? "outline outline-2 outline-primary outline-offset-1" : ""
+            recent
+              ? "outline outline-2 outline-primary/50 outline-offset-1 shadow-[0_0_8px_2px_var(--tw-shadow-color)] shadow-primary/40"
+              : ""
           }`}
           style={{ backgroundColor: fill ?? "var(--color-surface-container-high)" }}
         >

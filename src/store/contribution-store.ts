@@ -86,8 +86,8 @@ interface ContributionState {
   /**
    * The contributor whose row a just-opened reply filled in, so the status
    * strip's message has a matching mark on the row itself. Ephemeral: the
-   * merge handler times it out with the strip's undo window, and a draft
-   * switch or an undo clears it sooner.
+   * strip owns its lifetime (its onDismiss clears it however the strip
+   * leaves), and a draft switch clears it too.
    */
   recentReply: string | null;
   /** Whether the welcome card is currently open. Ephemeral (not persisted), so a

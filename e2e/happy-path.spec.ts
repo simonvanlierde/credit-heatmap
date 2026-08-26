@@ -322,6 +322,11 @@ test.describe("Happy path UI flows", () => {
 
     await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: Contributed" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Validation for Ada Lovelace: None" })).toBeVisible();
+
+    // Dismissing the outcome strip takes the row's Updated mark down with it.
+    await expect(page.getByText("Updated", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Dismiss" }).click();
+    await expect(page.getByText("Updated", { exact: true })).toHaveCount(0);
   });
 
   test("a shared draft opens beside your work instead of replacing it", async ({ page, context }) => {
