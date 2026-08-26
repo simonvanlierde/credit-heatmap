@@ -1,6 +1,7 @@
 "use client";
 
-import { Send } from "lucide-react";
+import { LockOpen, Send } from "lucide-react";
+import { useEffect } from "react";
 import { useTranslations } from "use-intl";
 import { announce } from "@/lib/announce";
 import { buildShareUrl } from "@/lib/share";
@@ -8,56 +9,84 @@ import { useCopyStatus } from "@/lib/use-copy-status";
 import { useContributionStore } from "@/store/contribution-store";
 
 /**
- * Shown when the draft was opened from a link addressed to one contributor.
+ * Shown while the open draft answers a request addressed to one contributor.
  *
- * It exists to answer two questions before anything is clicked: whose row this
- * is, and what happens to everything else. Both matter, because the person
- * reading it is looking at a full draft they did not write and can edit every
- * cell of — only their own row will be collected.
+ * It answers three questions before anything is clicked: whose row this is,
+ * why the rest is locked, and how the answer gets home. The lock itself lives
+ * in the store; this banner is its explanation and its exit.
  */
 export function ClaimBanner() {
   const t = useTranslations();
-  const claimIndex = useContributionStore((s) => s.claimIndex);
+  const claim = useContributionStore((s) => s.claim);
   const authors = useContributionStore((s) => s.authors);
-  const claimDraftId = useContributionStore((s) => s.claimDraftId);
+  const title = useContributionStore((s) => s.title);
+  const activeDraftId = useContributionStore((s) => s.activeDraftId);
+  const clearClaimFor = useContributionStore((s) => s.clearClaimFor);
   const [copyStatus, copy] = useCopyStatus({
     copied: t("annLinkCopied"),
     error: t("copyFailedMessage"),
   });
 
-  const claimed = claimIndex === null ? undefined : authors[claimIndex];
-  if (!claimed) return null;
+  const claimed = claim ? authors.find((author) => author.id === claim.contributorId) : undefined;
+
+  // role="status" content present at first render is not announced — live
+  // regions speak changes. Say the one fact that matters explicitly.
+  const claimedName = claimed?.name;
+  useEffect(() => {
+    if (claimedName) announce(t("claimBannerTitle", { name: claimedName }));
+  }, [claimedName, t]);
+
+  if (!claim || !claimed) return null;
 
   async function handleSendBack() {
-    if (claimIndex === null) return;
+    if (!claim) return;
     try {
-      // The draft id rides back with the reply, so it lands on the paper it
-      // was asked about rather than on whatever the recipient has open.
-      await copy(await buildShareUrl(authors, { claimIndex, ...(claimDraftId ? { draftId: claimDraftId } : {}) }));
+      await copy(
+        await buildShareUrl({
+          authors,
+          title,
+          claimId: claim.contributorId,
+          sourceDraftId: claim.sourceDraftId,
+          reply: true,
+        }),
+      );
     } catch {
       announce(t("errShareTooLarge"), { assertive: true });
     }
   }
 
+  function handleUnlock() {
+    clearClaimFor(activeDraftId);
+    announce(t("annClaimUnlocked"));
+  }
+
   return (
-    <div
-      // A status rather than an alert: it is context for the whole session, not
-      // an error interrupting one action.
-      role="status"
-      className="mx-3 mt-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 md:mx-4 md:mt-4"
-    >
+    <div role="status" className="mx-3 mt-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 md:mx-4 md:mt-4">
       <p className="text-sm font-semibold text-on-surface">{t("claimBannerTitle", { name: claimed.name })}</p>
       <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">
-        {t("claimBannerBody", { name: claimed.name })}
+        {t("claimBannerBody", { name: claimed.name })} {t("claimBannerHow")}
       </p>
-      <button
-        type="button"
-        onClick={() => void handleSendBack()}
-        className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-container"
-      >
-        <Send className="h-4 w-4" />
-        {copyStatus === "copied" ? t("claimSendBackCopied") : t("claimSendBack")}
-      </button>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button
+          type="button"
+          onClick={() => void handleSendBack()}
+          className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-container"
+        >
+          <Send className="h-4 w-4" />
+          {copyStatus === "copied" ? t("claimSendBackCopied") : t("claimSendBack")}
+        </button>
+        {/* The lock's exit: a claimee who wants to adopt the draft — or just
+            use the app — is never stuck. Quiet, because sending back is the
+            main act. */}
+        <button
+          type="button"
+          onClick={handleUnlock}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:text-primary"
+        >
+          <LockOpen className="h-3.5 w-3.5" aria-hidden="true" />
+          {t("claimUnlock")}
+        </button>
+      </div>
     </div>
   );
 }
