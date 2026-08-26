@@ -59,7 +59,9 @@ describe("toMarkdown", () => {
 
     const md = toMarkdown([author]);
 
-    expect(md.split("\n")).toHaveLength(3);
+    // Header, separator, the one row, a blank line, and the generator comment:
+    // the newline in the name must not have opened a fourth table line.
+    expect(md.split("\n")).toHaveLength(5);
     expect(md).toContain("Jane \\[click\\](https://example.com) &lt;img src=x onerror=alert(1)&gt;");
     expect(md).not.toContain("<img");
   });

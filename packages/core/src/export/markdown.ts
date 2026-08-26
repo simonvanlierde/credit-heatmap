@@ -2,6 +2,7 @@ import type { Author } from "../author.js";
 import { activeContributions, scoreToLevel } from "../author.js";
 import { DEFAULT_ROLE_TRANSLATOR, type RoleTranslator } from "../credit-i18n/index.js";
 import { DEFAULT_UI_TRANSLATOR, type UiTranslator } from "../credit-i18n/ui-strings.js";
+import { GENERATOR_NOTE } from "./generator-note.js";
 
 /** Render untrusted text literally inside a Markdown table cell. */
 function escapeCell(s: string): string {
@@ -45,5 +46,6 @@ export function toMarkdown(
     return `| ${escapeCell(author.name)} | ${escapeCell(roles)} |`;
   });
 
-  return [header, ...rows].join("\n");
+  // An HTML comment: invisible in every Markdown renderer, readable in the source.
+  return [header, ...rows, "", `<!-- ${GENERATOR_NOTE} -->`].join("\n");
 }

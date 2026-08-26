@@ -1,7 +1,7 @@
 ---
 # Mirrors the tokens defined in src/app/globals.css, which is the source of
 # truth for anything the app renders. Change a value there first, then here.
-name: CRediT Generator
+name: CRediT Matrix
 description: A precise editorial workspace for scholarly contribution statements.
 colors:
   ink-blue: "#1f4e79"
@@ -74,7 +74,7 @@ components:
     padding: "0 6px"
 ---
 
-# Design System: CRediT Generator
+# Design System: CRediT Matrix
 
 ## Overview
 
@@ -94,6 +94,19 @@ focus, and selected states. Use contributor colors only to identify data.
 Use Newsreader with Georgia fallback for identity, section headings, and manuscript output. Keep
 manuscript prose roman and reserve italics for short accents. Use IBM Plex Sans for controls and
 explanations. Use IBM Plex Mono for contributor initials and compact data labels.
+
+## Brand
+
+The mark is a 3x3 crop of the contribution matrix, lead on the diagonal, drawn on a 32px grid with
+8px cells and 1px gaps. Its fills are the heatmap's real intensity tiers, not decorative tints, so
+the mark and the product's data speak the same language.
+
+Use the mark in `currentColor` wherever it sits beside text (the header lockup does), and with
+literal ink-blue tiers wherever it stands alone. The lockup is the mark at cap height, then a gap,
+then the wordmark in Newsreader italic. Never letterspace or recolor the wordmark away from the
+primary token, and never set the mark and the wordmark in different colors.
+
+`docs/brand/` holds the sources for the exported PNG assets and the command that re-renders them.
 
 ## Layout
 

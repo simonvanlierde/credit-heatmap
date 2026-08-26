@@ -5,6 +5,7 @@ import type { RoleTranslator } from "../credit-i18n/index.js";
 import { makeUiTranslator, type UiTranslator } from "../credit-i18n/ui-strings.js";
 import { CREDIT_ROLES } from "../credit-roles.js";
 import { escapeXml } from "./escape-xml.js";
+import { GENERATOR_NOTE } from "./generator-note.js";
 
 // Layout constants (unscaled)
 const CELL = 22;
@@ -77,6 +78,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
     const h = 56 * scale;
     return [
       `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
+      `<!-- ${GENERATOR_NOTE} -->`,
       `<rect width="${w}" height="${h}" fill="${COLOR_BG}"/>`,
       `<text x="${PAD_S}" y="${PAD_S + 8}" font-family="${FONT}" font-size="${11 * scale}" fill="${COLOR_TEXT_DIM}">${escapeXml(translateUi("emptyState"))}</text>`,
       "</svg>",
@@ -152,6 +154,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
   const lines: string[] = [];
   lines.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}">`,
+    `<!-- ${GENERATOR_NOTE} -->`,
   );
   lines.push(`<rect width="${totalW}" height="${totalH}" fill="${COLOR_BG}"/>`);
 

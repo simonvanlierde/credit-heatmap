@@ -12,7 +12,7 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "CRediT Generator",
+    name: "CRediT Matrix",
     short_name: "CRediT",
     description: "Draft CRediT contribution statements for scholarly publications.",
     start_url: "/",

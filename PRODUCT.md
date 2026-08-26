@@ -1,6 +1,6 @@
 # Product brief
 
-A reference for anyone writing copy or designing screens for the CRediT Generator. It covers the
+A reference for anyone writing copy or designing screens for CRediT Matrix. It covers the
 audience, the promise, and the claims this product may make. It is not user documentation: for what
 the app does, read the [README](README.md), and for visual rules, read [DESIGN.md](DESIGN.md).
 
@@ -11,7 +11,7 @@ Roles Taxonomy to agree on, record, and export each contributor's work.
 
 ## Purpose
 
-The CRediT Generator turns contributor names and role assignments into a manuscript-ready statement
+CRediT Matrix turns contributor names and role assignments into a manuscript-ready statement
 and submission files, so teams never format the taxonomy by hand.
 
 The contribution matrix is both the editor and the source of a downloadable heatmap. The same data
@@ -34,7 +34,9 @@ URL or import a supported format.
 
 ## Voice and claims
 
-The product name is **CRediT Generator**. Its voice is direct, precise, calm, and useful. Explain
+The product name is **CRediT Matrix**. Its signature artifact is the **contribution heatmap**: call
+it that everywhere, in full, so the term travels into methods sections. Its voice is direct, precise,
+calm, and useful. Explain
 specialist concepts without weakening their meaning.
 
 Support every claim from the workflow in `src/`, the screenshots in `docs/screenshots/`, the tests

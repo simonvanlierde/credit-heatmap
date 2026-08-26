@@ -4,6 +4,7 @@ import type { Author } from "../author.js";
 import { activeContributions } from "../author.js";
 import { getRoleByName } from "../credit-roles.js";
 import { escapeXml } from "./escape-xml.js";
+import { GENERATOR_NOTE } from "./generator-note.js";
 
 const DOCTYPE =
   '<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD with MathML3 v1.2 20190208//EN" "JATS-archivearticle1-mathml3.dtd">';
@@ -17,6 +18,7 @@ export function toJats4rXml(authors: Author[]): string {
 
   return `<?xml version='1.0' encoding='UTF-8'?>
 ${DOCTYPE}
+<!-- ${GENERATOR_NOTE} -->
 <article xmlns:xlink="http://www.w3.org/1999/xlink"
          xmlns:ali="http://www.niso.org/schemas/ali/1.0/"
          article-type="other"

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in the CRediT Generator. Bug reports, fixes, and small
+Thanks for your interest in CRediT Matrix. Bug reports, fixes, and small
 features are welcome.
 
 ## Getting set up

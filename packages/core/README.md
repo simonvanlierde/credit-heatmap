@@ -1,6 +1,6 @@
 # @credit-generator/core
 
-Framework-agnostic TypeScript for the CRediT Generator. It models contributors, validates
+Framework-agnostic TypeScript for CRediT Matrix. It models contributors, validates
 contribution data, and produces [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/)
 statements and exports.
 
