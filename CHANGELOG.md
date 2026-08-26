@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Offline support: a service worker caches the app's own files, so a draft survives a lost
+  connection, and a web app manifest makes it installable. The ORCID lookup is the one path that
+  still needs a network, and now says so.
+
 ## [0.3.0] - 2026-08-26
 
 ### Added

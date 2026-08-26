@@ -86,7 +86,11 @@ async function fetchOrcidName(orcid: string): Promise<{ displayName: string } | 
     if (!result.displayName.trim()) return { error: "That ORCID record lists no name. Type the name instead." };
     return { displayName: result.displayName };
   } catch {
-    return { error: "Could not reach ORCID. Check your connection and try again." };
+    // The ORCID proxy is the one path that needs a network: the rest of the app
+    // works offline, so say which half is unavailable rather than blaming ORCID.
+    return navigator.onLine
+      ? { error: "Could not reach ORCID. Check your connection and try again." }
+      : { error: "You are offline, so ORCID lookups are unavailable. Type the name instead." };
   }
 }
 

@@ -1,0 +1,83 @@
+/**
+ * Offline support.
+ *
+ * Everything except the ORCID lookup runs in the browser, so the app only
+ * needs its own files back to keep working without a network. There is no
+ * build step here on purpose: Next's asset URLs are content-hashed, so a
+ * runtime cache is as good as a precache manifest and costs no tooling.
+ *
+ * - navigations: network first, cached document as the fallback
+ * - other same-origin GETs: cache first, refreshed in the background
+ * - /api/*: never cached, so an ORCID lookup fails honestly when offline
+ *
+ * NOTE: nothing is precached, so the first visit must happen online, and a
+ * chunk that has never loaded (a locale, a lazy modal) is missing offline.
+ * Precache the build manifest if that ceiling starts to bite.
+ */
+
+const CACHE = "credit-generator-v1";
+
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(dropOldCaches());
+});
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) {
+    return;
+  }
+
+  event.respondWith(request.mode === "navigate" ? handleNavigation(request) : handleAsset(request));
+});
+
+async function dropOldCaches() {
+  const keys = await caches.keys();
+  await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)));
+  await self.clients.claim();
+}
+
+/** Network first: an online visitor always gets the freshest document. */
+async function handleNavigation(request) {
+  try {
+    const response = await fetch(request);
+    // Share links live in the fragment, which never reaches the server, so one
+    // cached document answers every URL of this app.
+    if (response.ok) await cachePut("/", response.clone());
+    return response;
+  } catch {
+    return (await caches.match("/")) ?? Response.error();
+  }
+}
+
+/** Cache first: asset URLs are content-hashed, so a hit is never stale. */
+async function handleAsset(request) {
+  const cached = await caches.match(request);
+  if (cached) {
+    void refresh(request);
+    return cached;
+  }
+  return fetch(request).then(async (response) => {
+    if (response.ok) await cachePut(request, response.clone());
+    return response;
+  });
+}
+
+async function refresh(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) await cachePut(request, response);
+  } catch {
+    // Offline, or the asset is gone: the cached copy already answered.
+  }
+}
+
+async function cachePut(request, response) {
+  const cache = await caches.open(CACHE);
+  await cache.put(request, response);
+}
