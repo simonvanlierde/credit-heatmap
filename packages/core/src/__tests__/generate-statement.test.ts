@@ -73,14 +73,10 @@ describe("generateStatement, as HTML", () => {
   });
 });
 
-/** Crude tag strip, enough to compare the HTML statement against the plain one. */
+/** The statement's visible text, to compare the HTML form against the plain one. */
 function stripTags(html: string): string {
-  return html
-    .replace(/<\/p>\s*<p>/g, "\n\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return [...doc.querySelectorAll("p")].map((p) => p.textContent).join("\n\n");
 }
 
 describe("generateStatement", () => {
