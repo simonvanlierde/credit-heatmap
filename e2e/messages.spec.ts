@@ -36,10 +36,21 @@ test.describe("interface messages", () => {
     }
   });
 
-  test("uses only keys English defines, so a rename cannot rot silently", () => {
+  /**
+   * Key sets must match English exactly, in both directions.
+   *
+   * Extra keys are a rename that rotted. Missing keys are subtler: they fall
+   * back to English, so the app still works and nobody notices one corner of
+   * the interface quietly staying English. Enforcing both means adding a
+   * string to en.json is a visible, deliberate translation task.
+   */
+  test("matches English key for key, in both directions", () => {
     for (const locale of TRANSLATED) {
-      const unknown = Object.keys(read(locale)).filter((key) => !(key in EN));
+      const keys = Object.keys(read(locale));
+      const unknown = keys.filter((key) => !(key in EN));
+      const missing = Object.keys(EN).filter((key) => !keys.includes(key));
       expect(unknown, `${locale}.json has keys absent from en.json`).toEqual([]);
+      expect(missing, `${locale}.json is missing keys that en.json defines`).toEqual([]);
     }
   });
 
