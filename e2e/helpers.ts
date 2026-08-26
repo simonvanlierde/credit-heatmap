@@ -2,6 +2,18 @@ import type { Page } from "@playwright/test";
 import { PERSIST_KEY, PERSIST_VERSION } from "../src/store/persist-meta";
 
 /**
+ * The on-screen copy of a message. Outcomes are both rendered (next to a field,
+ * or in the status strip) and pushed to a live region, which mounts the same
+ * string a frame later; a bare `getByText` then matches twice and trips strict
+ * mode. Which of the two the locator sees is a race, so it passes on an idle
+ * machine and fails under parallel load. Excluding the visually-hidden region
+ * settles it.
+ */
+export function onScreen(page: Page, text: string | RegExp) {
+  return page.getByText(text).and(page.locator(":not(.sr-only)"));
+}
+
+/**
  * Seed the persisted store before the app boots. The key and version come from
  * the store, never restated here: a fixture stamped with a version the store no
  * longer accepts is silently discarded, and the failure surfaces as the welcome

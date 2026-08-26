@@ -1,19 +1,8 @@
 // biome-ignore lint/correctness/noNodejsModules: Playwright tests run in Node.
 import { readFile } from "node:fs/promises";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { PERSIST_KEY } from "../src/store/persist-meta";
-import { asReturningVisitor, seedStorage } from "./helpers";
-
-/**
- * The on-screen copy of a message. Errors are both rendered next to the field
- * and pushed to the assertive live region, which mounts the same string a frame
- * later; a bare `getByText` then matches twice and trips strict mode. Which of
- * the two the locator sees is a race, so it passes on an idle machine and fails
- * under parallel load. Excluding the visually-hidden region settles it.
- */
-function onScreen(page: Page, text: string | RegExp) {
-  return page.getByText(text).and(page.locator(":not(.sr-only)"));
-}
+import { asReturningVisitor, onScreen, seedStorage } from "./helpers";
 
 test.describe("Happy path UI flows", () => {
   test.beforeEach(async ({ page }) => {
@@ -265,7 +254,7 @@ test.describe("Happy path UI flows", () => {
     expect(new URL(fresh.url()).hash).toBe("");
   });
 
-  test("collects one co-author's roles through a claimed link", async ({ page, context }) => {
+  test("collects one co-author's roles through a claimed link", async ({ page, context, browser }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
@@ -275,29 +264,62 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Actions for Rosalind E. Franklin" }).click();
     await page.getByRole("button", { name: "Ask Rosalind E. Franklin to fill this in" }).click();
     const askUrl = await page.evaluate(() => navigator.clipboard.readText());
-    expect(askUrl).toContain("&c=1");
+    // Everything the link carries — whose row, which draft — rides inside the
+    // payload now; the URL is nothing but the fragment.
+    expect(askUrl).toContain("#s=");
+    expect(new URL(askUrl).search).toBe("");
 
-    // She opens it in her own browser and sees whose row it is.
-    const coauthor = await context.newPage();
-    // A different person, on a different machine: nothing of this draft is
-    // stored for her. The welcome is seeded away so it cannot swallow clicks.
-    await seedStorage(coauthor, { welcomeSeen: true }, { clearFirst: true });
+    // She opens it in her own browser: a separate context, so her storage is
+    // hers alone and the originator can navigate without inheriting it.
+    const coauthorContext = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
+    const coauthor = await coauthorContext.newPage();
     await coauthor.goto(askUrl);
     await expect(coauthor.getByText("You are filling in Rosalind E. Franklin's contributions")).toBeVisible();
 
-    // She assigns herself a role, and edits someone else's for good measure.
+    // She assigns herself a role; someone else's is refused outright.
     await coauthor.getByRole("button", { name: /^Validation for Rosalind E\. Franklin:/ }).click();
-    await coauthor.getByRole("button", { name: /^Validation for Ada Lovelace:/ }).click();
+    await expect(coauthor.getByRole("button", { name: /^Validation for Ada Lovelace:/ })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
 
     await coauthor.getByRole("button", { name: "Copy the link to send back" }).click();
     const returnedUrl = await coauthor.evaluate(() => navigator.clipboard.readText());
+    await coauthorContext.close();
 
-    // Back in the original workspace, paste what she sent.
+    // The originator just opens what she sent — no Import knowledge required.
+    await page.goto(returnedUrl);
+    await expect(onScreen(page, /Rosalind E\. Franklin's roles were filled in/)).toBeVisible();
+
+    // Her row lands; her opinion about Ada's row does not.
+    await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: Contributed" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Validation for Ada Lovelace: None" })).toBeVisible();
+  });
+
+  // The link is also just text, so pasting it into Import has to work for
+  // anyone who reaches for that instead of the address bar.
+  test("accepts a co-author's reply pasted into the Import dialog", async ({ page, context, browser }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    await page.getByRole("button", { name: "Actions for Rosalind E. Franklin" }).click();
+    await page.getByRole("button", { name: "Ask Rosalind E. Franklin to fill this in" }).click();
+    const askUrl = await page.evaluate(() => navigator.clipboard.readText());
+
+    const coauthorContext = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
+    const coauthor = await coauthorContext.newPage();
+    await coauthor.goto(askUrl);
+    await coauthor.getByRole("button", { name: /^Validation for Rosalind E\. Franklin:/ }).click();
+    await coauthor.getByRole("button", { name: "Copy the link to send back" }).click();
+    const returnedUrl = await coauthor.evaluate(() => navigator.clipboard.readText());
+    await coauthorContext.close();
+
     await page.getByRole("button", { name: "Import" }).click();
     await page.locator("#import-text").fill(returnedUrl);
     await page.getByRole("button", { name: "Import data" }).click();
 
-    // Her row lands; her opinion about Ada's row does not.
     await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: Contributed" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Validation for Ada Lovelace: None" })).toBeVisible();
   });
