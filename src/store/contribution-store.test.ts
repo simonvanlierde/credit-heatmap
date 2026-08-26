@@ -1,6 +1,9 @@
 import { createAuthor } from "@credit-generator/core";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { announce } from "@/lib/announce";
 import { MAX_DRAFTS, useContributionStore } from "./contribution-store";
+
+vi.mock("@/lib/announce", () => ({ announce: vi.fn() }));
 
 const initial = useContributionStore.getState();
 
@@ -268,6 +271,24 @@ describe("contribution store", () => {
      * contributor it cannot rebuild and runs on every list edit, so one bad row
      * would make add/remove/rename all throw uncaught.
      */
+    it("says so once when the browser refuses to save", () => {
+      const storage = useContributionStore.persist.getOptions().storage;
+      if (!storage) throw new Error("expected a storage adapter");
+      // Spy on the instance, not Storage.prototype: the test environment's
+      // localStorage is a plain in-memory stand-in (see src/test-setup.ts).
+      const full = vi.spyOn(globalThis.localStorage, "setItem").mockImplementation(() => {
+        throw new DOMException("QuotaExceededError");
+      });
+
+      storage.setItem("credit-generator-state", { state: {}, version: 1 });
+      storage.setItem("credit-generator-state", { state: {}, version: 1 });
+
+      // Once per run of failures, not once per keystroke.
+      expect(announce).toHaveBeenCalledTimes(1);
+      expect(announce).toHaveBeenCalledWith(expect.stringContaining("storage is full"), { assertive: true });
+      full.mockRestore();
+    });
+
     it("survives a normalize/denormalize round trip", () => {
       // The one contract that matters here: what partialize writes, merge must
       // read back as the same live workspace.

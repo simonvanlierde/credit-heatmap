@@ -1,0 +1,198 @@
+"use client";
+
+import { ChevronDown, Copy, FilePlus2, Files, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useTranslations } from "use-intl";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { announce } from "@/lib/announce";
+import { MAX_DRAFTS, useContributionStore } from "@/store/contribution-store";
+
+/** Only what a row shows. The rest of a draft is nobody's business here. */
+interface DraftRow {
+  id: string;
+  title: string;
+  contributorCount: number;
+  updatedAt: number;
+}
+
+/**
+ * Switch between drafts, one per paper.
+ *
+ * The live draft is held in the store's top-level fields rather than in the
+ * map, so the list below is built from the map with the live one substituted
+ * in: reading `drafts[activeDraftId]` alone would show the copy as it was when
+ * the draft was last parked, not as it is now.
+ */
+export function DraftPicker() {
+  const t = useTranslations();
+  const [open, setOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+
+  const drafts = useContributionStore((s) => s.drafts);
+  const activeDraftId = useContributionStore((s) => s.activeDraftId);
+  const title = useContributionStore((s) => s.title);
+  const authors = useContributionStore((s) => s.authors);
+  const setTitle = useContributionStore((s) => s.setTitle);
+  const createDraft = useContributionStore((s) => s.createDraft);
+  const switchDraft = useContributionStore((s) => s.switchDraft);
+  const duplicateDraft = useContributionStore((s) => s.duplicateDraft);
+  const deleteDraft = useContributionStore((s) => s.deleteDraft);
+
+  // The live draft is substituted in rather than read from the map: the map
+  // copy is only as fresh as the last time the draft was parked.
+  const rows: DraftRow[] = [
+    { id: activeDraftId, title, contributorCount: authors.length, updatedAt: Number.POSITIVE_INFINITY },
+    ...Object.values(drafts)
+      .filter((draft) => draft.id !== activeDraftId)
+      .map((draft) => ({
+        id: draft.id,
+        title: draft.title,
+        contributorCount: draft.authors.length,
+        updatedAt: draft.updatedAt,
+      })),
+  ].sort((a, b) => b.updatedAt - a.updatedAt);
+
+  const label = title.trim() || t("untitledDraft");
+
+  function handleCreate() {
+    if (createDraft() === null) {
+      announce(t("draftLimitReached", { count: MAX_DRAFTS }), { assertive: true });
+      return;
+    }
+    announce(t("draftCreated"));
+    setOpen(false);
+  }
+
+  function handleDuplicate(draftId: string) {
+    if (duplicateDraft(draftId) === null) {
+      announce(t("draftLimitReached", { count: MAX_DRAFTS }), { assertive: true });
+      return;
+    }
+    announce(t("draftDuplicated"));
+  }
+
+  function handleDelete(draftId: string) {
+    deleteDraft(draftId);
+    setPendingDelete(null);
+    announce(t("draftDeleted"));
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        // A pending confirmation should not be waiting the next time this opens.
+        if (!next) setPendingDelete(null);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex min-h-9 max-w-[10rem] items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container hover:text-on-surface sm:max-w-[16rem]"
+        >
+          <Files className="h-4 w-4 shrink-0" />
+          <span className="truncate">{label}</span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 max-w-[calc(100vw-1.5rem)] p-0">
+        <div className="border-b border-outline-variant/20 px-4 py-3">
+          <label
+            htmlFor="draft-title"
+            className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant"
+          >
+            {t("draftTitleLabel")}
+          </label>
+          <input
+            id="draft-title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder={t("untitledDraft")}
+            className="mt-1 w-full bg-transparent text-sm text-on-surface outline-none placeholder:text-on-surface-variant/60"
+          />
+        </div>
+
+        <ul className="max-h-64 overflow-y-auto py-1">
+          {rows.map((draft) => (
+            <li key={draft.id} className="group flex items-center gap-1 px-2">
+              {pendingDelete === draft.id ? (
+                <div className="flex w-full items-center justify-between gap-2 rounded-lg bg-error-container/30 px-2 py-1.5">
+                  <span className="text-xs text-on-surface">{t("confirmDeleteDraft")}</span>
+                  <span className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPendingDelete(null)}
+                      className="rounded px-2 py-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface"
+                    >
+                      {t("cancel")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(draft.id)}
+                      className="rounded bg-error px-2 py-1 text-xs font-semibold text-on-error hover:opacity-90"
+                    >
+                      {t("deleteDraft")}
+                    </button>
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      switchDraft(draft.id);
+                      setOpen(false);
+                    }}
+                    aria-current={draft.id === activeDraftId}
+                    aria-label={t("switchToDraft", { title: draft.title.trim() || t("untitledDraft") })}
+                    className={`flex min-w-0 flex-1 flex-col items-start rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-surface-container ${
+                      draft.id === activeDraftId ? "text-primary" : "text-on-surface"
+                    }`}
+                  >
+                    <span className="w-full truncate text-sm font-medium">
+                      {draft.title.trim() || t("untitledDraft")}
+                    </span>
+                    <span className="text-[11px] text-on-surface-variant">
+                      {t("contributorCount", { count: draft.contributorCount })}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDuplicate(draft.id)}
+                    aria-label={t("duplicateDraft")}
+                    title={t("duplicateDraft")}
+                    className="rounded p-1.5 text-on-surface-variant transition-[color,opacity] hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(draft.id)}
+                    aria-label={t("deleteDraft")}
+                    title={t("deleteDraft")}
+                    className="rounded p-1.5 text-on-surface-variant transition-[color,opacity] hover:text-error sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        <div className="border-t border-outline-variant/20 p-2">
+          <button
+            type="button"
+            onClick={handleCreate}
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-primary transition-colors hover:bg-surface-container"
+          >
+            <FilePlus2 className="h-4 w-4" />
+            {t("newDraft")}
+          </button>
+          <p className="px-2 pb-1 pt-2 text-[11px] leading-relaxed text-on-surface-variant">{t("draftsHint")}</p>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}

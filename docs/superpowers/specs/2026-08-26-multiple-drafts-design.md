@@ -42,13 +42,23 @@ load rather than migrated. Rehydrating into "no active draft" is still an
 unrenderable state, so the store creates one empty active draft whenever the
 persisted map is missing or empty.
 
-## Selectors
+## Live draft vs. stored drafts
 
-Every component reads authors through the store today. Rather than rewrite each
-call site, the store exposes derived accessors — `authors`, `inputMode`,
-`outputLocale`, `heatmapMonoColor` — that read from the active draft, and the
-existing mutators write to the active draft. Component churn stays near zero, and
-the drafts map stays the single source of truth.
+The map is the storage shape, not the memory shape. Keeping `authors` inside
+`drafts[activeDraftId]` would mean rewriting every component that reads the
+store, so the live draft stays in the top-level fields it already occupies and
+`drafts` holds the parked copies.
+
+Two seams keep the two in step:
+
+- `partialize` folds the live fields back into the active entry on the way out,
+  so storage always sees one normalized map.
+- `merge` unpacks the active entry back into the top-level fields on the way in,
+  repairing every draft as it goes.
+
+A switch parks the live draft in the map first, then applies the target. The
+picker substitutes the live draft into its list rather than reading the map
+copy, which is only as fresh as the last park.
 
 ## Actions
 
@@ -82,7 +92,8 @@ Delete asks for confirmation, because it is the one irreversible action here.
 ## Testing
 
 - Store unit tests: create, switch, rename, duplicate, delete-active,
-  delete-the-last-one, the 50-draft cap, and `reset` leaving other drafts alone.
+  delete-the-last-one, the 50-draft cap, `reset` leaving other drafts alone, and
+  a `partialize` → `merge` round trip, which is where normalization can break.
 - Rehydration tests: an empty persisted map and a stale-version blob both land
   on one empty active draft.
 - One end-to-end test: build a draft, create a second, switch back, and assert the

@@ -12,8 +12,9 @@ import {
   parseAuthorText,
 } from "@credit-generator/core";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { announce } from "@/lib/announce";
 
 export type InputMode = "toggle" | "levels";
 
@@ -301,6 +302,43 @@ function hydrateDrafts(persisted: unknown): Partial<ContributionState> {
     outputLocale: active.outputLocale,
     ...(typeof state.uiLocale === "string" ? { uiLocale: state.uiLocale } : {}),
     ...(typeof state.welcomeSeen === "boolean" ? { welcomeSeen: state.welcomeSeen } : {}),
+  };
+}
+
+/**
+ * localStorage, but a failed write says so.
+ *
+ * A quota error is the realistic failure once several drafts are held, and
+ * zustand's default storage swallows it into a console message nobody reads:
+ * the app keeps working, the drafts keep growing, and nothing has been saved
+ * since some point the user cannot identify. Saying it once, when it happens,
+ * is the difference between losing this edit and losing the afternoon.
+ */
+function announcingStorage(): StateStorage {
+  let warned = false;
+  return {
+    // Guarded rather than assumed: this module is imported during the server
+    // render, where there is no localStorage at all.
+    getItem: (key) => (typeof window === "undefined" ? null : window.localStorage.getItem(key)),
+    removeItem: (key) => {
+      if (typeof window !== "undefined") window.localStorage.removeItem(key);
+    },
+    setItem: (key, value) => {
+      if (typeof window === "undefined") return;
+      try {
+        window.localStorage.setItem(key, value);
+        warned = false;
+      } catch {
+        // Every keystroke retries the write; announcing each one would flood
+        // the live region. Say it once per run of failures.
+        if (warned) return;
+        warned = true;
+        announce(
+          "This draft could not be saved: the browser's storage is full. Export it, or delete a draft you no longer need.",
+          { assertive: true },
+        );
+      }
+    },
   };
 }
 
@@ -624,6 +662,7 @@ export const useContributionStore = create<ContributionState>()(
     })),
     {
       name: "credit-generator-state",
+      storage: createJSONStorage(announcingStorage),
       /**
        * Stays at 1 until launch. There are no users, so the persisted shape can
        * change freely without a migration step for a version nobody holds.

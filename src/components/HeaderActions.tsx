@@ -4,6 +4,7 @@ import type { Author } from "@credit-generator/core";
 import { Check, CircleAlert, Link2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslations } from "use-intl";
+import { DraftPicker } from "@/components/DraftPicker";
 import { ImportModal } from "@/components/ImportModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { announce } from "@/lib/announce";
@@ -79,6 +80,7 @@ export function HeaderActions() {
   return (
     <>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <DraftPicker />
         <Popover open={shareOpen} onOpenChange={setShareOpen}>
           <PopoverTrigger asChild>
             <button
