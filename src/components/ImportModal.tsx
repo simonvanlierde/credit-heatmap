@@ -426,7 +426,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
                 setText(e.target.value);
                 setError(null);
               }}
-              placeholder={t("importPlaceholder")}
+              placeholder={t("importPlaceholder", { names: t("sampleNames") })}
               rows={6}
               className="w-full bg-surface-container-low border-0 border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none text-sm font-mono p-4 text-on-surface rounded-t resize-none transition-colors"
             />

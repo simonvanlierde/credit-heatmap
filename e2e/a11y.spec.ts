@@ -164,7 +164,7 @@ test.describe("Accessibility (axe-core)", () => {
     const rows = contributorRows(page);
     await expect(rows).toHaveCount(3);
 
-    const handle = page.getByRole("button", { name: /Reorder Jane/ });
+    const handle = page.getByRole("button", { name: /Reorder Ada/ });
     await handle.focus();
     await expect(handle).toBeFocused();
 
@@ -227,7 +227,7 @@ test.describe("Accessibility (axe-core)", () => {
     await page.keyboard.press("Escape");
 
     const glyph = page
-      .getByRole("button", { name: /Conceptualization for Jane A\. Smith: (Contributed|Lead)/ })
+      .getByRole("button", { name: /Conceptualization for Ada Lovelace: (Contributed|Lead)/ })
       .locator("svg");
     const color = await glyph.evaluate((el) => getComputedStyle(el).color);
     // Dark ink, not white; onColor picks by measured contrast.
@@ -243,7 +243,7 @@ test.describe("Accessibility (axe-core)", () => {
       return target.boundingBox();
     };
 
-    const reorder = await settled(page.getByRole("button", { name: /Reorder Jane/ }));
+    const reorder = await settled(page.getByRole("button", { name: /Reorder Ada/ }));
     const roleInfo = await settled(page.getByRole("button", { name: "About Conceptualization" }));
     await page.getByText("Heatmap options", { exact: true }).click();
     await page.getByRole("button", { name: "Heatmap color" }).click();

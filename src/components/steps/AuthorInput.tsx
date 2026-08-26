@@ -439,7 +439,7 @@ export function AuthorList() {
           {welcomeSeen && !welcomeOpen && (
             <button
               type="button"
-              onClick={loadSample}
+              onClick={() => loadSample(t("sampleNames").split("\n"))}
               className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary hover:text-on-primary hover:border-primary transition-colors"
             >
               <Sparkles className="h-4 w-4" />

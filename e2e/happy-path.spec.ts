@@ -50,17 +50,17 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
 
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
-    await expect(page.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Jane A. Smith");
+    await expect(page.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Ada Lovelace");
 
     // The contribution grid renders one editable cell per role × author. In
     // the default Yes / no mode, assigned cells read as "Contributed"; switching
     // to Levels surfaces the sample's graded scores.
-    const cell = page.getByRole("button", { name: "Conceptualization for Jane A. Smith: Contributed" });
+    const cell = page.getByRole("button", { name: "Conceptualization for Ada Lovelace: Contributed" });
     await expect(cell).toHaveAttribute("aria-pressed", "true");
     await expect(cell.locator("svg")).toBeVisible();
     await expect(page.getByText("Ready to export", { exact: true })).toBeVisible();
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByRole("button", { name: "Conceptualization for Jane A. Smith: Lead" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Conceptualization for Ada Lovelace: Lead" })).toBeVisible();
 
     // A statement is generated from the sample contributions.
     await expect(page.getByText(/^CRediT:/)).toBeVisible();
@@ -70,8 +70,8 @@ test.describe("Happy path UI flows", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
 
-    // Jane has no Data curation in the sample; one click assigns it.
-    const cell = page.getByRole("button", { name: /^Data curation for Jane A\. Smith:/ });
+    // Ada has no Data curation in the sample; one click assigns it.
+    const cell = page.getByRole("button", { name: /^Data curation for Ada Lovelace:/ });
     await expect(cell).toHaveAttribute("aria-pressed", "false");
     await cell.click();
     await expect(cell).toHaveAttribute("aria-pressed", "true");
@@ -82,7 +82,7 @@ test.describe("Happy path UI flows", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
 
-    await page.getByRole("button", { name: "Remove Jane A. Smith" }).click();
+    await page.getByRole("button", { name: "Remove Ada Lovelace" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(2);
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
@@ -260,7 +260,7 @@ test.describe("Happy path UI flows", () => {
     await fresh.addInitScript(() => window.localStorage.clear());
     await fresh.goto(shareUrl);
     await expect(fresh.getByRole("button", { name: /^Remove / })).toHaveCount(3);
-    await expect(fresh.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Jane A. Smith");
+    await expect(fresh.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Ada Lovelace");
     // The share hash is cleared after loading.
     expect(new URL(fresh.url()).hash).toBe("");
   });
@@ -271,35 +271,35 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
-    // Ask the second contributor (Bob White) to fill in his own row.
-    await page.getByRole("button", { name: "Actions for Bob White" }).click();
-    await page.getByRole("button", { name: "Ask Bob White to fill this in" }).click();
+    // Ask the second contributor (Rosalind E. Franklin) to fill in their own row.
+    await page.getByRole("button", { name: "Actions for Rosalind E. Franklin" }).click();
+    await page.getByRole("button", { name: "Ask Rosalind E. Franklin to fill this in" }).click();
     const askUrl = await page.evaluate(() => navigator.clipboard.readText());
     expect(askUrl).toContain("&c=1");
 
-    // Bob opens it in his own browser and sees whose row it is.
-    const bob = await context.newPage();
+    // She opens it in her own browser and sees whose row it is.
+    const coauthor = await context.newPage();
     // A different person, on a different machine: nothing of this draft is
-    // stored for him. The welcome is seeded away so it cannot swallow clicks.
-    await seedStorage(bob, { welcomeSeen: true }, { clearFirst: true });
-    await bob.goto(askUrl);
-    await expect(bob.getByText("You are filling in Bob White's contributions")).toBeVisible();
+    // stored for her. The welcome is seeded away so it cannot swallow clicks.
+    await seedStorage(coauthor, { welcomeSeen: true }, { clearFirst: true });
+    await coauthor.goto(askUrl);
+    await expect(coauthor.getByText("You are filling in Rosalind E. Franklin's contributions")).toBeVisible();
 
-    // He assigns himself a role, and edits someone else's for good measure.
-    await bob.getByRole("button", { name: /^Validation for Bob White:/ }).click();
-    await bob.getByRole("button", { name: /^Validation for Jane A\. Smith:/ }).click();
+    // She assigns herself a role, and edits someone else's for good measure.
+    await coauthor.getByRole("button", { name: /^Validation for Rosalind E\. Franklin:/ }).click();
+    await coauthor.getByRole("button", { name: /^Validation for Ada Lovelace:/ }).click();
 
-    await bob.getByRole("button", { name: "Copy the link to send back" }).click();
-    const returnedUrl = await bob.evaluate(() => navigator.clipboard.readText());
+    await coauthor.getByRole("button", { name: "Copy the link to send back" }).click();
+    const returnedUrl = await coauthor.evaluate(() => navigator.clipboard.readText());
 
-    // Back in the original workspace, paste what he sent.
+    // Back in the original workspace, paste what she sent.
     await page.getByRole("button", { name: "Import" }).click();
     await page.locator("#import-text").fill(returnedUrl);
     await page.getByRole("button", { name: "Import data" }).click();
 
-    // His row lands; his opinion about Jane's row does not.
-    await expect(page.getByRole("button", { name: "Validation for Bob White: Contributed" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Validation for Jane A. Smith: None" })).toBeVisible();
+    // Her row lands; her opinion about Ada's row does not.
+    await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: Contributed" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Validation for Ada Lovelace: None" })).toBeVisible();
   });
 
   test("a shared draft opens beside your work instead of replacing it", async ({ page, context }) => {
@@ -357,19 +357,19 @@ test.describe("Happy path UI flows", () => {
     await page.getByLabel("Draft title").press("Enter");
     await expect(page.getByRole("button", { name: "Drafts: Paper two" })).toBeVisible();
     await page.getByRole("button", { name: "Import", exact: true }).click();
-    await page.locator("#import-text").fill("Jane A. Smith\nBob White");
+    await page.locator("#import-text").fill("Ada Lovelace\nRosalind E. Franklin");
     await page.getByRole("button", { name: "Import data" }).click();
-    await page.getByRole("button", { name: "Actions for Bob White" }).click();
-    await page.getByRole("button", { name: "Ask Bob White to fill this in" }).click();
+    await page.getByRole("button", { name: "Actions for Rosalind E. Franklin" }).click();
+    await page.getByRole("button", { name: "Ask Rosalind E. Franklin to fill this in" }).click();
     const askUrl = await page.evaluate(() => navigator.clipboard.readText());
 
-    // Bob answers.
-    const bob = await context.newPage();
-    await seedStorage(bob, { welcomeSeen: true }, { clearFirst: true });
-    await bob.goto(askUrl);
-    await bob.getByRole("button", { name: /^Validation for Bob White:/ }).click();
-    await bob.getByRole("button", { name: "Copy the link to send back" }).click();
-    const returnedUrl = await bob.evaluate(() => navigator.clipboard.readText());
+    // The co-author answers.
+    const coauthor = await context.newPage();
+    await seedStorage(coauthor, { welcomeSeen: true }, { clearFirst: true });
+    await coauthor.goto(askUrl);
+    await coauthor.getByRole("button", { name: /^Validation for Rosalind E\. Franklin:/ }).click();
+    await coauthor.getByRole("button", { name: "Copy the link to send back" }).click();
+    const returnedUrl = await coauthor.evaluate(() => navigator.clipboard.readText());
 
     // Meanwhile you have gone back to paper one. The reply must not land here.
     await page.getByRole("button", { name: /^Drafts:/ }).click();
@@ -382,13 +382,13 @@ test.describe("Happy path UI flows", () => {
 
     // It switched to paper two and merged there.
     await expect(page.getByRole("button", { name: /^Drafts: Paper two/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Validation for Bob White: Contributed" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: Contributed" })).toBeVisible();
 
     // Paper one still has its three sample contributors, unchanged.
     await page.getByRole("button", { name: /^Drafts:/ }).click();
     await page.getByRole("button", { name: "Switch to Paper one" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
-    await expect(page.getByRole("button", { name: "Validation for Bob White: None" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: None" })).toBeVisible();
   });
 
   test("persists and clears the local draft", async ({ page }) => {
@@ -548,19 +548,19 @@ test.describe("Happy path UI flows", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
     await page.getByRole("radio", { name: "Levels" }).click();
-    const cell = page.getByRole("button", { name: "Data curation for Jane A. Smith: None" });
+    const cell = page.getByRole("button", { name: "Data curation for Ada Lovelace: None" });
     await cell.click();
-    await expect(page.getByRole("button", { name: "Data curation for Jane A. Smith: Supporting" })).toBeVisible();
-    await page.getByRole("button", { name: "Data curation for Jane A. Smith: Supporting" }).click();
-    await expect(page.getByRole("button", { name: "Data curation for Jane A. Smith: Equal" })).toBeVisible();
-    await page.getByRole("button", { name: "Data curation for Jane A. Smith: Equal" }).click();
-    await expect(page.getByRole("button", { name: "Data curation for Jane A. Smith: Lead" })).toBeVisible();
-    await page.getByRole("button", { name: "Data curation for Jane A. Smith: Lead" }).click();
-    await expect(page.getByRole("button", { name: "Data curation for Jane A. Smith: None" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Data curation for Ada Lovelace: Supporting" })).toBeVisible();
+    await page.getByRole("button", { name: "Data curation for Ada Lovelace: Supporting" }).click();
+    await expect(page.getByRole("button", { name: "Data curation for Ada Lovelace: Equal" })).toBeVisible();
+    await page.getByRole("button", { name: "Data curation for Ada Lovelace: Equal" }).click();
+    await expect(page.getByRole("button", { name: "Data curation for Ada Lovelace: Lead" })).toBeVisible();
+    await page.getByRole("button", { name: "Data curation for Ada Lovelace: Lead" }).click();
+    await expect(page.getByRole("button", { name: "Data curation for Ada Lovelace: None" })).toBeVisible();
 
     await page.getByRole("button", { name: "Author" }).first().click();
     const statement = page.getByLabel("Statement and export").locator("p").filter({ hasText: "CRediT:" });
-    await expect(statement).toContainText("Acknowledgements: Jane A. Smith");
+    await expect(statement).toContainText("Acknowledgements: Ada Lovelace");
     await page.getByRole("switch", { name: /Separate acknowledgements/ }).click();
     await expect(statement).not.toContainText("Acknowledgements:");
   });
@@ -679,9 +679,7 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("option", { name: "Supporting" }).click();
     await page.getByRole("button", { name: "Assign every role" }).click();
     await page.keyboard.press("Escape");
-    await expect(
-      page.getByRole("button", { name: /^Conceptualization for Jane A\. Smith: Supporting$/ }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Conceptualization for Ada Lovelace: Supporting$/ })).toBeVisible();
   });
 
   test("keeps matrix labels readable and the layout stable across display modes", async ({ page }) => {
@@ -737,9 +735,9 @@ test.describe("Happy path UI flows", () => {
     await page.getByText("Bulk assign", { exact: true }).click();
 
     await page.getByRole("button", { name: "Clear every role" }).click();
-    await expect(page.getByRole("button", { name: "Conceptualization for Jane A. Smith: None" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Conceptualization for Ada Lovelace: None" })).toBeVisible();
     await page.getByRole("button", { name: "Assign every role", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Conceptualization for Jane A. Smith: Contributed" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Conceptualization for Ada Lovelace: Contributed" })).toBeVisible();
   });
 
   // The "One role" panel (setRoleScores) had no coverage at any level, so a
@@ -750,9 +748,9 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
     const everyoneOnSoftware = [
-      page.getByRole("button", { name: "Software for Jane A. Smith: Contributed" }),
-      page.getByRole("button", { name: "Software for Bob White: Contributed" }),
-      page.getByRole("button", { name: "Software for Carol Davis: Contributed" }),
+      page.getByRole("button", { name: "Software for Ada Lovelace: Contributed" }),
+      page.getByRole("button", { name: "Software for Rosalind E. Franklin: Contributed" }),
+      page.getByRole("button", { name: "Software for Alan M. Turing: Contributed" }),
     ];
 
     await page.getByText("Bulk assign", { exact: true }).click();
@@ -762,11 +760,11 @@ test.describe("Happy path UI flows", () => {
     for (const cell of everyoneOnSoftware) await expect(cell).toBeVisible();
 
     // A different role must be untouched; catches a wrong-index write.
-    await expect(page.getByRole("button", { name: "Supervision for Bob White: None" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Supervision for Rosalind E. Franklin: None" })).toBeVisible();
 
     await page.getByRole("button", { name: "Clear for everyone" }).click();
-    await expect(page.getByRole("button", { name: "Software for Jane A. Smith: None" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Software for Carol Davis: None" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Software for Ada Lovelace: None" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Software for Alan M. Turing: None" })).toBeVisible();
   });
 
   // Regression: a failed lookup on a bare ORCID added through the main field
@@ -795,9 +793,9 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
 
     await page.getByRole("combobox", { name: "Contributor to assign" }).click();
-    await page.getByRole("option", { name: "Bob White" }).click();
-    await expect(page.getByRole("button", { name: "Conceptualization for Bob White: None" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Conceptualization for Jane A\. Smith/ })).toBeHidden();
+    await page.getByRole("option", { name: "Rosalind E. Franklin" }).click();
+    await expect(page.getByRole("button", { name: "Conceptualization for Rosalind E. Franklin: None" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Conceptualization for Ada Lovelace/ })).toBeHidden();
   });
 
   test("downloads a browser-generated PNG heatmap", async ({ page }) => {
