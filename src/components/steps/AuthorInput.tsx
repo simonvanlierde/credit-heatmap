@@ -947,8 +947,9 @@ function AuthorRow({
                 <MarkerChip icon={<AtSign className="h-3 w-3" />} label={t("correspondingShort")} />
               )}
               {/* A reply just landed here: the status strip says so at the
-                  top, and this badge says so on the row itself. Gone on the
-                  next draft switch (or an undo). */}
+                  top, and this badge says so on the row itself. It leaves with
+                  the strip's undo window (a minute), or sooner on an undo or a
+                  draft switch. */}
               {isRecentReply && (
                 <span
                   title={t("mergedRowBadgeTitle")}

@@ -84,9 +84,10 @@ interface ContributionState {
   /** Ask timestamps for the live draft, by contributor id. See `Draft.asked`. */
   asked: Record<string, number>;
   /**
-   * The contributor whose row a just-opened reply filled in. Ephemeral: it
-   * points at what changed until the next draft switch, so the status strip's
-   * message has a matching mark on the row itself.
+   * The contributor whose row a just-opened reply filled in, so the status
+   * strip's message has a matching mark on the row itself. Ephemeral: the
+   * merge handler times it out with the strip's undo window, and a draft
+   * switch or an undo clears it sooner.
    */
   recentReply: string | null;
   /** Whether the welcome card is currently open. Ephemeral (not persisted), so a
