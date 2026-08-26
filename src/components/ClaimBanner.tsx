@@ -76,12 +76,17 @@ export function ClaimBanner() {
           {copyStatus === "copied" ? t("claimSendBackCopied") : t("claimSendBack")}
         </button>
         {/* The lock's exit: a claimee who wants to adopt the draft — or just
-            use the app — is never stuck. Quiet, because sending back is the
-            main act. */}
+            use the app — is never stuck. Quiet while sending back is the main
+            act, promoted to a real button once the reply is copied and keeping
+            the draft is the natural next step. */}
         <button
           type="button"
           onClick={handleUnlock}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:text-primary"
+          className={
+            copyStatus === "copied"
+              ? "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-primary/30 px-3 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+              : "inline-flex items-center gap-1.5 text-xs font-medium text-on-surface-variant transition-colors hover:text-primary"
+          }
         >
           <LockOpen className="h-3.5 w-3.5" aria-hidden="true" />
           {t("claimUnlock")}

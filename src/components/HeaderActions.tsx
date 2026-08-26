@@ -14,7 +14,7 @@ import { buildShareUrl, decodeShareHash, type ShareData } from "@/lib/share";
 import { useCopyStatus } from "@/lib/use-copy-status";
 import { type DraftClaim, MAX_DRAFTS, useContributionStore } from "@/store/contribution-store";
 
-type LinkFailure = "errShareLinkBroken" | "mergeWrongDraft" | "mergeUnmatched";
+type LinkFailure = "errShareLinkBroken" | "mergeWrongDraft" | "mergeUnmatched" | "draftLimitReached";
 
 /**
  * Import / Share buttons rendered in the nav bar.
@@ -84,7 +84,10 @@ export function HeaderActions() {
     }
     const failure = openFromLink(shared);
     if (failure) {
-      showStatus({ kind: "error", message: t(failure) });
+      showStatus({
+        kind: "error",
+        message: failure === "draftLimitReached" ? t(failure, { count: MAX_DRAFTS }) : t(failure),
+      });
       return;
     }
     // Drop only the fragment; keep any query string intact.
@@ -165,7 +168,7 @@ export function HeaderActions() {
         return null;
       }
       try {
-        if (loadSharedAuthors(shared) === "limit") return null;
+        if (loadSharedAuthors(shared) === "limit") return "draftLimitReached";
       } catch {
         return "errShareLinkBroken";
       }
@@ -176,7 +179,7 @@ export function HeaderActions() {
     // A whole shared draft, addressed to nobody.
     try {
       const outcome = loadSharedAuthors(shared);
-      if (outcome === "limit") return null;
+      if (outcome === "limit") return "draftLimitReached";
       showStatus({
         kind: "success",
         message: t(outcome === "occupied" ? "sharedDraftOpened" : "sharedDraftLoaded"),
@@ -191,16 +194,15 @@ export function HeaderActions() {
    * Load a shared roster beside the open work. Own work already here? Give the
    * link its own draft — and refuse the link when the draft cap makes that
    * impossible, because falling through would load it over the paper that is
-   * open. loadAuthors may still throw on a bad payload; each caller reports
-   * that failure its own way.
+   * open. Refusals travel back as a return value, never a status strip of their
+   * own: the Import dialog has to render them inline and stay open. loadAuthors
+   * may still throw on a bad payload; each caller reports that failure its own
+   * way.
    */
   function loadSharedAuthors(shared: ShareData): "limit" | "occupied" | "fresh" {
     const occupied = useContributionStore.getState().authors.length > 0;
     const created = occupied ? createDraft() : null;
-    if (occupied && created === null) {
-      showStatus({ kind: "error", message: t("draftLimitReached", { count: MAX_DRAFTS }) });
-      return "limit";
-    }
+    if (occupied && created === null) return "limit";
     // The payload's title (or its absence) replaces whatever was here.
     setTitle(shared.title);
     try {

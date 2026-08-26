@@ -608,8 +608,12 @@ export const useContributionStore = create<ContributionState>()(
           applyDraft(state, target);
         }),
 
+      // Guarded like every other whole-roster write: an Import dialog or a bulk
+      // undo can still be in flight when a claim link lands, and replacing the
+      // roster under a claim would break the lock's one rule.
       loadAuthors: (authors) =>
         set((state) => {
+          if (claimRefuses(state)) return;
           state.authors = normalizeAuthors(authors);
         }),
 

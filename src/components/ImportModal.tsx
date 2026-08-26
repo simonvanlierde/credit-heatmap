@@ -18,6 +18,7 @@ import { useTranslations } from "use-intl";
 import { announce } from "@/lib/announce";
 import type { Messages } from "@/lib/intl";
 import { postLookup } from "@/lib/post-lookup";
+import { MAX_DRAFTS } from "@/store/contribution-store";
 
 interface Props {
   open: boolean;
@@ -29,7 +30,9 @@ interface Props {
    * used, or null on success. Lives with the caller because merging a returned
    * link needs the current workspace, which this dialog does not hold.
    */
-  onLink: (url: string) => Promise<"errShareLinkBroken" | "mergeWrongDraft" | "mergeUnmatched" | null>;
+  onLink: (
+    url: string,
+  ) => Promise<"errShareLinkBroken" | "mergeWrongDraft" | "mergeUnmatched" | "draftLimitReached" | null>;
   onClose: () => void;
 }
 
@@ -203,7 +206,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
         // the caller owns this one; failures come back as a message key.
         const failure = await onLink(text.trim());
         if (failure) {
-          showError(t(failure));
+          showError(failure === "draftLimitReached" ? t(failure, { count: MAX_DRAFTS }) : t(failure));
           return;
         }
         dialogRef.current?.close();

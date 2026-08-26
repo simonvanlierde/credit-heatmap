@@ -260,6 +260,20 @@ describe("contribution store", () => {
       expect(store().updateAuthorName(bob.id, "Bob B. White")).toBe(true);
     });
 
+    it("refuses a whole-roster load, so a late import cannot overwrite a claim", () => {
+      store().addAuthor("Jane Smith");
+      const jane = store().authors[0];
+      if (!jane) throw new Error("expected an author");
+      const replacement = [createAuthor("Bob White")];
+
+      store().loadAuthors(replacement);
+      expect(store().authors.map((a) => a.name)).toEqual(["Bob White"]);
+
+      store().setClaim({ contributorId: store().authors[0]?.id ?? "", sourceDraftId: "src-1" });
+      store().loadAuthors([createAuthor("Carol Davis")]);
+      expect(store().authors.map((a) => a.name)).toEqual(["Bob White"]);
+    });
+
     it("clearClaimFor unlocks the active draft", () => {
       store().addAuthor("Jane Smith");
       const jane = store().authors[0];
