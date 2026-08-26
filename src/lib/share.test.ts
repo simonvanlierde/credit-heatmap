@@ -59,6 +59,15 @@ describe("share links", () => {
     expect(decodeShareHash(`${base}&d=../../etc`)?.draftId).toBeNull();
   });
 
+  it("degrades a truncated percent escape to a missing draft id, not a throw", () => {
+    // A mail client can cut a link mid-escape; decodeURIComponent would throw
+    // URIError on "%", and this is called from a mount effect.
+    const base = hashOf(buildShareUrl(draft()));
+    const decoded = decodeShareHash(`${base}&c=1&d=%`);
+    expect(decoded?.claimIndex).toBe(1);
+    expect(decoded?.draftId).toBeNull();
+  });
+
   it("returns null for a hash that is not a share link", () => {
     expect(decodeShareHash("")).toBeNull();
     expect(decodeShareHash("#other=1")).toBeNull();

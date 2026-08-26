@@ -79,14 +79,17 @@ export interface SharedDraft {
 export function decodeShareHash(hash: string): SharedDraft | null {
   if (!hash.startsWith(HASH_PREFIX)) return null;
   const body = hash.slice(HASH_PREFIX.length);
-  // The payload runs to the first parameter, whichever comes first.
-  const paramAt = firstIndexOf(body, [CLAIM_PARAM, DRAFT_PARAM]);
+  // The payload is base64url, so it never contains "&": everything after the
+  // first one is parameters. URLSearchParams percent-decodes and never throws,
+  // even on a truncated escape like "&d=%", so a mangled link stays a null
+  // return instead of a URIError out of a mount effect.
+  const paramAt = body.indexOf("&");
   const encoded = paramAt === -1 ? body : body.slice(0, paramAt);
   if (encoded.length > MAX_ENCODED_LENGTH) return null;
 
-  const params = paramAt === -1 ? "" : body.slice(paramAt);
-  const claimIndex = readClaim(readParam(params, CLAIM_PARAM));
-  const draftId = readDraftId(readParam(params, DRAFT_PARAM));
+  const params = new URLSearchParams(paramAt === -1 ? "" : body.slice(paramAt + 1));
+  const claimIndex = readClaim(params.get("c"));
+  const draftId = readDraftId(params.get("d"));
 
   try {
     const bytes = fromBase64Url(encoded);
@@ -95,21 +98,6 @@ export function decodeShareHash(hash: string): SharedDraft | null {
   } catch {
     return null;
   }
-}
-
-/** Earliest position at which any of `needles` occurs, or -1. */
-function firstIndexOf(text: string, needles: string[]): number {
-  const found = needles.map((needle) => text.indexOf(needle)).filter((at) => at !== -1);
-  return found.length === 0 ? -1 : Math.min(...found);
-}
-
-/** Read one `&x=value` parameter, up to the next `&` or the end. */
-function readParam(params: string, prefix: string): string | null {
-  const at = params.indexOf(prefix);
-  if (at === -1) return null;
-  const rest = params.slice(at + prefix.length);
-  const end = rest.indexOf("&");
-  return end === -1 ? rest : rest.slice(0, end);
 }
 
 /** A claim is a small non-negative integer or it is nothing. */
@@ -124,7 +112,5 @@ function readClaim(raw: string | null): number | null {
  * simply fails the lookup.
  */
 function readDraftId(raw: string | null): string | null {
-  if (raw === null) return null;
-  const decoded = decodeURIComponent(raw);
-  return /^[\w-]{1,64}$/.test(decoded) ? decoded : null;
+  return raw !== null && /^[\w-]{1,64}$/.test(raw) ? raw : null;
 }
