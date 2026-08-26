@@ -27,8 +27,11 @@
   ],
   "observability": {
     "enabled": true,
-    // log 10% of requests
-    "head_sampling_rate": 0.1,
+    // Sample every invocation: the head-sampling decision is per-request, so
+    // anything below 1 drops most of the deliberate console.error warnings
+    // (rate-limiter fail-open, missing binding) on a low-traffic deploy. At
+    // this traffic the full-sampling log volume is negligible.
+    "head_sampling_rate": 1,
     "logs": {
       "enabled": true,
       // ORCID identifiers are submitted to /api/orcid and must not land in request logs.
