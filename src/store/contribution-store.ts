@@ -47,6 +47,12 @@ export interface Draft {
    * and back, unlike the old ephemeral claim fields it replaces.
    */
   claim: DraftClaim | null;
+  /**
+   * When each contributor was asked to fill in their own row, by id. An entry
+   * appears when their ask link is copied and leaves when their reply merges,
+   * so a row can say "Asked" during the days an email round trip takes.
+   */
+  asked: Record<string, number>;
 }
 
 /** More than anyone writes at once, and well inside what localStorage holds. */
@@ -75,6 +81,8 @@ interface ContributionState {
    * own row (see `claimRefuses`).
    */
   claim: DraftClaim | null;
+  /** Ask timestamps for the live draft, by contributor id. See `Draft.asked`. */
+  asked: Record<string, number>;
   /** Whether the welcome card is currently open. Ephemeral (not persisted), so a
    *  "How it works" re-open never survives a reload as a fake first run. */
   welcomeOpen: boolean;
@@ -91,6 +99,10 @@ interface ContributionState {
   setClaim: (claim: DraftClaim | null) => void;
   /** Unlock a draft's claim, active or parked. */
   clearClaimFor: (draftId: string) => void;
+  /** Record that this contributor's ask link was copied just now. */
+  markAsked: (contributorId: string) => void;
+  /** Forget the ask, because the reply landed (or the merge was undone). */
+  clearAsked: (contributorId: string) => void;
   setTitle: (title: string) => void;
   /** Start an empty draft and switch to it. Returns its id, or null at the cap. */
   createDraft: () => string | null;
@@ -208,6 +220,7 @@ function liveDraft(state: ContributionState): Draft {
     outputLocale: state.outputLocale,
     updatedAt: Date.now(),
     claim: state.claim,
+    asked: state.asked,
   };
 }
 
@@ -220,6 +233,7 @@ function applyDraft(state: ContributionState, draft: Draft): void {
   state.heatmapMonoColor = draft.heatmapMonoColor;
   state.outputLocale = draft.outputLocale;
   state.claim = draft.claim;
+  state.asked = draft.asked;
 }
 
 /** A fresh, empty draft. */
@@ -233,6 +247,7 @@ function emptyDraft(title = ""): Draft {
     outputLocale: "en",
     updatedAt: Date.now(),
     claim: null,
+    asked: {},
   };
 }
 
@@ -296,6 +311,16 @@ function isDraftClaim(value: unknown): value is DraftClaim {
   );
 }
 
+/** Ask timestamps by contributor id; a malformed entry costs that entry. */
+function repairAsked(value: unknown): Record<string, number> {
+  if (value === null || typeof value !== "object") return {};
+  const asked: Record<string, number> = {};
+  for (const [id, at] of Object.entries(value)) {
+    if (CLAIM_ID_REGEX.test(id) && typeof at === "number") asked[id] = at;
+  }
+  return asked;
+}
+
 /** Rebuild one persisted draft, filling anything missing or malformed. */
 function repairSingleDraft(value: unknown, id: string): Draft {
   const raw = (value !== null && typeof value === "object" ? value : {}) as Partial<Draft>;
@@ -308,6 +333,7 @@ function repairSingleDraft(value: unknown, id: string): Draft {
     outputLocale: normalizeLocaleCode(raw.outputLocale),
     updatedAt: typeof raw.updatedAt === "number" ? raw.updatedAt : 0,
     claim: isDraftClaim(raw.claim) ? raw.claim : null,
+    asked: repairAsked(raw.asked),
   };
 }
 
@@ -349,6 +375,7 @@ function hydrateDrafts(persisted: unknown): Partial<ContributionState> {
     heatmapMonoColor: active.heatmapMonoColor,
     outputLocale: active.outputLocale,
     claim: active.claim,
+    asked: active.asked,
     uiLocale: normalizeLocaleCode(state.uiLocale),
     ...(typeof state.welcomeSeen === "boolean" ? { welcomeSeen: state.welcomeSeen } : {}),
   };
@@ -530,6 +557,7 @@ export const useContributionStore = create<ContributionState>()(
       welcomeSeen: false,
       welcomeOpen: false,
       claim: null,
+      asked: {},
 
       createDraft: () => {
         let created: string | null = null;
@@ -584,8 +612,9 @@ export const useContributionStore = create<ContributionState>()(
             // make every id-keyed lookup ambiguous once both are in memory.
             authors: source.authors.map((author) => ({ ...author, id: globalThis.crypto.randomUUID() })),
             updatedAt: Date.now(),
-            // Fresh contributor ids invalidate the claim anyway.
+            // Fresh contributor ids invalidate the claim and the asks anyway.
             claim: null,
+            asked: {},
           };
           state.drafts[copy.id] = copy;
           created = copy.id;
@@ -630,6 +659,16 @@ export const useContributionStore = create<ContributionState>()(
           }
           const target = state.drafts[draftId];
           if (target) target.claim = null;
+        }),
+
+      markAsked: (contributorId) =>
+        set((state) => {
+          state.asked[contributorId] = Date.now();
+        }),
+
+      clearAsked: (contributorId) =>
+        set((state) => {
+          delete state.asked[contributorId];
         }),
 
       setTitle: (title) =>

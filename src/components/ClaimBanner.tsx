@@ -4,7 +4,7 @@ import { LockOpen, Send } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslations } from "use-intl";
 import { announce } from "@/lib/announce";
-import { buildShareUrl } from "@/lib/share";
+import { buildShareUrl, shareFailureKey } from "@/lib/share";
 import { useCopyStatus } from "@/lib/use-copy-status";
 import { useContributionStore } from "@/store/contribution-store";
 
@@ -24,7 +24,6 @@ export function ClaimBanner() {
   const clearClaimFor = useContributionStore((s) => s.clearClaimFor);
   const [copyStatus, copy] = useCopyStatus({
     copied: t("annLinkCopied"),
-    error: t("copyFailedMessage"),
   });
 
   const claimed = claim ? authors.find((author) => author.id === claim.contributorId) : undefined;
@@ -51,7 +50,7 @@ export function ClaimBanner() {
         }),
       );
     } catch {
-      announce(t("errShareTooLarge"), { assertive: true });
+      announce(t(shareFailureKey()), { assertive: true });
     }
   }
 

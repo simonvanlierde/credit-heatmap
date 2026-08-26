@@ -10,7 +10,7 @@ import { ImportModal } from "@/components/ImportModal";
 import { showStatus } from "@/components/StatusBanner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { announce } from "@/lib/announce";
-import { buildShareUrl, decodeShareHash, type ShareData } from "@/lib/share";
+import { buildShareUrl, decodeShareHash, type ShareData, shareFailureKey } from "@/lib/share";
 import { useCopyStatus } from "@/lib/use-copy-status";
 import { type DraftClaim, MAX_DRAFTS, useContributionStore } from "@/store/contribution-store";
 
@@ -26,7 +26,6 @@ export function HeaderActions() {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareStatus, copyShareUrl] = useCopyStatus({
     copied: t("annLinkCopied"),
-    error: t("copyFailedMessage"),
   });
   // Only the count is needed at render time; the array itself is read inside
   // the handlers via getState(), so score edits don't re-render the nav bar.
@@ -38,6 +37,8 @@ export function HeaderActions() {
   const createDraft = useContributionStore((s) => s.createDraft);
   const switchDraft = useContributionStore((s) => s.switchDraft);
   const deleteDraft = useContributionStore((s) => s.deleteDraft);
+  const markAsked = useContributionStore((s) => s.markAsked);
+  const clearAsked = useContributionStore((s) => s.clearAsked);
   const decodedOnMount = useRef(false);
 
   // Rehydrate persisted state on the client (the store skips hydration at
@@ -125,6 +126,11 @@ export function HeaderActions() {
         switchDraft(previous);
         return "errShareLinkBroken";
       }
+      // The reply answers the ask, so the row's "Asked" chip comes down — and
+      // goes back up if the merge is undone, because the ask is open again.
+      const mergedId = result.merged.id;
+      const askedAt = useContributionStore.getState().asked[mergedId];
+      if (askedAt !== undefined) clearAsked(mergedId);
       const title = useContributionStore.getState().title.trim() || t("untitledDraft");
       showStatus({
         kind: "success",
@@ -137,6 +143,7 @@ export function HeaderActions() {
             switchDraft(target);
             if (useContributionStore.getState().activeDraftId !== target) return;
             loadAuthors(before);
+            if (askedAt !== undefined) markAsked(mergedId);
             announce(t("annMergeUndone"));
           },
         },
@@ -244,7 +251,7 @@ export function HeaderActions() {
       await copyShareUrl(await buildShareUrl({ authors: state.authors, title: state.title }));
       setShareOpen(false);
     } catch {
-      showStatus({ kind: "error", message: t("errShareTooLarge") });
+      showStatus({ kind: "error", message: t(shareFailureKey()) });
     }
   }
 

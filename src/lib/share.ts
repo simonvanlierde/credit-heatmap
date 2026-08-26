@@ -106,6 +106,15 @@ export async function buildShareUrl(input: SharePayloadInput): Promise<string> {
  * payload), so a bad or stale link degrades to the normal app rather than
  * crashing.
  */
+/**
+ * Which failure to report when buildShareUrl throws: a pre-2023 browser with
+ * no CompressionStream cannot build any link, and telling that user their
+ * draft is "too large" sends them trimming a roster that was never the problem.
+ */
+export function shareFailureKey(): "errShareUnsupported" | "errShareTooLarge" {
+  return typeof CompressionStream === "undefined" ? "errShareUnsupported" : "errShareTooLarge";
+}
+
 export async function decodeShareHash(hash: string): Promise<ShareData | null> {
   if (!hash.startsWith(HASH_PREFIX)) return null;
   const encoded = hash.slice(HASH_PREFIX.length);

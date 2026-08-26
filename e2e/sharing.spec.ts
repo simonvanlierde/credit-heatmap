@@ -53,6 +53,9 @@ test("full round trip: ask → locked fill → reply link click → visible merg
   const pageA = await openBrowser(originator);
   const askLink = await makeAskLink(pageA);
 
+  // Copying the ask link marked Bob's row as asked; the chip waits for him.
+  await expect(pageA.getByText("Asked", { exact: true })).toBeVisible();
+
   const pageB = await openBrowser(coauthor);
   await pageB.goto(askLink);
 
@@ -75,11 +78,14 @@ test("full round trip: ask → locked fill → reply link click → visible merg
   await pageA.goto(replyLink);
   await expect(onScreen(pageA, /Bob White's roles were filled in/)).toBeVisible();
   await expect(pageA.getByRole("button", { name: "Investigation for Bob White: Contributed" })).toBeVisible();
+  // The reply answers the ask, so the chip comes down.
+  await expect(pageA.getByText("Asked", { exact: true })).toHaveCount(0);
 
-  // Undo restores the pre-merge roster.
+  // Undo restores the pre-merge roster — and reopens the ask.
   await pageA.getByRole("button", { name: "Undo" }).click();
   await expect(pageA.getByRole("button", { name: "Investigation for Bob White: None" })).toBeVisible();
   await expect(pageA.getByRole("button", { name: /^Remove / })).toHaveCount(2);
+  await expect(pageA.getByText("Asked", { exact: true })).toBeVisible();
 
   await originator.close();
   await coauthor.close();

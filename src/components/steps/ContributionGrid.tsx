@@ -940,7 +940,6 @@ function HeatmapExports({
   const [error, setError] = useState<string | null>(null);
   const [copyStatus, copy] = useCopyStatus({
     copied: t("annHeatmapCopied"),
-    error: t("errHeatmapCopy"),
   });
 
   function renderSvg() {
@@ -1002,7 +1001,7 @@ function HeatmapExports({
           className="flex items-center gap-1.5 px-2.5 py-1 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Copy className="h-3.5 w-3.5" />
-          {copyStatus === "copied" ? t("copied") : copyStatus === "error" ? t("copyFailed") : t("copy")}
+          {copyStatus === "copied" ? t("copied") : copyStatus === "error" ? t("copyFailedMessage") : t("copy")}
         </button>
         {(["svg", "png"] as ExportFormat[]).map((format) => (
           <button

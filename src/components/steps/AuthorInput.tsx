@@ -53,7 +53,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { StepHeader } from "@/components/ui/step-header";
 import { announce } from "@/lib/announce";
 import { postLookup } from "@/lib/post-lookup";
-import { buildShareUrl } from "@/lib/share";
+import { buildShareUrl, shareFailureKey } from "@/lib/share";
 import { useClaimLock } from "@/lib/use-claim-lock";
 import { useCopyStatus } from "@/lib/use-copy-status";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -690,6 +690,8 @@ function AuthorRow({
   const author = authors[index];
   const isClaimed = author !== undefined && author.id === editableAuthorId;
   const rowLocked = locked && !isClaimed;
+  const markAsked = useContributionStore((s) => s.markAsked);
+  const askedAt = useContributionStore((s) => (author === undefined ? undefined : s.asked[author.id]));
 
   const [loading, setLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -712,7 +714,15 @@ function AuthorRow({
    */
   async function handleAsk() {
     if (!author) return;
-    await copyAsk(await buildShareUrl({ authors, title, claimId: author.id, sourceDraftId: activeDraftId }));
+    let url: string;
+    try {
+      url = await buildShareUrl({ authors, title, claimId: author.id, sourceDraftId: activeDraftId });
+    } catch {
+      announce(t(shareFailureKey()), { assertive: true });
+      return;
+    }
+    // Only a link that actually reached the clipboard counts as an ask.
+    if (await copyAsk(url)) markAsked(author.id);
   }
 
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -821,7 +831,10 @@ function AuthorRow({
       setNameError(null);
       return;
     }
-    setNameError(t("errNameTooLong"));
+    // `updateAuthorName` refuses both an over-long name and one with no letter
+    // in it. Name the rule the input actually broke, rather than reciting both.
+    const trimmed = nameDraft.trim();
+    setNameError(trimmed.length > MAX_AUTHOR_NAME_LENGTH ? t("errNameTooLong") : t("errNameNoLetter"));
   }
 
   return (
@@ -931,6 +944,17 @@ function AuthorRow({
               )}
               {author.corresponding && (
                 <MarkerChip icon={<AtSign className="h-3 w-3" />} label={t("correspondingShort")} />
+              )}
+              {/* An open ask: quiet, because it is a reminder, not a state of
+                  the paper. It comes down by itself when the reply merges. */}
+              {askedAt !== undefined && (
+                <span
+                  title={t("askedChipTitle")}
+                  className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant"
+                >
+                  <Send className="h-3 w-3" />
+                  {t("askedChip")}
+                </span>
               )}
               {/* Everything you can *do* to one contributor lives behind one
                   disclosure. Five inline chips per row cost three lines on a

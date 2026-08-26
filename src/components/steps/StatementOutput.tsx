@@ -60,13 +60,11 @@ export function StatementOutput() {
   const settled = useSettled();
   const [copyStatus, copyText] = useCopyStatus({
     copied: t("annStatementCopied"),
-    error: t("copyFailedMessage"),
   });
   // Separate status for the data-format Copy button, so feedback appears on
   // the button that was clicked rather than on the main statement copy.
   const [dataCopyStatus, copyDataText] = useCopyStatus({
     copied: t("annExportDataCopied"),
-    error: t("copyFailedMessage"),
   });
   const [dataFormat, setDataFormat] = useState<DataFormat>("xml");
   // Statement-local output controls (independent of the heatmap's).

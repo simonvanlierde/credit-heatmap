@@ -285,6 +285,26 @@ describe("contribution store", () => {
     });
   });
 
+  describe("asked tracking", () => {
+    it("marks per draft, survives a switch away and back, and clears", () => {
+      store().addAuthor("Jane Smith");
+      const jane = store().authors[0];
+      if (!jane) throw new Error("expected Jane");
+      store().markAsked(jane.id);
+      expect(store().asked[jane.id]).toBeTypeOf("number");
+
+      const home = store().activeDraftId;
+      store().createDraft();
+      // A fresh draft has no open asks of its own.
+      expect(store().asked).toEqual({});
+      store().switchDraft(home);
+      expect(store().asked[jane.id]).toBeTypeOf("number");
+
+      store().clearAsked(jane.id);
+      expect(store().asked[jane.id]).toBeUndefined();
+    });
+  });
+
   describe("first-draft id", () => {
     it("replaces the SSR-constant draft-1 id with a UUID at hydration", async () => {
       await useContributionStore.persist.rehydrate();

@@ -28,8 +28,8 @@ function htmlSnippet() {
  */
 export function CreditBadge({ className }: { className?: string }) {
   const t = useTranslations();
-  const [htmlStatus, copyHtml] = useCopyStatus({ copied: t("annBadgeHtmlCopied"), error: t("copyFailedMessage") });
-  const [pngStatus, copyPngBlob] = useCopyStatus({ copied: t("annBadgeCopied"), error: t("copyFailedMessage") });
+  const [htmlStatus, copyHtml] = useCopyStatus({ copied: t("annBadgeHtmlCopied") });
+  const [pngStatus, copyPngBlob] = useCopyStatus({ copied: t("annBadgeCopied") });
 
   // Copy the image bytes (not a URL) so it pastes straight into a doc/editor.
   // useCopyStatus owns the status, the announce and the 2s reset; this only
