@@ -227,6 +227,57 @@ describe("contribution store", () => {
     });
   });
 
+  describe("claim lock", () => {
+    it("persists the claim on the draft across a switch and back", () => {
+      store().addAuthor("Jane Smith");
+      const jane = store().authors[0];
+      if (!jane) throw new Error("expected an author");
+      const home = store().activeDraftId;
+      store().setClaim({ contributorId: jane.id, sourceDraftId: "src-1" });
+      store().createDraft();
+      expect(store().claim).toBeNull();
+      store().switchDraft(home);
+      expect(store().claim).toEqual({ contributorId: jane.id, sourceDraftId: "src-1" });
+    });
+
+    it("locks every row but the claimed one, and the list shape entirely", () => {
+      store().addAuthor("Jane Smith");
+      store().addAuthor("Bob White");
+      const [jane, bob] = store().authors;
+      if (!(jane && bob)) throw new Error("expected two authors");
+      store().setClaim({ contributorId: bob.id, sourceDraftId: "src-1" });
+
+      store().toggleContribution(jane.id, 0);
+      expect(store().authors[0]?.contributions[0]?.score).toBe(0);
+      store().toggleContribution(bob.id, 0);
+      expect(store().authors[1]?.contributions[0]?.score).toBe(100);
+
+      expect(store().addAuthor("Carol Davis")).toBeNull();
+      store().removeAuthor(jane.id);
+      store().moveAuthor(0, 1);
+      expect(store().authors.map((a) => a.name)).toEqual(["Jane Smith", "Bob White"]);
+      expect(store().updateAuthorName(jane.id, "Renamed")).toBe(false);
+      expect(store().updateAuthorName(bob.id, "Bob B. White")).toBe(true);
+    });
+
+    it("clearClaimFor unlocks the active draft", () => {
+      store().addAuthor("Jane Smith");
+      const jane = store().authors[0];
+      if (!jane) throw new Error("expected an author");
+      store().setClaim({ contributorId: jane.id, sourceDraftId: "src-1" });
+      store().clearClaimFor(store().activeDraftId);
+      expect(store().claim).toBeNull();
+      expect(store().addAuthor("Bob White")).not.toBeNull();
+    });
+  });
+
+  describe("first-draft id", () => {
+    it("replaces the SSR-constant draft-1 id with a UUID at hydration", async () => {
+      await useContributionStore.persist.rehydrate();
+      expect(store().activeDraftId).not.toBe("draft-1");
+    });
+  });
+
   describe("persistence", () => {
     it("persists draft data and the interface language, but nothing ephemeral", () => {
       // `welcomeOpen` is deliberately absent: a re-opened "How it works" must

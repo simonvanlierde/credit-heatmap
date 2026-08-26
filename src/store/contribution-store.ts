@@ -19,6 +19,12 @@ import { PERSIST_KEY, PERSIST_VERSION } from "./persist-meta";
 
 export type InputMode = "toggle" | "levels";
 
+/** A claim link's target: which contributor, on which draft it came from. */
+export interface DraftClaim {
+  contributorId: string;
+  sourceDraftId: string;
+}
+
 /**
  * One paper's worth of work.
  *
@@ -35,6 +41,12 @@ export interface Draft {
   outputLocale: LocaleCode;
   /** Last write, in epoch milliseconds. Orders the picker. */
   updatedAt: number;
+  /**
+   * Set when this draft was opened from a link addressed to one contributor.
+   * Travels with the draft (persisted), so the lock survives a switch away
+   * and back, unlike the old ephemeral claim fields it replaces.
+   */
+  claim: DraftClaim | null;
 }
 
 /** More than anyone writes at once, and well inside what localStorage holds. */
@@ -58,16 +70,11 @@ interface ContributionState {
    *  true, so returning users are never auto-greeted again. */
   welcomeSeen: boolean;
   /**
-   * Set when the draft was opened from a link addressed to one contributor.
-   * Ephemeral: it describes how *this* session was opened, and surviving a
-   * reload would leave the banner up long after the link was dealt with.
+   * Mirrors the active draft's `claim`, like `title` mirrors its title.
+   * While set, the lock rule refuses any edit but the claimed contributor's
+   * own row (see `claimRefuses`).
    */
-  claimIndex: number | null;
-  /**
-   * The draft the claimed link came from, carried back on the reply so it
-   * lands on the right paper.
-   */
-  claimDraftId: string | null;
+  claim: DraftClaim | null;
   /** Whether the welcome card is currently open. Ephemeral (not persisted), so a
    *  "How it works" re-open never survives a reload as a fake first run. */
   welcomeOpen: boolean;
@@ -81,7 +88,9 @@ interface ContributionState {
   drafts: Record<string, Draft>;
   activeDraftId: string;
   loadAuthors: (authors: Author[]) => void;
-  setClaim: (claimIndex: number | null, claimDraftId?: string | null) => void;
+  setClaim: (claim: DraftClaim | null) => void;
+  /** Unlock a draft's claim, active or parked. */
+  clearClaimFor: (draftId: string) => void;
   setTitle: (title: string) => void;
   /** Start an empty draft and switch to it. Returns its id, or null at the cap. */
   createDraft: () => string | null;
@@ -90,7 +99,7 @@ interface ContributionState {
   /** Copy a draft, contributions and all. Returns the new id, or null at the cap. */
   duplicateDraft: (draftId: string) => string | null;
   deleteDraft: (draftId: string) => void;
-  loadSample: () => void;
+  loadSample: (names: readonly string[]) => void;
   /** Adds a contributor and returns its id; null when the name has no letters to parse. */
   addAuthor: (name: string, orcid?: string) => string | null;
   removeAuthor: (authorId: string) => void;
@@ -125,34 +134,42 @@ function clampScore(score: number): number {
   return Math.max(0, Math.min(100, score));
 }
 
-/** A small, realistic three-author dataset for the first-run "Load sample" action. */
-function buildSampleAuthors(): Author[] {
-  const scores: Record<string, Partial<Record<CreditRoleName, number>>> = {
-    "Jane A. Smith": {
+/**
+ * A small, realistic dataset for the first-run "Load sample" action.
+ *
+ * The names come from the caller because they are translated: each interface
+ * language seeds the example with scientists from its own language area, and
+ * the catalogs are the place translators can change them. The role scores are
+ * positional, so extra names beyond the three role sets are dropped rather
+ * than seeded with an empty row.
+ */
+function buildSampleAuthors(names: readonly string[]): Author[] {
+  const roleSets: Partial<Record<CreditRoleName, number>>[] = [
+    {
       Conceptualization: 100,
       Methodology: 66,
       "Writing – original draft": 100,
       Supervision: 33,
     },
-    "Bob White": {
+    {
       Investigation: 100,
       "Data curation": 100,
       Software: 66,
       "Formal analysis": 66,
     },
-    "Carol Davis": {
+    {
       "Funding acquisition": 100,
       "Project administration": 100,
       "Writing – review & editing": 100,
       Resources: 66,
     },
-  };
+  ];
 
-  return Object.entries(scores).map(([name, roleScores]) =>
+  return names.slice(0, roleSets.length).map((name, index) =>
     createAuthor(name, {
       contributions: ROLE_NAMES.map((role) => ({
         role,
-        score: roleScores[role as CreditRoleName] ?? 0,
+        score: roleSets[index]?.[role as CreditRoleName] ?? 0,
       })),
     }),
   );
@@ -190,6 +207,7 @@ function liveDraft(state: ContributionState): Draft {
     heatmapMonoColor: state.heatmapMonoColor,
     outputLocale: state.outputLocale,
     updatedAt: Date.now(),
+    claim: state.claim,
   };
 }
 
@@ -201,6 +219,7 @@ function applyDraft(state: ContributionState, draft: Draft): void {
   state.inputMode = draft.inputMode;
   state.heatmapMonoColor = draft.heatmapMonoColor;
   state.outputLocale = draft.outputLocale;
+  state.claim = draft.claim;
 }
 
 /** A fresh, empty draft. */
@@ -213,6 +232,7 @@ function emptyDraft(title = ""): Draft {
     heatmapMonoColor: DEFAULT_MONO_COLOR,
     outputLocale: "en",
     updatedAt: Date.now(),
+    claim: null,
   };
 }
 
@@ -262,6 +282,20 @@ function repairAuthors(authors: unknown): Author[] {
     }));
 }
 
+/** A contributor id or draft id, as they appear in a claim: bounded, and free of anything a URL hash would mangle. */
+const CLAIM_ID_REGEX = /^[\w-]{1,64}$/;
+
+function isDraftClaim(value: unknown): value is DraftClaim {
+  if (value === null || typeof value !== "object") return false;
+  const { contributorId, sourceDraftId } = value as Partial<DraftClaim>;
+  return (
+    typeof contributorId === "string" &&
+    CLAIM_ID_REGEX.test(contributorId) &&
+    typeof sourceDraftId === "string" &&
+    CLAIM_ID_REGEX.test(sourceDraftId)
+  );
+}
+
 /** Rebuild one persisted draft, filling anything missing or malformed. */
 function repairSingleDraft(value: unknown, id: string): Draft {
   const raw = (value !== null && typeof value === "object" ? value : {}) as Partial<Draft>;
@@ -273,6 +307,7 @@ function repairSingleDraft(value: unknown, id: string): Draft {
     heatmapMonoColor: typeof raw.heatmapMonoColor === "string" ? raw.heatmapMonoColor : DEFAULT_MONO_COLOR,
     outputLocale: normalizeLocaleCode(raw.outputLocale),
     updatedAt: typeof raw.updatedAt === "number" ? raw.updatedAt : 0,
+    claim: isDraftClaim(raw.claim) ? raw.claim : null,
   };
 }
 
@@ -313,6 +348,7 @@ function hydrateDrafts(persisted: unknown): Partial<ContributionState> {
     inputMode: active.inputMode,
     heatmapMonoColor: active.heatmapMonoColor,
     outputLocale: active.outputLocale,
+    claim: active.claim,
     uiLocale: normalizeLocaleCode(state.uiLocale),
     ...(typeof state.welcomeSeen === "boolean" ? { welcomeSeen: state.welcomeSeen } : {}),
   };
@@ -468,6 +504,16 @@ function announcingStorage(): PersistStorage<PersistedState> {
  */
 const INITIAL_DRAFT_ID = "draft-1";
 
+/**
+ * While a claim locks the draft, only the claimed contributor's own row may
+ * change, and the list shape may not change at all. Enforced here, at the
+ * single choke point every edit flows through, so no UI path — grid cell,
+ * drag, bulk action, keyboard — can corrupt a claim draft.
+ */
+function claimRefuses(state: ContributionState, authorId?: string): boolean {
+  return state.claim !== null && authorId !== state.claim.contributorId;
+}
+
 export const useContributionStore = create<ContributionState>()(
   persist(
     immer((set) => ({
@@ -483,8 +529,7 @@ export const useContributionStore = create<ContributionState>()(
       uiLocale: "en",
       welcomeSeen: false,
       welcomeOpen: false,
-      claimIndex: null,
-      claimDraftId: null,
+      claim: null,
 
       createDraft: () => {
         let created: string | null = null;
@@ -508,9 +553,6 @@ export const useContributionStore = create<ContributionState>()(
           if (!target) return;
           stashLive(state);
           applyDraft(state, target);
-          // The claim described the draft that was open when the link landed.
-          state.claimIndex = null;
-          state.claimDraftId = null;
         }),
 
       renameDraft: (draftId, title) =>
@@ -542,6 +584,8 @@ export const useContributionStore = create<ContributionState>()(
             // make every id-keyed lookup ambiguous once both are in memory.
             authors: source.authors.map((author) => ({ ...author, id: globalThis.crypto.randomUUID() })),
             updatedAt: Date.now(),
+            // Fresh contributor ids invalidate the claim anyway.
+            claim: null,
           };
           state.drafts[copy.id] = copy;
           created = copy.id;
@@ -569,10 +613,19 @@ export const useContributionStore = create<ContributionState>()(
           state.authors = normalizeAuthors(authors);
         }),
 
-      setClaim: (claimIndex, claimDraftId = null) =>
+      setClaim: (claim) =>
         set((state) => {
-          state.claimIndex = claimIndex;
-          state.claimDraftId = claimDraftId;
+          state.claim = claim;
+        }),
+
+      clearClaimFor: (draftId) =>
+        set((state) => {
+          if (draftId === state.activeDraftId) {
+            state.claim = null;
+            return;
+          }
+          const target = state.drafts[draftId];
+          if (target) target.claim = null;
         }),
 
       setTitle: (title) =>
@@ -580,9 +633,10 @@ export const useContributionStore = create<ContributionState>()(
           state.title = title.trim().slice(0, MAX_TITLE_LENGTH);
         }),
 
-      loadSample: () =>
+      loadSample: (names) =>
         set((state) => {
-          state.authors = normalizeAuthors(buildSampleAuthors());
+          if (claimRefuses(state)) return;
+          state.authors = normalizeAuthors(buildSampleAuthors(names));
         }),
 
       addAuthor: (name, orcid) => {
@@ -598,6 +652,7 @@ export const useContributionStore = create<ContributionState>()(
         }
         let added = false;
         set((state) => {
+          if (claimRefuses(state)) return;
           if (state.authors.length >= MAX_AUTHORS) return;
           state.authors = normalizeAuthors([...state.authors, nextAuthor]);
           added = true;
@@ -607,6 +662,7 @@ export const useContributionStore = create<ContributionState>()(
 
       removeAuthor: (authorId) =>
         set((state) => {
+          if (claimRefuses(state)) return;
           const index = findAuthorIndex(state.authors, authorId);
           if (index === -1) return;
           state.authors.splice(index, 1);
@@ -616,6 +672,7 @@ export const useContributionStore = create<ContributionState>()(
       restoreAuthor: (author, index) => {
         let restored = false;
         set((state) => {
+          if (claimRefuses(state)) return;
           if (state.authors.some((candidate) => candidate.id === author.id)) return;
           // Undo can arrive after the list refilled to the cap; without this
           // the splice pushes past MAX_AUTHORS and normalizeAuthors throws
@@ -630,6 +687,7 @@ export const useContributionStore = create<ContributionState>()(
 
       moveAuthor: (fromIndex, toIndex) =>
         set((state) => {
+          if (claimRefuses(state)) return;
           if (
             fromIndex < 0 ||
             toIndex < 0 ||
@@ -648,6 +706,7 @@ export const useContributionStore = create<ContributionState>()(
       updateAuthorName: (authorId, name) => {
         let updated = false;
         set((state) => {
+          if (claimRefuses(state, authorId)) return;
           const index = findAuthorIndex(state.authors, authorId);
           const currentAuthor = state.authors[index];
           const trimmed = name.trim();
@@ -672,6 +731,7 @@ export const useContributionStore = create<ContributionState>()(
 
       updateAuthorOrcid: (authorId, orcid) =>
         set((state) => {
+          if (claimRefuses(state, authorId)) return;
           const index = findAuthorIndex(state.authors, authorId);
           const author = state.authors[index];
           if (!author) return;
@@ -684,6 +744,7 @@ export const useContributionStore = create<ContributionState>()(
 
       setAuthorType: (authorId, contributorType) =>
         set((state) => {
+          if (claimRefuses(state, authorId)) return;
           const author = state.authors[findAuthorIndex(state.authors, authorId)];
           if (!author) return;
           author.contributorType = contributorType;
@@ -691,6 +752,7 @@ export const useContributionStore = create<ContributionState>()(
 
       setAuthorMarker: (authorId, marker, value) =>
         set((state) => {
+          if (claimRefuses(state, authorId)) return;
           const author = state.authors[findAuthorIndex(state.authors, authorId)];
           if (!author) return;
           author[marker] = value;
@@ -698,6 +760,7 @@ export const useContributionStore = create<ContributionState>()(
 
       setAuthorScore: (authorId, roleIndex, score) =>
         set((state) => {
+          if (claimRefuses(state, authorId)) return;
           const index = findAuthorIndex(state.authors, authorId);
           const contribution = state.authors[index]?.contributions[roleIndex];
           if (contribution) {
@@ -707,6 +770,7 @@ export const useContributionStore = create<ContributionState>()(
 
       setAllAuthorScores: (authorId, score) =>
         set((state) => {
+          if (claimRefuses(state, authorId)) return;
           const author = state.authors[findAuthorIndex(state.authors, authorId)];
           if (!author) return;
           const nextScore = clampScore(score);
@@ -717,6 +781,7 @@ export const useContributionStore = create<ContributionState>()(
 
       setRoleScores: (roleIndex, score) =>
         set((state) => {
+          if (claimRefuses(state)) return;
           if (roleIndex < 0 || roleIndex >= ROLE_NAMES.length) return;
           const nextScore = clampScore(score);
           for (const author of state.authors) {
@@ -727,6 +792,7 @@ export const useContributionStore = create<ContributionState>()(
 
       toggleContribution: (authorId, roleIndex) =>
         set((state) => {
+          if (claimRefuses(state, authorId)) return;
           const index = findAuthorIndex(state.authors, authorId);
           const contribution = state.authors[index]?.contributions[roleIndex];
           if (contribution) {
@@ -774,6 +840,7 @@ export const useContributionStore = create<ContributionState>()(
       // data", quietly undoing the reset.
       reset: () =>
         set((state) => {
+          if (claimRefuses(state)) return;
           state.authors = [];
           state.title = "";
           state.inputMode = "toggle";
@@ -801,7 +868,20 @@ export const useContributionStore = create<ContributionState>()(
       version: PERSIST_VERSION,
       migrate: migratePersisted,
       /** Unpack the stored drafts and repair them; see `hydrateDrafts`. */
-      merge: (persisted, current) => ({ ...current, ...hydrateDrafts(persisted) }),
+      merge: (persisted, current) => {
+        const next = { ...current, ...hydrateDrafts(persisted) };
+        // The SSR-constant first-draft id is the same in every browser, which
+        // would defeat the "is this reply mine?" check. Re-key it once, client-side.
+        if (next.activeDraftId === INITIAL_DRAFT_ID) {
+          const id = globalThis.crypto.randomUUID();
+          const drafts = { ...next.drafts };
+          const first = drafts[INITIAL_DRAFT_ID];
+          delete drafts[INITIAL_DRAFT_ID];
+          drafts[id] = first ? { ...first, id } : { ...emptyDraft(), id };
+          return { ...next, drafts, activeDraftId: id };
+        }
+        return next;
+      },
       // Don't read localStorage during store creation: the server renders the
       // empty initial state, so a synchronous rehydrate here would desync the
       // first client render (hydration mismatch). A client effect calls
