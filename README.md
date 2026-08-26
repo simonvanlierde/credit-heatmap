@@ -140,6 +140,8 @@ invocation log. After changing the binding, check the first deploy's logs for
   Refresh them with `node packages/core/scripts/fetch-credit-translations.mjs`.
 - **Read more from ORCID.** The lookup takes the name only. Affiliation is the field submission
   systems ask for next.
+- **Make sharing discoverable.** The onboarding barely hints at sharing a draft or asking a
+  co-author to fill in their own row. Both are easy to miss entirely.
 
 ## Contributing
 
