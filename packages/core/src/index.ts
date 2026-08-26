@@ -24,7 +24,14 @@ export {
   OKABE_ITO,
   onColor,
 } from "./contributor-color.js";
-export type { LocaleInfo, RoleCatalog, RoleDescriber, RoleTranslation, RoleTranslator } from "./credit-i18n/index.js";
+export type {
+  LocaleCode,
+  LocaleInfo,
+  RoleCatalog,
+  RoleDescriber,
+  RoleTranslation,
+  RoleTranslator,
+} from "./credit-i18n/index.js";
 export {
   AVAILABLE_LOCALES,
   DEFAULT_ROLE_TRANSLATOR,

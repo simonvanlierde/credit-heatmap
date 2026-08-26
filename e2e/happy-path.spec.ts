@@ -14,7 +14,7 @@ async function asReturningVisitor(page: Page) {
     if (window.localStorage.getItem("credit-generator-state")) return;
     window.localStorage.setItem(
       "credit-generator-state",
-      JSON.stringify({ state: { authors: [], welcomeSeen: true }, version: 6 }),
+      JSON.stringify({ state: { authors: [], welcomeSeen: true }, version: 1 }),
     );
   });
 }
@@ -138,8 +138,15 @@ test.describe("Happy path UI flows", () => {
     await page.locator("#import-doi").fill("10.1038/s41586-020-2649-2");
     await page.getByRole("button", { name: "Look up" }).click();
 
-    await expect(page.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Jane A. Smith");
-    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(2);
+    const names = page.getByLabel("Name or ORCID iD", { exact: true });
+    await expect(names).toHaveCount(2);
+    await expect(names.first()).toHaveValue("Jane A. Smith");
+    // The iD rides along with the name: that is half the point of the lookup.
+    // A stored iD renders as a link to the registry, not as an input.
+    await expect(page.getByRole("link", { name: /0000-0002-1825-0097/ })).toHaveAttribute(
+      "href",
+      "https://orcid.org/0000-0002-1825-0097",
+    );
   });
 
   test("explains a DOI that resolves to nothing, and keeps the dialog open", async ({ page }) => {
@@ -152,7 +159,8 @@ test.describe("Happy path UI flows", () => {
     await page.locator("#import-doi").fill("10.1038/nope");
     await page.getByRole("button", { name: "Look up" }).click();
 
-    await expect(page.getByText("No published record matches that DOI.")).toBeVisible();
+    // Scoped to the dialog: the same message is also announced in a live region.
+    await expect(page.getByRole("dialog").getByText("No published record matches that DOI.")).toBeVisible();
     // The dialog stays up so the DOI can be corrected in place.
     await expect(page.locator("#import-doi")).toBeVisible();
   });
@@ -275,7 +283,43 @@ test.describe("Happy path UI flows", () => {
    * has no users; this pins it, because the failure mode is silent data loss
    * and the moment it stops being acceptable a test should say so.
    */
-  test("discards a draft saved under an older schema version", async ({ page }) => {
+  test("keeps one draft per paper, and switching restores its own contributors", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    const picker = page.getByRole("button", { name: /Untitled draft|Drafts/ }).first();
+    await picker.click();
+    await page.getByLabel("Draft title").fill("First paper");
+    await page.getByRole("button", { name: "New draft" }).click();
+
+    // The new draft is empty; the first one is untouched behind it.
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
+    await page.getByRole("button", { name: "Import" }).click();
+    await page.locator("#import-text").fill("Marie Curie");
+    await page.getByRole("button", { name: "Import data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(1);
+
+    // Back to the first draft: its three contributors and its title return.
+    await page
+      .getByRole("button", { name: /Untitled draft/ })
+      .first()
+      .click();
+    await page.getByRole("button", { name: "Switch to First paper" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    // And it survives a reload, which is the whole point of the map.
+    await page.reload();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+  });
+
+  /**
+   * Persisted state stays at version 1 until launch, so there are no migration
+   * steps yet — but a draft from a *newer* build can still turn up (a rolled
+   * back deploy, a second tab on an older bundle). There is no way to walk a
+   * schema backwards, so it is discarded rather than half-understood.
+   */
+  test("discards a draft saved under a newer schema version", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
@@ -284,14 +328,50 @@ test.describe("Happy path UI flows", () => {
       const raw = window.localStorage.getItem("credit-generator-state");
       if (!raw) throw new Error("expected persisted state");
       const persisted = JSON.parse(raw) as { version: number };
-      persisted.version = 4;
+      persisted.version = 99;
       window.localStorage.setItem("credit-generator-state", JSON.stringify(persisted));
     });
     await page.reload();
 
-    // The draft is gone, and the workspace is usable rather than broken.
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Load sample data" })).toBeVisible();
+  });
+
+  /**
+   * The version can be perfectly current and the draft still unusable —
+   * localStorage edited by hand, or a half-written value from a crashed tab.
+   * `normalizeAuthors` throws on a contributor it cannot rebuild, and it runs
+   * on *every* list edit, so one bad row would make add/remove/rename all throw
+   * uncaught. The good rows must survive and the workspace stay usable.
+   */
+  test("repairs a malformed draft instead of bricking the workspace", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+
+    await page.evaluate(() => {
+      const raw = window.localStorage.getItem("credit-generator-state");
+      if (!raw) throw new Error("expected persisted state");
+      const persisted = JSON.parse(raw) as {
+        state: { activeDraftId: string; drafts: Record<string, { authors: { name: string }[] }> };
+      };
+      const active = persisted.state.drafts[persisted.state.activeDraftId];
+      if (!active) throw new Error("expected an active draft");
+      const [first, second] = active.authors;
+      if (!(first && second)) throw new Error("expected the sample's contributors");
+      first.name = "A".repeat(600); // past the length cap
+      second.name = "12345"; // no letters, so createAuthor rejects it
+      window.localStorage.setItem("credit-generator-state", JSON.stringify(persisted));
+    });
+    await page.reload();
+
+    // The two unusable rows are dropped; the third survives.
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(1);
+
+    // And the workspace still works — this is what used to throw.
+    await page.getByLabel("New author names or ORCID iD").fill("Marie Curie");
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(2);
   });
 
   test("handles invalid contributor names and ORCID checksums without losing input", async ({ page }) => {

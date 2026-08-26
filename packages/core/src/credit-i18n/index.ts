@@ -45,7 +45,14 @@ export interface LocaleInfo {
 }
 
 /** Locales offered in the output language picker. `en` is the canonical source (no catalog). */
-export const AVAILABLE_LOCALES: LocaleInfo[] = [
+/**
+ * Every language the picker offers.
+ *
+ * `as const` so the codes form a literal union: the app types its interface
+ * catalogs against {@link LocaleCode}, which turns "offered a language with no
+ * interface strings" into a compile error instead of a silent English UI.
+ */
+export const AVAILABLE_LOCALES = [
   { code: "en", name: "English" },
   { code: "fr", name: "Français" },
   { code: "de", name: "Deutsch" },
@@ -55,7 +62,10 @@ export const AVAILABLE_LOCALES: LocaleInfo[] = [
   { code: "nl", name: "Nederlands" },
   { code: "zh", name: "中文" },
   { code: "ja", name: "日本語" },
-];
+] as const satisfies readonly LocaleInfo[];
+
+/** A language code the picker offers. */
+export type LocaleCode = (typeof AVAILABLE_LOCALES)[number]["code"];
 
 /** Load a locale's role catalog. Returns null for `en` or any unknown locale (→ identity translator). */
 export async function loadRoleCatalog(locale: string): Promise<RoleCatalog | null> {

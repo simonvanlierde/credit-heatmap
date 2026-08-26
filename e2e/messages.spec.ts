@@ -99,9 +99,9 @@ test.describe("rendering a non-English locale", () => {
       ([ui, out]) => {
         window.localStorage.setItem(
           "credit-generator-state",
-          // Must match the store's persist version: there is no migrate, so a
-          // stale version is discarded and the seed silently does nothing.
-          JSON.stringify({ state: { authors: [], welcomeSeen: true, uiLocale: ui, outputLocale: out }, version: 6 }),
+          // Must match the store's persist version, or migrate/merge rewrite
+          // the seed and it silently does nothing.
+          JSON.stringify({ state: { authors: [], welcomeSeen: true, uiLocale: ui, outputLocale: out }, version: 1 }),
         );
       },
       [uiLocale, outputLocale],

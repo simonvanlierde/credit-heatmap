@@ -1,5 +1,6 @@
 "use client";
 
+import type { LocaleCode } from "@credit-generator/core";
 import { type ReactNode, useEffect, useState } from "react";
 import { IntlProvider } from "use-intl";
 import en from "@/messages/en.json";
@@ -22,7 +23,14 @@ import { useContributionStore } from "@/store/contribution-store";
 /** Messages are flat key → ICU string; English defines the shape. */
 export type Messages = typeof en;
 
-const LOADERS: Record<string, () => Promise<{ default: Partial<Messages> }>> = {
+/**
+ * One entry per non-English locale, typed against {@link LocaleCode}.
+ *
+ * Adding a language to AVAILABLE_LOCALES without an interface catalog is a
+ * compile error here, rather than a picker that offers a language and then
+ * silently renders English.
+ */
+const LOADERS: Record<Exclude<LocaleCode, "en">, () => Promise<{ default: Partial<Messages> }>> = {
   fr: () => import("@/messages/fr.json"),
   de: () => import("@/messages/de.json"),
   es: () => import("@/messages/es.json"),
@@ -39,7 +47,7 @@ export function AppIntlProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    const load = LOADERS[locale];
+    const load = Object.hasOwn(LOADERS, locale) ? LOADERS[locale as Exclude<LocaleCode, "en">] : undefined;
     if (!load) {
       setMessages(en);
       return;

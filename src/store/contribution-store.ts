@@ -4,7 +4,9 @@ import {
   createAuthor,
   DEFAULT_MONO_COLOR,
   deduplicateAuthorInitials,
+  isUsableAuthorName,
   isValidOrcid,
+  MAX_AUTHOR_NAME_LENGTH,
   MAX_AUTHORS,
   normalizeOrcid,
   parseAuthorText,
@@ -14,6 +16,27 @@ import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 export type InputMode = "toggle" | "levels";
+
+/**
+ * One paper's worth of work.
+ *
+ * Everything describing *this paper* lives here; everything describing *this
+ * person's preferences* (interface language, whether the welcome has been seen)
+ * stays outside it, so switching drafts never changes the interface.
+ */
+export interface Draft {
+  id: string;
+  title: string;
+  authors: Author[];
+  inputMode: InputMode;
+  heatmapMonoColor: string;
+  outputLocale: string;
+  /** Last write, in epoch milliseconds. Orders the picker. */
+  updatedAt: number;
+}
+
+/** More than anyone writes at once, and well inside what localStorage holds. */
+export const MAX_DRAFTS = 50;
 
 interface ContributionState {
   authors: Author[];
@@ -35,8 +58,24 @@ interface ContributionState {
   /** Whether the welcome card is currently open. Ephemeral (not persisted), so a
    *  "How it works" re-open never survives a reload as a fake first run. */
   welcomeOpen: boolean;
+  /**
+   * Every draft *except* the live one, which is held in the top-level fields
+   * above so no component has to reach through a map to read its authors.
+   * Storage sees the normalized form: `partialize` folds the live fields back
+   * into this map on the way out, and `merge` unpacks the active one on the
+   * way in.
+   */
+  drafts: Record<string, Draft>;
+  activeDraftId: string;
   loadAuthors: (authors: Author[]) => void;
   setTitle: (title: string) => void;
+  /** Start an empty draft and switch to it. Returns its id, or null at the cap. */
+  createDraft: () => string | null;
+  switchDraft: (draftId: string) => void;
+  renameDraft: (draftId: string, title: string) => void;
+  /** Copy a draft, contributions and all. Returns the new id, or null at the cap. */
+  duplicateDraft: (draftId: string) => string | null;
+  deleteDraft: (draftId: string) => void;
   loadSample: () => void;
   setAuthorsFromText: (text: string) => void;
   /** Adds a contributor and returns its id; null when the name has no letters to parse. */
@@ -127,17 +166,241 @@ function normalizeAuthors(authors: Author[]): Author[] {
   );
 }
 
+/** Snapshot the live top-level fields as a draft record. */
+function liveDraft(state: ContributionState): Draft {
+  return {
+    id: state.activeDraftId,
+    title: state.title,
+    authors: state.authors,
+    inputMode: state.inputMode,
+    heatmapMonoColor: state.heatmapMonoColor,
+    outputLocale: state.outputLocale,
+    updatedAt: Date.now(),
+  };
+}
+
+/** Write a draft record into the live top-level fields. */
+function applyDraft(state: ContributionState, draft: Draft): void {
+  state.activeDraftId = draft.id;
+  state.title = draft.title;
+  state.authors = draft.authors;
+  state.inputMode = draft.inputMode;
+  state.heatmapMonoColor = draft.heatmapMonoColor;
+  state.outputLocale = draft.outputLocale;
+}
+
+/** A fresh, empty draft. */
+function emptyDraft(title = ""): Draft {
+  return {
+    id: globalThis.crypto.randomUUID(),
+    title,
+    authors: [],
+    inputMode: "toggle",
+    heatmapMonoColor: DEFAULT_MONO_COLOR,
+    outputLocale: "en",
+    updatedAt: Date.now(),
+  };
+}
+
+/** Park the live draft in the map, so a switch does not lose it. */
+function stashLive(state: ContributionState): void {
+  state.drafts[state.activeDraftId] = liveDraft(state);
+}
+
+/** Current persisted shape. See the `version` note in the persist config. */
+const PERSIST_VERSION = 1;
+
+/**
+ * One entry per version bump, keyed by the version it produces.
+ *
+ * Empty until launch. A step receives the state as the previous version left
+ * it and returns it in its own shape, e.g.
+ *   2: (state) => ({ ...state, heatmapMonoColor: state.color ?? DEFAULT_MONO_COLOR }),
+ */
+const MIGRATIONS: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {};
+
+/** Run every migration between the persisted version and the current one. */
+function migratePersisted(persisted: unknown, from: number): unknown {
+  if (persisted === null || typeof persisted !== "object") return {};
+  // A draft from a *newer* build may hold fields this one does not understand,
+  // and no step exists to walk backwards. Start fresh rather than guess.
+  if (from > PERSIST_VERSION) return {};
+
+  let state = persisted as Record<string, unknown>;
+  for (let version = from + 1; version <= PERSIST_VERSION; version += 1) {
+    const step = MIGRATIONS[version];
+    if (step) state = step(state);
+  }
+  return state;
+}
+
+/** Drop anything from a draft's contributor list that would make a later edit throw. */
+function repairAuthors(authors: unknown): Author[] {
+  if (!Array.isArray(authors)) return [];
+  return authors
+    .filter((author): author is Author => {
+      if (author === null || typeof author !== "object") return false;
+      const name = (author as { name?: unknown }).name;
+      // The exact rule createAuthor enforces; anything else throws on the next
+      // list edit rather than at load, which is far harder to diagnose.
+      return typeof name === "string" && name.length <= MAX_AUTHOR_NAME_LENGTH && isUsableAuthorName(name);
+    })
+    .slice(0, MAX_AUTHORS);
+}
+
+/** Rebuild one persisted draft, filling anything missing or malformed. */
+function repairSingleDraft(value: unknown, id: string): Draft {
+  const raw = (value !== null && typeof value === "object" ? value : {}) as Partial<Draft>;
+  return {
+    id,
+    title: typeof raw.title === "string" ? raw.title.slice(0, MAX_TITLE_LENGTH) : "",
+    authors: repairAuthors(raw.authors),
+    inputMode: raw.inputMode === "levels" ? "levels" : "toggle",
+    heatmapMonoColor: typeof raw.heatmapMonoColor === "string" ? raw.heatmapMonoColor : DEFAULT_MONO_COLOR,
+    outputLocale: typeof raw.outputLocale === "string" ? raw.outputLocale : "en",
+    updatedAt: typeof raw.updatedAt === "number" ? raw.updatedAt : 0,
+  };
+}
+
+/**
+ * Turn the persisted, normalized shape back into the live one.
+ *
+ * Repair runs on every load, not just on a version change: a draft can be
+ * malformed without its version being wrong — localStorage edited by hand, a
+ * half-written value from a crashed tab, or a field this build no longer
+ * accepts. `normalizeAuthors` throws on a contributor it cannot rebuild, and it
+ * runs inside the reducer for *every* list edit, so one bad row means adding,
+ * removing or renaming anything throws uncaught and the workspace is unusable
+ * until localStorage is cleared. Dropping the bad rows costs those rows;
+ * keeping them costs the app.
+ */
+function hydrateDrafts(persisted: unknown): Partial<ContributionState> {
+  if (persisted === null || typeof persisted !== "object") return {};
+  const state = persisted as Record<string, unknown>;
+
+  const rawDrafts = (state.drafts !== null && typeof state.drafts === "object" ? state.drafts : {}) as Record<
+    string,
+    unknown
+  >;
+  const drafts: Record<string, Draft> = {};
+  for (const [id, value] of Object.entries(rawDrafts)) drafts[id] = repairSingleDraft(value, id);
+
+  // "No active draft" is not a renderable state. Prefer the stored choice, then
+  // the most recently touched survivor, then a fresh empty one.
+  const storedId = typeof state.activeDraftId === "string" ? state.activeDraftId : "";
+  const active = drafts[storedId] ?? Object.values(drafts).sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? emptyDraft();
+  drafts[active.id] = active;
+
+  return {
+    drafts,
+    activeDraftId: active.id,
+    title: active.title,
+    authors: active.authors,
+    inputMode: active.inputMode,
+    heatmapMonoColor: active.heatmapMonoColor,
+    outputLocale: active.outputLocale,
+    ...(typeof state.uiLocale === "string" ? { uiLocale: state.uiLocale } : {}),
+    ...(typeof state.welcomeSeen === "boolean" ? { welcomeSeen: state.welcomeSeen } : {}),
+  };
+}
+
+/**
+ * The id the very first draft carries before anything is persisted. A constant
+ * rather than a fresh uuid, so the server render and the first client render
+ * agree (see `skipHydration`).
+ */
+const INITIAL_DRAFT_ID = "draft-1";
+
 export const useContributionStore = create<ContributionState>()(
   persist(
     immer((set) => ({
       authors: [],
       title: "",
+      // One empty draft always exists: "no active draft" is not a renderable
+      // state, so the store never allows it.
+      drafts: {},
+      activeDraftId: INITIAL_DRAFT_ID,
       inputMode: "toggle",
       heatmapMonoColor: DEFAULT_MONO_COLOR,
       outputLocale: "en",
       uiLocale: "en",
       welcomeSeen: false,
       welcomeOpen: false,
+
+      createDraft: () => {
+        let created: string | null = null;
+        set((state) => {
+          // Stash first: only then does the map certainly contain the live
+          // draft, which makes the count exact rather than off by one.
+          stashLive(state);
+          if (Object.keys(state.drafts).length >= MAX_DRAFTS) return;
+          const draft = emptyDraft();
+          state.drafts[draft.id] = draft;
+          applyDraft(state, draft);
+          created = draft.id;
+        });
+        return created;
+      },
+
+      switchDraft: (draftId) =>
+        set((state) => {
+          if (draftId === state.activeDraftId) return;
+          const target = state.drafts[draftId];
+          if (!target) return;
+          stashLive(state);
+          applyDraft(state, target);
+        }),
+
+      renameDraft: (draftId, title) =>
+        set((state) => {
+          const trimmed = title.trim().slice(0, MAX_TITLE_LENGTH);
+          // The live draft's title is the top-level one; the map copy is
+          // refreshed on the way out, so writing only here would be lost.
+          if (draftId === state.activeDraftId) {
+            state.title = trimmed;
+            return;
+          }
+          const target = state.drafts[draftId];
+          if (!target) return;
+          target.title = trimmed;
+          target.updatedAt = Date.now();
+        }),
+
+      duplicateDraft: (draftId) => {
+        let created: string | null = null;
+        set((state) => {
+          stashLive(state);
+          if (Object.keys(state.drafts).length >= MAX_DRAFTS) return;
+          const source = state.drafts[draftId];
+          if (!source) return;
+          const copy: Draft = {
+            ...source,
+            id: globalThis.crypto.randomUUID(),
+            // Fresh ids throughout: two drafts sharing a contributor id would
+            // make every id-keyed lookup ambiguous once both are in memory.
+            authors: source.authors.map((author) => ({ ...author, id: globalThis.crypto.randomUUID() })),
+            updatedAt: Date.now(),
+          };
+          state.drafts[copy.id] = copy;
+          created = copy.id;
+        });
+        return created;
+      },
+
+      deleteDraft: (draftId) =>
+        set((state) => {
+          stashLive(state);
+          if (!state.drafts[draftId]) return;
+          delete state.drafts[draftId];
+
+          if (draftId !== state.activeDraftId) return;
+          // Deleting what you are looking at lands on the most recently touched
+          // survivor, or on a fresh empty draft when there is none.
+          const next = Object.values(state.drafts).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+          const target = next ?? emptyDraft();
+          state.drafts[target.id] = target;
+          applyDraft(state, target);
+        }),
 
       loadAuthors: (authors) =>
         set((state) => {
@@ -354,14 +617,25 @@ export const useContributionStore = create<ContributionState>()(
           // uiLocale is a display preference, not draft data: a workspace reset
           // should not silently switch the interface back to English.
           state.welcomeOpen = false;
+          // Empties the draft you are in; the other drafts are untouched.
+          // Discarding them would make one button destroy a year of papers.
+          state.drafts[state.activeDraftId] = liveDraft(state);
         }),
     })),
     {
       name: "credit-generator-state",
-      // No `migrate`: the app has no users yet, so a persisted draft in an
-      // older shape is discarded on load rather than carried forward. Bump this
-      // whenever the persisted shape changes.
-      version: 6,
+      /**
+       * Stays at 1 until launch. There are no users, so the persisted shape can
+       * change freely without a migration step for a version nobody holds.
+       *
+       * After launch: bump this and add the matching step to MIGRATIONS. The
+       * chain runs one hop at a time, so each step only describes its own
+       * change and never has to know the whole history.
+       */
+      version: PERSIST_VERSION,
+      migrate: migratePersisted,
+      /** Unpack the stored drafts and repair them; see `hydrateDrafts`. */
+      merge: (persisted, current) => ({ ...current, ...hydrateDrafts(persisted) }),
       // Don't read localStorage during store creation: the server renders the
       // empty initial state, so a synchronous rehydrate here would desync the
       // first client render (hydration mismatch). A client effect calls
@@ -369,11 +643,11 @@ export const useContributionStore = create<ContributionState>()(
       skipHydration: true,
       // spell-checker: ignore partialize
       partialize: (state) => ({
-        authors: state.authors,
-        title: state.title,
-        inputMode: state.inputMode,
-        heatmapMonoColor: state.heatmapMonoColor,
-        outputLocale: state.outputLocale,
+        // Storage sees the normalized shape: every draft in one map, with the
+        // live top-level fields folded back into the active entry. Memory keeps
+        // them unpacked so components read `authors` directly.
+        drafts: { ...state.drafts, [state.activeDraftId]: liveDraft(state) },
+        activeDraftId: state.activeDraftId,
         uiLocale: state.uiLocale,
         welcomeSeen: state.welcomeSeen,
       }),
