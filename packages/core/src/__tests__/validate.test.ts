@@ -24,6 +24,8 @@ describe("validateContributions", () => {
     const issues = validateContributions(authors);
     expect(issues).toContainEqual({
       level: "warning",
+      code: "authorNoRoles",
+      authorName: "Bob White",
       message: "Bob White has no assigned CRediT roles.",
     });
   });

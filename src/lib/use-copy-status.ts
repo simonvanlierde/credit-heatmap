@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "use-intl";
 import { announce } from "@/lib/announce";
 
 export type CopyStatus = "idle" | "copied" | "error";
@@ -16,6 +17,7 @@ export function useCopyStatus(labels?: {
   copied?: string;
   error?: string;
 }): [CopyStatus, (source: string | (() => Promise<void>)) => Promise<void>] {
+  const t = useTranslations();
   const [status, setStatus] = useState<CopyStatus>("idle");
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -30,10 +32,10 @@ export function useCopyStatus(labels?: {
         await source();
       }
       setStatus("copied");
-      announce(labels?.copied ?? "Copied to clipboard");
+      announce(labels?.copied ?? t("annCopiedToClipboard"));
     } catch {
       setStatus("error");
-      announce(labels?.error ?? "Copy failed", { assertive: true });
+      announce(labels?.error ?? t("copyFailedMessage"), { assertive: true });
     }
     // Reset the window on each copy so rapid successive copies don't clear early.
     clearTimeout(timer.current);

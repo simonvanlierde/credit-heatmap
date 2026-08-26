@@ -5,5 +5,10 @@
   "supporting": "Di supporto",
   "none": "Nessuno",
   "contributed": "Contribuito",
-  "emptyState": "Nessun contributo ancora assegnato."
+  "emptyState": "Nessun contributo ancora assegnato.",
+  "equalContributionNote": "{names} hanno contribuito in egual misura a questo lavoro.",
+  "correspondenceNote": "Corrispondenza: {names}.",
+  "nameListPair": "{first} e {last}",
+  "nameListEnd": "{head} e {last}",
+  "nameListSeparator": ", "
 }

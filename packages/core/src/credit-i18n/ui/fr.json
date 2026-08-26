@@ -5,5 +5,10 @@
   "supporting": "Secondaire",
   "none": "Aucun",
   "contributed": "Contribué",
-  "emptyState": "Aucune contribution attribuée pour l'instant."
+  "emptyState": "Aucune contribution attribuée pour l'instant.",
+  "equalContributionNote": "{names} ont contribué à parts égales à ce travail.",
+  "correspondenceNote": "Correspondance : {names}.",
+  "nameListPair": "{first} et {last}",
+  "nameListEnd": "{head} et {last}",
+  "nameListSeparator": ", "
 }

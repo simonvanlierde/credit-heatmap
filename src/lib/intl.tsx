@@ -2,7 +2,8 @@
 
 import type { LocaleCode } from "@credit-generator/core";
 import { type ReactNode, useEffect, useState } from "react";
-import { IntlProvider } from "use-intl";
+import { IntlProvider, useTranslations } from "use-intl";
+import { announce, STORAGE_FULL_EVENT } from "@/lib/announce";
 import en from "@/messages/en.json";
 import { useContributionStore } from "@/store/contribution-store";
 
@@ -30,38 +31,41 @@ export type Messages = typeof en;
  * compile error here, rather than a picker that offers a language and then
  * silently renders English.
  */
-const LOADERS: Record<Exclude<LocaleCode, "en">, () => Promise<{ default: Partial<Messages> }>> = {
+const LOADERS: Record<Exclude<LocaleCode, "en">, () => Promise<{ default: Messages }>> = {
   fr: () => import("@/messages/fr.json"),
   de: () => import("@/messages/de.json"),
   es: () => import("@/messages/es.json"),
   it: () => import("@/messages/it.json"),
-  pt: () => import("@/messages/pt.json"),
+  "pt-PT": () => import("@/messages/pt.json"),
   nl: () => import("@/messages/nl.json"),
-  zh: () => import("@/messages/zh.json"),
+  "zh-Hans": () => import("@/messages/zh.json"),
   ja: () => import("@/messages/ja.json"),
 };
 
 export function AppIntlProvider({ children }: { children: ReactNode }) {
   const locale = useContributionStore((s) => s.uiLocale);
-  const [messages, setMessages] = useState<Messages>(en);
+  const [loaded, setLoaded] = useState<{ requested: LocaleCode; effective: LocaleCode; messages: Messages }>({
+    requested: "en",
+    effective: "en",
+    messages: en,
+  });
+  const current = loaded.requested === locale ? loaded : { requested: locale, effective: "en" as const, messages: en };
 
   useEffect(() => {
     let active = true;
     const load = Object.hasOwn(LOADERS, locale) ? LOADERS[locale as Exclude<LocaleCode, "en">] : undefined;
     if (!load) {
-      setMessages(en);
+      setLoaded({ requested: locale, effective: "en", messages: en });
       return;
     }
     load()
-      // Merge over English so a key a locale has not translated renders English
-      // rather than the key name.
       .then((mod) => {
-        if (active) setMessages({ ...en, ...mod.default });
+        if (active) setLoaded({ requested: locale, effective: locale, messages: mod.default });
       })
       .catch(() => {
         // A locale chunk failed to load (e.g. a stale deploy). English is a
         // working interface; a missing-message crash is not.
-        if (active) setMessages(en);
+        if (active) setLoaded({ requested: locale, effective: "en", messages: en });
       });
     return () => {
       active = false;
@@ -74,13 +78,13 @@ export function AppIntlProvider({ children }: { children: ReactNode }) {
   // attribute. Without it a Dutch interface still announces itself as English
   // and a screen reader applies English pronunciation to every label.
   useEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
+    document.documentElement.lang = current.effective;
+  }, [current.effective]);
 
   return (
     <IntlProvider
-      locale={locale}
-      messages={messages}
+      locale={current.effective}
+      messages={current.messages}
       // Never blank a control: fall back to the English text, then the key.
       getMessageFallback={({ key }) => (en as Record<string, string>)[key] ?? key}
       onError={() => {
@@ -88,7 +92,18 @@ export function AppIntlProvider({ children }: { children: ReactNode }) {
         // above already renders something sensible, so stay quiet.
       }}
     >
+      <LocalizedSystemAnnouncements />
       {children}
     </IntlProvider>
   );
+}
+
+function LocalizedSystemAnnouncements() {
+  const t = useTranslations();
+  useEffect(() => {
+    const onStorageFull = () => announce(t("errStorageFull"), { assertive: true });
+    window.addEventListener(STORAGE_FULL_EVENT, onStorageFull);
+    return () => window.removeEventListener(STORAGE_FULL_EVENT, onStorageFull);
+  }, [t]);
+  return null;
 }

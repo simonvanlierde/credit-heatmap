@@ -38,6 +38,7 @@ export {
   loadRoleCatalog,
   makeRoleDescriber,
   makeRoleTranslator,
+  normalizeLocaleCode,
 } from "./credit-i18n/index.js";
 export type { UiCatalog, UiKey, UiTranslator } from "./credit-i18n/ui-strings.js";
 export { DEFAULT_UI_TRANSLATOR, loadUiCatalog, makeUiTranslator } from "./credit-i18n/ui-strings.js";

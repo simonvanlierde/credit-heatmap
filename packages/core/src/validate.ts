@@ -4,10 +4,9 @@ import type { CreditRoleName } from "./credit-roles.js";
 
 export type ValidationLevel = "warning" | "info";
 
-export interface ValidationIssue {
-  level: ValidationLevel;
-  message: string;
-}
+export type ValidationIssue =
+  | { level: "warning"; code: "authorNoRoles"; authorName: string; message: string }
+  | { level: "info"; code: "roleUnassigned"; role: CreditRoleName; message: string };
 
 /** Roles most journals expect to be assigned to at least one contributor. */
 const EXPECTED_ROLES: CreditRoleName[] = ["Conceptualization", "Writing – original draft"];
@@ -29,6 +28,8 @@ export function validateContributions(authors: Author[]): ValidationIssue[] {
     if (!hasContributions(author)) {
       issues.push({
         level: "warning",
+        code: "authorNoRoles",
+        authorName: author.name || "An author",
         message: `${author.name || "An author"} has no assigned CRediT roles.`,
       });
     }
@@ -45,6 +46,8 @@ export function validateContributions(authors: Author[]): ValidationIssue[] {
     if (!assigned.has(role)) {
       issues.push({
         level: "info",
+        code: "roleUnassigned",
+        role,
         message: `No contributor is assigned “${role}”.`,
       });
     }

@@ -41,7 +41,7 @@ export function ColorPopover({
                 type="button"
                 onClick={() => onChange(hex)}
                 title={hex}
-                aria-label={`Set color ${hex}`}
+                aria-label={t("a11ySetColor", { color: hex })}
                 aria-pressed={selected}
                 className="flex size-6 items-center justify-center rounded-full ring-offset-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 style={{ backgroundColor: hex }}
@@ -69,7 +69,7 @@ export function ColorPopover({
               className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant transition-colors hover:text-primary"
             >
               <RotateCcw className="h-3 w-3" />
-              Reset
+              {t("resetColor")}
             </button>
           )}
         </div>

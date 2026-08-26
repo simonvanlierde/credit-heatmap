@@ -129,7 +129,7 @@ invocation log. After changing the binding, check the first deploy's logs for
 - **Review the translations.** The interface ships in eight languages, machine-translated and
   checked for consistency, ICU correctness, and CRediT terminology. Japanese and Chinese in
   particular still want a native speaker: the term for a contribution *statement* is unsettled.
-- **Widen locale coverage.** Eight locales ship today (de, es, fr, it, ja, nl, pt, zh), a curated
+- **Widen locale coverage.** Eight locales ship today (de, es, fr, it, ja, nl, pt-PT, zh-Hans), a curated
   subset of
   [credit-translation](https://github.com/contributorshipcollaboration/credit-translation), vendored
   under [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations).

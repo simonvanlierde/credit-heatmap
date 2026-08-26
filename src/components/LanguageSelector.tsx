@@ -1,6 +1,6 @@
 "use client";
 
-import { AVAILABLE_LOCALES } from "@credit-generator/core";
+import { AVAILABLE_LOCALES, type LocaleCode } from "@credit-generator/core";
 import { Languages } from "lucide-react";
 import { useTranslations } from "use-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -39,7 +39,7 @@ export function LanguageSelector() {
               associate with it. Point the trigger at the visible text instead. */}
           <div className="grid gap-1.5 text-xs font-medium text-on-surface">
             <span id="ui-locale-label">{t("interfaceLanguage")}</span>
-            <Select value={uiLocale} onValueChange={setUiLocale}>
+            <Select value={uiLocale} onValueChange={(value) => setUiLocale(value as LocaleCode)}>
               <SelectTrigger aria-labelledby="ui-locale-label" className="w-full text-xs font-normal">
                 <SelectValue />
               </SelectTrigger>
@@ -55,7 +55,7 @@ export function LanguageSelector() {
 
           <div className="grid gap-1.5 text-xs font-medium text-on-surface">
             <span id="output-locale-label">{t("outputLanguage")}</span>
-            <Select value={outputLocale} onValueChange={setOutputLocale}>
+            <Select value={outputLocale} onValueChange={(value) => setOutputLocale(value as LocaleCode)}>
               <SelectTrigger aria-labelledby="output-locale-label" className="w-full text-xs font-normal">
                 <SelectValue />
               </SelectTrigger>

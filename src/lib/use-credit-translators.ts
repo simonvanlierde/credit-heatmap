@@ -4,6 +4,7 @@ import {
   DEFAULT_ROLE_TRANSLATOR,
   DEFAULT_UI_TRANSLATOR,
   getRoleByName,
+  type LocaleCode,
   loadRoleCatalog,
   loadUiCatalog,
   makeRoleDescriber,
@@ -32,13 +33,30 @@ interface CreditTranslators {
   translateUi: UiTranslator;
   /** Role description, in the INTERFACE language: help text that never gets exported. */
   describeRole: RoleDescriber;
+  /** Role name used in controls and validation, in the interface language. */
+  translateInterfaceRole: RoleTranslator;
+  /** Contribution-level labels used in controls, in the interface language. */
+  translateInterfaceUi: UiTranslator;
+  /** Actual language of generated output, including a truthful fallback. */
+  outputLanguage: LocaleCode;
+  /** Actual language of role help text, including a truthful fallback. */
+  interfaceRoleLanguage: LocaleCode;
 }
 
 const ENGLISH: CreditTranslators = {
   translateRole: DEFAULT_ROLE_TRANSLATOR,
   translateUi: DEFAULT_UI_TRANSLATOR,
   describeRole: ENGLISH_DESCRIPTION,
+  translateInterfaceRole: DEFAULT_ROLE_TRANSLATOR,
+  translateInterfaceUi: DEFAULT_UI_TRANSLATOR,
+  outputLanguage: "en",
+  interfaceRoleLanguage: "en",
 };
+
+interface LoadedTranslators extends CreditTranslators {
+  requestedOutputLocale: LocaleCode;
+  requestedUiLocale: LocaleCode;
+}
 
 /**
  * Everything that reads the vendored CRediT catalog, in one subscription.
@@ -58,7 +76,13 @@ const ENGLISH: CreditTranslators = {
 export function useCreditTranslators(): CreditTranslators {
   const outputLocale = useContributionStore((s) => s.outputLocale);
   const uiLocale = useContributionStore((s) => s.uiLocale);
-  const [translators, setTranslators] = useState<CreditTranslators>(ENGLISH);
+  const [loaded, setLoaded] = useState<LoadedTranslators>({
+    ...ENGLISH,
+    requestedOutputLocale: "en",
+    requestedUiLocale: "en",
+  });
+  const translators =
+    loaded.requestedOutputLocale === outputLocale && loaded.requestedUiLocale === uiLocale ? loaded : ENGLISH;
 
   useEffect(() => {
     let active = true;
@@ -69,19 +93,31 @@ export function useCreditTranslators(): CreditTranslators {
       loadUiCatalog(outputLocale),
       // Skip the second fetch when both languages agree, which is the default.
       sameLocale ? null : loadRoleCatalog(uiLocale),
+      sameLocale ? null : loadUiCatalog(uiLocale),
     ])
-      .then(([outputRoles, outputUi, uiRoles]) => {
+      .then(([outputRoles, outputUi, uiRoles, uiUi]) => {
         if (!active) return;
-        setTranslators({
+        setLoaded({
           translateRole: makeRoleTranslator(outputRoles),
           translateUi: makeUiTranslator(outputUi),
           describeRole: makeRoleDescriber(sameLocale ? outputRoles : uiRoles, ENGLISH_DESCRIPTION),
+          translateInterfaceRole: makeRoleTranslator(sameLocale ? outputRoles : uiRoles),
+          translateInterfaceUi: makeUiTranslator(sameLocale ? outputUi : uiUi),
+          outputLanguage: outputLocale,
+          interfaceRoleLanguage: uiLocale,
+          requestedOutputLocale: outputLocale,
+          requestedUiLocale: uiLocale,
         });
       })
       .catch(() => {
         // A locale chunk failed to load (e.g. a stale deploy). English is a
         // working interface; a crash is not.
-        if (active) setTranslators(ENGLISH);
+        if (active)
+          setLoaded({
+            ...ENGLISH,
+            requestedOutputLocale: outputLocale,
+            requestedUiLocale: uiLocale,
+          });
       });
 
     return () => {

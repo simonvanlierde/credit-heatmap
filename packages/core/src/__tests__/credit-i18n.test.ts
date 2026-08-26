@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadRoleCatalog, makeRoleTranslator } from "../credit-i18n/index.js";
+import { loadRoleCatalog, makeRoleTranslator, normalizeLocaleCode } from "../credit-i18n/index.js";
 import { DEFAULT_UI_TRANSLATOR, loadUiCatalog, makeUiTranslator, type UiKey } from "../credit-i18n/ui-strings.js";
 import { generateStatement } from "../generate-statement.js";
 import { parseAuthorText } from "../parse-authors.js";
@@ -42,9 +42,34 @@ describe("loadRoleCatalog", () => {
   });
 });
 
+describe("normalizeLocaleCode", () => {
+  it("migrates legacy locale aliases to explicit BCP 47 tags", () => {
+    expect(normalizeLocaleCode("pt")).toBe("pt-PT");
+    expect(normalizeLocaleCode("zh")).toBe("zh-Hans");
+  });
+
+  it("falls back to English for unsupported or malformed values", () => {
+    expect(normalizeLocaleCode("xx")).toBe("en");
+    expect(normalizeLocaleCode(null)).toBe("en");
+  });
+});
+
 // Every locale that ships a UI catalog, and every key one may contain.
-const UI_LOCALES = ["fr", "de", "es", "it", "pt", "nl", "zh", "ja"];
-const UI_KEYS: UiKey[] = ["acknowledgements", "lead", "equal", "supporting", "none", "contributed", "emptyState"];
+const UI_LOCALES = ["fr", "de", "es", "it", "pt-PT", "nl", "zh-Hans", "ja"];
+const UI_KEYS: UiKey[] = [
+  "acknowledgements",
+  "lead",
+  "equal",
+  "supporting",
+  "none",
+  "contributed",
+  "emptyState",
+  "equalContributionNote",
+  "correspondenceNote",
+  "nameListPair",
+  "nameListEnd",
+  "nameListSeparator",
+];
 
 describe("loadUiCatalog", () => {
   it("returns null for en (canonical source) and unknown locales", async () => {
@@ -52,12 +77,12 @@ describe("loadUiCatalog", () => {
     expect(await loadUiCatalog("xx")).toBeNull();
   });
 
-  it.each(UI_LOCALES)("loads %s with only known, non-empty keys", async (locale) => {
+  it.each(UI_LOCALES)("loads %s with every known key populated", async (locale) => {
     const catalog = await loadUiCatalog(locale);
     expect(catalog).not.toBeNull();
 
     const entries = Object.entries(catalog ?? {});
-    expect(entries.length).toBeGreaterThan(0);
+    expect(entries).toHaveLength(UI_KEYS.length);
     for (const [key, value] of entries) {
       // Catches a key left behind after a rename or removal, which would
       // otherwise sit in the catalogs untranslated and unnoticed.

@@ -21,8 +21,8 @@ export function ClaimBanner() {
   const authors = useContributionStore((s) => s.authors);
   const claimDraftId = useContributionStore((s) => s.claimDraftId);
   const [copyStatus, copy] = useCopyStatus({
-    copied: "Link copied to clipboard",
-    error: "Could not copy the link",
+    copied: t("annLinkCopied"),
+    error: t("copyFailedMessage"),
   });
 
   const claimed = claimIndex === null ? undefined : authors[claimIndex];
@@ -35,7 +35,7 @@ export function ClaimBanner() {
       // was asked about rather than on whatever the recipient has open.
       await copy(buildShareUrl(authors, { claimIndex, ...(claimDraftId ? { draftId: claimDraftId } : {}) }));
     } catch {
-      announce("This draft is too large to send back as a link. Export it as JSON instead.", { assertive: true });
+      announce(t("errShareTooLarge"), { assertive: true });
     }
   }
 

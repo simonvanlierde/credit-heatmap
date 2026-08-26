@@ -102,16 +102,6 @@ function detect(text: string): DetectedFormat {
 /** The import size cap, written the way the messages below say it. */
 const MAX_IMPORT_MB = `${Math.round(MAX_IMPORT_BYTES / 1_000_000)} MB`;
 
-/** Format names are proper nouns; the "names" case is translated at render. */
-const FORMAT_LABEL: Record<DetectedFormat, string> = {
-  link: "Share link",
-  csv: "CSV",
-  json: "JSON export",
-  xml: "JATS4R XML",
-  names: "",
-  unknown: "",
-};
-
 /** Parser + "nothing found" message for each detectable format. */
 const IMPORTERS: Record<
   Exclude<DetectedFormat, "unknown" | "link">,
@@ -154,7 +144,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
 
   async function handleFileRead(file: File) {
     if (file.size > MAX_IMPORT_BYTES) {
-      showError(`That file is too large. Choose a file smaller than ${MAX_IMPORT_MB}.`);
+      showError(t("errFileTooLarge", { limit: MAX_IMPORT_MB }));
       return;
     }
     try {
@@ -189,7 +179,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
     if (format === "unknown") return;
     try {
       if (new TextEncoder().encode(text).byteLength > MAX_IMPORT_BYTES) {
-        showError(`That import is too large. Paste less than ${MAX_IMPORT_MB} of data.`);
+        showError(t("errImportTooLarge", { limit: MAX_IMPORT_MB }));
         return;
       }
       if (format === "link") {
@@ -210,12 +200,12 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
         return;
       }
       if (authors.length > MAX_AUTHORS) {
-        showError(`That import has too many contributors. The limit is ${MAX_AUTHORS}.`);
+        showError(t("errTooManyContributors", { limit: MAX_AUTHORS }));
         return;
       }
       stageImport({ authors });
-    } catch (err) {
-      showError(err instanceof Error ? err.message : t("errImportUnparsable"));
+    } catch {
+      showError(t("errImportFailed"));
     }
   }
 
@@ -250,8 +240,8 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
         createAuthor(author.name, author.orcid ? { orcid: author.orcid } : undefined),
       );
       stageImport({ authors, title: result.title });
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "Could not import those contributors.");
+    } catch {
+      showError(t("errImportFailed"));
     }
   }
 
@@ -262,8 +252,8 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
     // escaped the click handler instead of showing as an import error.
     try {
       onImport(authors, title);
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "Could not import those contributors.");
+    } catch {
+      showError(t("errImportFailed"));
       return;
     }
     setPending(null);
@@ -404,7 +394,15 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
               {format !== "unknown" && (
                 <span className="text-[10px] text-primary font-medium italic">
                   {t("detectedFormat")}
-                  {format === "names" ? t("importAuthorList") : FORMAT_LABEL[format]}
+                  {format === "names"
+                    ? t("importAuthorList")
+                    : format === "link"
+                      ? t("formatShareLink")
+                      : format === "json"
+                        ? t("formatJsonExport")
+                        : format === "xml"
+                          ? "JATS4R XML"
+                          : "CSV"}
                 </span>
               )}
             </div>
@@ -415,7 +413,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
                 setText(e.target.value);
                 setError(null);
               }}
-              placeholder={"Jane A. Smith\nBob White\nCarol Davis\n\nor paste a .csv / .json / .xml export"}
+              placeholder={t("importPlaceholder")}
               rows={6}
               className="w-full bg-surface-container-low border-0 border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none text-sm font-mono p-4 text-on-surface rounded-t resize-none transition-colors"
             />
@@ -427,8 +425,10 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
             <div role="alert" className="rounded-lg bg-error-container/30 p-4 text-sm text-on-surface">
               <p className="font-semibold">{t("replaceWorkspaceTitle")}</p>
               <p className="mt-1 text-on-surface-variant">
-                Importing {pending.authors.length} contributor{pending.authors.length === 1 ? "" : "s"} will replace the{" "}
-                {existingContributorCount} already in this workspace. This cannot be undone.
+                {t("replaceWorkspaceBody", {
+                  incoming: pending.authors.length,
+                  existing: existingContributorCount,
+                })}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button

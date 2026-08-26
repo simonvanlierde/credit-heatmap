@@ -18,11 +18,12 @@ import { MAX_DRAFTS, useContributionStore } from "@/store/contribution-store";
  * Lives in its own Client Component so layout.tsx can stay a Server Component.
  */
 export function HeaderActions() {
+  const t = useTranslations();
   const [importOpen, setImportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareStatus, copyShareUrl] = useCopyStatus({
-    copied: "Share link copied to clipboard",
-    error: "Could not copy share link",
+    copied: t("annLinkCopied"),
+    error: t("copyFailedMessage"),
   });
   const authors = useContributionStore((s) => s.authors);
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
@@ -32,7 +33,6 @@ export function HeaderActions() {
   const drafts = useContributionStore((s) => s.drafts);
   const createDraft = useContributionStore((s) => s.createDraft);
   const switchDraft = useContributionStore((s) => s.switchDraft);
-  const t = useTranslations();
 
   // Rehydrate persisted state on the client (the store skips hydration at
   // creation to avoid an SSR mismatch). Runs before the share-hash effect below

@@ -5,5 +5,10 @@
   "supporting": "辅助",
   "none": "无",
   "contributed": "有贡献",
-  "emptyState": "尚未分配贡献。"
+  "emptyState": "尚未分配贡献。",
+  "equalContributionNote": "{names}对本项工作贡献相同。",
+  "correspondenceNote": "通讯作者：{names}。",
+  "nameListPair": "{first}和{last}",
+  "nameListEnd": "{head}和{last}",
+  "nameListSeparator": "、"
 }

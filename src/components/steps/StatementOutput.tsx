@@ -53,17 +53,19 @@ const DATA_FORMATS: Record<
 
 export function StatementOutput() {
   const { authors } = useContributionStore();
-  const { translateRole, translateUi } = useCreditTranslators();
-  const outputLocale = useContributionStore((s) => s.outputLocale);
+  const { translateRole, translateUi, translateInterfaceRole, outputLanguage } = useCreditTranslators();
   const t = useTranslations();
   // Last beat of the population sequence; see .enter-fade in globals.css.
   const settled = useSettled();
-  const [copyStatus, copyText] = useCopyStatus();
+  const [copyStatus, copyText] = useCopyStatus({
+    copied: t("annStatementCopied"),
+    error: t("copyFailedMessage"),
+  });
   // Separate status for the data-format Copy button, so feedback appears on
   // the button that was clicked rather than on the main statement copy.
   const [dataCopyStatus, copyDataText] = useCopyStatus({
-    copied: "Export data copied to clipboard",
-    error: "Could not copy export data",
+    copied: t("annExportDataCopied"),
+    error: t("copyFailedMessage"),
   });
   const [dataFormat, setDataFormat] = useState<DataFormat>("xml");
   // Statement-local output controls (independent of the heatmap's).
@@ -109,7 +111,7 @@ export function StatementOutput() {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <StepHeader n={3} title={t("statementExportLabel")} className="mr-2" />
         <SegmentedControl
-          ariaLabel="Statement grouping"
+          ariaLabel={t("a11yStatementGrouping")}
           size="sm"
           value={grouping}
           onChange={setGrouping}
@@ -131,7 +133,7 @@ export function StatementOutput() {
         {hasNonAuthors && (
           <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
             <Switch checked={separateAck} onCheckedChange={setSeparateAck} aria-label={t("a11ySeparateAcks")} />
-            Separate acknowledgements
+            {t("separateAcknowledgements")}
           </span>
         )}
       </div>
@@ -166,7 +168,7 @@ export function StatementOutput() {
         // The statement is written in the *output* language, which need not be
         // the page's language. Declaring it lets a screen reader switch
         // pronunciation instead of reading Dutch with English rules.
-        lang={outputLocale}
+        lang={outputLanguage}
         className="relative z-10 min-h-[3.5rem] border-l border-primary bg-surface-container-low p-3 rounded-r focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary desk:min-h-0 desk:overflow-y-auto"
         style={{ fontFamily: "var(--font-headline)" }}
       >
@@ -186,7 +188,7 @@ export function StatementOutput() {
           </p>
         ) : (
           <p key="placeholder" className="text-sm text-on-surface-variant not-italic">
-            No contributions assigned yet. Click cells in the grid to assign roles.
+            {t("statementEmptyHint")}
           </p>
         )}
       </section>
@@ -200,23 +202,29 @@ export function StatementOutput() {
           aria-label={t("a11yStatementNotes")}
           aria-live="polite"
         >
-          {issues.map((issue) => (
-            <li
-              key={issue.message}
-              className={`flex items-start gap-2 text-xs rounded px-3 py-2 ${
-                issue.level === "warning"
-                  ? "bg-error-container/30 text-error"
-                  : "bg-surface-container-high text-on-surface-variant"
-              }`}
-            >
-              {issue.level === "warning" ? (
-                <TriangleAlert className="h-4 w-4 shrink-0 mt-px" />
-              ) : (
-                <Info className="h-4 w-4 shrink-0 mt-px" />
-              )}
-              <span>{issue.message}</span>
-            </li>
-          ))}
+          {issues.map((issue) => {
+            const text =
+              issue.code === "authorNoRoles"
+                ? t("validationAuthorNoRoles", { name: issue.authorName })
+                : t("validationRoleUnassigned", { role: translateInterfaceRole(issue.role) });
+            return (
+              <li
+                key={`${issue.code}-${text}`}
+                className={`flex items-start gap-2 text-xs rounded px-3 py-2 ${
+                  issue.level === "warning"
+                    ? "bg-error-container/30 text-error"
+                    : "bg-surface-container-high text-on-surface-variant"
+                }`}
+              >
+                {issue.level === "warning" ? (
+                  <TriangleAlert className="h-4 w-4 shrink-0 mt-px" />
+                ) : (
+                  <Info className="h-4 w-4 shrink-0 mt-px" />
+                )}
+                <span>{text}</span>
+              </li>
+            );
+          })}
         </ul>
       )}
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AuthorSchema } from "../author.js";
+import { loadUiCatalog, makeUiTranslator } from "../credit-i18n/ui-strings.js";
 import { fromCsv, toCsv } from "../export/csv.js";
 import { fromJson, toJson } from "../export/json.js";
 import { toMarkdown } from "../export/markdown.js";
@@ -93,6 +94,13 @@ describe("markers in the statement", () => {
   it("carries the notes into the HTML flavour", () => {
     const html = generateStatement(makeAuthors(), { format: "by-role", asHtml: true });
     expect(html).toContain("<p>Jane A. Smith and Bob White contributed equally to this work.</p>");
+  });
+
+  it("uses the output locale's word order and punctuation", async () => {
+    const translateUi = makeUiTranslator(await loadUiCatalog("ja"));
+    const statement = generateStatement(makeAuthors(), { format: "by-role", translateUi });
+    expect(statement).toContain("Jane A. SmithとBob Whiteは本研究に同等に貢献しました。");
+    expect(statement).toContain("責任著者：Jane A. Smith。");
   });
 });
 

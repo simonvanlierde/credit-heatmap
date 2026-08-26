@@ -16,7 +16,7 @@ export function markerNotes(
 ): string[] {
   const { useInitials = false, translateUi = DEFAULT_UI_TRANSLATOR } = options;
   const label = (author: Author) => (useInitials ? author.initials : author.name.replace(/\s+/g, " ").trim());
-  const join = (people: Author[]) => joinNames(people.map(label), translateUi("and"));
+  const join = (people: Author[]) => joinNames(people.map(label), translateUi);
 
   const notes: string[] = [];
   const equal = authors.filter((author) => author.equalContribution);
@@ -30,8 +30,15 @@ export function markerNotes(
   return notes;
 }
 
-/** "A", "A and B", "A, B and C" — no serial comma, matching the statement's style. */
-function joinNames(names: string[], and: string): string {
+/** Join names with locale-owned words, spacing, and punctuation. */
+function joinNames(names: string[], translateUi: UiTranslator): string {
   if (names.length <= 1) return names[0] ?? "";
-  return `${names.slice(0, -1).join(", ")} ${and} ${names[names.length - 1]}`;
+  const last = names[names.length - 1] ?? "";
+  if (names.length === 2) {
+    return translateUi("nameListPair")
+      .replace("{first}", names[0] ?? "")
+      .replace("{last}", last);
+  }
+  const head = names.slice(0, -1).join(translateUi("nameListSeparator"));
+  return translateUi("nameListEnd").replace("{head}", head).replace("{last}", last);
 }

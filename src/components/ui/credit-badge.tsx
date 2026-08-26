@@ -78,9 +78,7 @@ export function CreditBadge({ className }: { className?: string }) {
           <span className="sr-only">{t("opensInNewTab")}</span>
         </a>
 
-        <p className="mb-3 text-xs leading-relaxed text-on-surface-variant">
-          Add this badge to your article to show it uses the taxonomy.
-        </p>
+        <p className="mb-3 text-xs leading-relaxed text-on-surface-variant">{t("badgeIntro")}</p>
 
         <div className="flex flex-col gap-2">
           <button
@@ -89,7 +87,11 @@ export function CreditBadge({ className }: { className?: string }) {
             className="flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary"
           >
             {htmlStatus === "copied" ? <Check className="h-[18px] w-[18px]" /> : <Copy className="h-[18px] w-[18px]" />}
-            {htmlStatus === "copied" ? t("copiedHtml") : htmlStatus === "error" ? t("copyFailedMessage") : "Copy HTML"}
+            {htmlStatus === "copied"
+              ? t("copiedHtml")
+              : htmlStatus === "error"
+                ? t("copyFailedMessage")
+                : t("copyHtml")}
           </button>
           <button
             type="button"
@@ -101,7 +103,7 @@ export function CreditBadge({ className }: { className?: string }) {
             ) : (
               <ImageDown className="h-[18px] w-[18px]" />
             )}
-            {pngStatus === "copied" ? t("copiedPng") : pngStatus === "error" ? t("copyFailedMessage") : "Copy PNG"}
+            {pngStatus === "copied" ? t("copiedPng") : pngStatus === "error" ? t("copyFailedMessage") : t("copyPng")}
           </button>
           <a
             href={BADGE_SRC}
@@ -109,7 +111,7 @@ export function CreditBadge({ className }: { className?: string }) {
             className="flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary"
           >
             <Download className="h-[18px] w-[18px]" />
-            Download PNG
+            {t("downloadPng")}
           </a>
         </div>
       </PopoverContent>

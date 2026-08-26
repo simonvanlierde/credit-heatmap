@@ -6,8 +6,8 @@ import { getRoleByName } from "../credit-roles.js";
  *   https://github.com/contributorshipcollaboration/credit-translation
  *
  * Output-only: this localizes the *displayed* role names in the generated
- * statement and human-facing exports (markdown, heatmap SVG). The data model,
- * CSV/XML/JSON interchange, and app UI chrome stay in canonical English.
+ * statement and human-facing exports (markdown, heatmap SVG). The data model
+ * and CSV/XML/JSON interchange stay in canonical English.
  */
 
 export interface RoleTranslation {
@@ -33,9 +33,9 @@ const LOADERS: Record<string, () => Promise<CatalogFile>> = {
   de: () => import("./translations/de.json"),
   es: () => import("./translations/es.json"),
   it: () => import("./translations/it.json"),
-  pt: () => import("./translations/pt.json"),
+  "pt-PT": () => import("./translations/pt.json"),
   nl: () => import("./translations/nl.json"),
-  zh: () => import("./translations/zh.json"),
+  "zh-Hans": () => import("./translations/zh.json"),
   ja: () => import("./translations/ja.json"),
 };
 
@@ -58,14 +58,29 @@ export const AVAILABLE_LOCALES = [
   { code: "de", name: "Deutsch" },
   { code: "es", name: "Español" },
   { code: "it", name: "Italiano" },
-  { code: "pt", name: "Português" },
+  { code: "pt-PT", name: "Português (Portugal)" },
   { code: "nl", name: "Nederlands" },
-  { code: "zh", name: "中文" },
+  // biome-ignore lint/security/noSecrets: native language name, not a credential
+  { code: "zh-Hans", name: "简体中文" },
   { code: "ja", name: "日本語" },
 ] as const satisfies readonly LocaleInfo[];
 
 /** A language code the picker offers. */
 export type LocaleCode = (typeof AVAILABLE_LOCALES)[number]["code"];
+
+const LOCALE_CODES = new Set<string>(AVAILABLE_LOCALES.map(({ code }) => code));
+
+/**
+ * Normalize stored locale identifiers and reject unsupported values.
+ *
+ * `pt` and `zh` shipped before their regional/script variants were made
+ * explicit. Keep those drafts readable while all new state uses BCP 47 tags.
+ */
+export function normalizeLocaleCode(locale: unknown): LocaleCode {
+  if (locale === "pt") return "pt-PT";
+  if (locale === "zh") return "zh-Hans";
+  return typeof locale === "string" && LOCALE_CODES.has(locale) ? (locale as LocaleCode) : "en";
+}
 
 /** Load a locale's role catalog. Returns null for `en` or any unknown locale (→ identity translator). */
 export async function loadRoleCatalog(locale: string): Promise<RoleCatalog | null> {

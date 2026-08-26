@@ -5,8 +5,9 @@ Role-name/description translations vendored here are from the community
 project, each licensed **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**.
 
 **Modifications:** each source `translations/<lang>.json` was pruned to
-`metadata` (languageName + translators) and `translations` only; no translated
-text was altered.
+`metadata` (languageName + translators) and `translations` only. The Portuguese
+catalog was adapted from Brazilian Portuguese to Portuguese as used in Portugal
+so it matches the interface locale offered by this app.
 
 | Language | Translators |
 | --- | --- |

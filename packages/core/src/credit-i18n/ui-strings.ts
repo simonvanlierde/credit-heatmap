@@ -20,12 +20,14 @@ export type UiKey =
   | "emptyState"
   | "equalContributionNote"
   | "correspondenceNote"
-  | "and";
+  | "nameListPair"
+  | "nameListEnd"
+  | "nameListSeparator";
 
 export type UiTranslator = (key: UiKey) => string;
 
-/** A locale's overrides; any missing key falls back to {@link EN_UI}. */
-export type UiCatalog = Partial<Record<UiKey, string>>;
+/** A complete output catalog. Missing prose must fail before release. */
+export type UiCatalog = Record<UiKey, string>;
 
 /** Canonical English: the source text and the fallback for any missing entry. */
 const EN_UI: Record<UiKey, string> = {
@@ -36,10 +38,12 @@ const EN_UI: Record<UiKey, string> = {
   none: "None",
   contributed: "Contributed",
   emptyState: "No contributions assigned yet.",
-  // `{names}` is substituted with the marked contributors, joined with `and`.
+  // `{names}` is substituted with the marked contributors.
   equalContributionNote: "{names} contributed equally to this work.",
   correspondenceNote: "Correspondence: {names}.",
-  and: "and",
+  nameListPair: "{first} and {last}",
+  nameListEnd: "{head} and {last}",
+  nameListSeparator: ", ",
 };
 
 // One static import() per locale so bundlers code-split each catalog (only the
@@ -49,9 +53,9 @@ const LOADERS: Record<string, () => Promise<{ default: UiCatalog }>> = {
   de: () => import("./ui/de.json"),
   es: () => import("./ui/es.json"),
   it: () => import("./ui/it.json"),
-  pt: () => import("./ui/pt.json"),
+  "pt-PT": () => import("./ui/pt.json"),
   nl: () => import("./ui/nl.json"),
-  zh: () => import("./ui/zh.json"),
+  "zh-Hans": () => import("./ui/zh.json"),
   ja: () => import("./ui/ja.json"),
 };
 
@@ -64,14 +68,11 @@ export async function loadUiCatalog(locale: string): Promise<UiCatalog | null> {
 }
 
 /**
- * Build a UI-string translator from a catalog. Falls back to canonical English
- * when the catalog is null/undefined or is missing the key.
+ * Build a UI-string translator from a catalog. A missing catalog uses English.
  */
-export function makeUiTranslator(catalog: UiCatalog | null | undefined): UiTranslator {
+export function makeUiTranslator(catalog: Partial<UiCatalog> | null | undefined): UiTranslator {
   if (!catalog) return (key) => EN_UI[key];
-  // `||` (not `??`) so an empty-string override also falls back to English
-  // rather than rendering a blank label.
-  return (key) => catalog[key] || EN_UI[key];
+  return (key) => catalog[key]?.trim() || EN_UI[key];
 }
 
 /** Canonical English UI translator (no catalog): the default for all consumers. */

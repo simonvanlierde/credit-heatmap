@@ -76,7 +76,8 @@ export function ContributionGrid() {
     toggleContribution,
     welcomeOpen,
   } = useContributionStore();
-  const { translateRole, translateUi, describeRole } = useCreditTranslators();
+  const { describeRole, translateInterfaceRole, translateInterfaceUi, interfaceRoleLanguage } = useCreditTranslators();
+  const translateUi = translateInterfaceUi;
   const t = useTranslations();
   // Second beat of the population sequence; see .enter-fade in globals.css.
   const settled = useSettled();
@@ -105,7 +106,16 @@ export function ContributionGrid() {
       const next = LEVEL_CYCLE.find((step) => step > score) ?? 0;
       setAuthorScore(author.id, roleIndex, next);
       // The pressed state alone can't convey a 4-level value to screen readers.
-      announce(`${CREDIT_ROLES[roleIndex]?.name} for ${author.name}: ${translateUi(scoreToLevel(next))}`);
+      const role = CREDIT_ROLES[roleIndex];
+      if (role) {
+        announce(
+          t("a11yRoleAssignment", {
+            role: translateInterfaceRole(role.name),
+            name: author.name,
+            level: translateUi(scoreToLevel(next)),
+          }),
+        );
+      }
     } else {
       toggleContribution(author.id, roleIndex);
     }
@@ -116,9 +126,7 @@ export function ContributionGrid() {
       <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4">
         <StepHeader n={2} title={t("stepContributions")} className="mb-3" />
         {welcomeOpen ? (
-          <p className="text-sm text-on-surface-variant">
-            Add a contributor and this grid fills with the 14 CRediT roles.
-          </p>
+          <p className="text-sm text-on-surface-variant">{t("gridEmptyHint")}</p>
         ) : (
           <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
             <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
@@ -193,8 +201,16 @@ export function ContributionGrid() {
           onFocus={() => setActiveCell({ row, col })}
           onKeyDown={(event) => handleCellKeyDown(event, row, col)}
           aria-pressed={score > 0}
-          aria-label={`${role?.name} for ${author.name}: ${level}`}
-          title={`${role?.name} for ${author.name}: ${level}`}
+          aria-label={t("a11yRoleAssignment", {
+            role: role ? translateInterfaceRole(role.name) : "",
+            name: author.name,
+            level,
+          })}
+          title={t("a11yRoleAssignment", {
+            role: role ? translateInterfaceRole(role.name) : "",
+            name: author.name,
+            level,
+          })}
           onClick={() => handleCellClick(author, roleIndex, score)}
           // The fill transitions, and deliberately nothing moves: in Levels mode
           // a click's only result is the shade stepping up, and at this cadence
@@ -285,7 +301,7 @@ export function ContributionGrid() {
                   <SelectContent>
                     {CREDIT_ROLES.map((role, roleIndex) => (
                       <SelectItem key={role.name} value={String(roleIndex)}>
-                        {translateRole(role.name)}
+                        {translateInterfaceRole(role.name)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -365,20 +381,32 @@ export function ContributionGrid() {
             </SelectContent>
           </Select>
         </div>
-        <ul className="divide-y divide-outline-variant/25" aria-label={`Roles for ${selectedAuthor.name}`}>
+        <ul
+          className="divide-y divide-outline-variant/25"
+          aria-label={t("a11yRolesForContributor", { name: selectedAuthor.name })}
+        >
           {CREDIT_ROLES.map((role, roleIndex) => {
             const score = selectedAuthor.contributions[roleIndex]?.score ?? 0;
             const level = translateUi(graded ? scoreToLevel(score) : score > 0 ? "contributed" : "none");
             return (
               <li key={role.name} className="flex min-h-14 items-center gap-2 py-1.5">
                 <span className="flex min-w-0 flex-1 items-center gap-1">
-                  <span className="text-sm font-medium text-on-surface">{translateRole(role.name)}</span>
-                  <RoleInfo role={role} translateRole={translateRole} describeRole={describeRole} />
+                  <span className="text-sm font-medium text-on-surface">{translateInterfaceRole(role.name)}</span>
+                  <RoleInfo
+                    role={role}
+                    translateRole={translateInterfaceRole}
+                    describeRole={describeRole}
+                    language={interfaceRoleLanguage}
+                  />
                 </span>
                 <button
                   type="button"
                   aria-pressed={score > 0}
-                  aria-label={`${role.name} for ${selectedAuthor.name}: ${level}`}
+                  aria-label={t("a11yRoleAssignment", {
+                    role: translateInterfaceRole(role.name),
+                    name: selectedAuthor.name,
+                    level,
+                  })}
                   onClick={() => handleCellClick(selectedAuthor, roleIndex, score)}
                   className={`contribution-cell flex min-h-11 min-w-24 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                     score > 0 ? "text-white shadow-sm" : "bg-surface-container-high text-on-surface-variant"
@@ -433,8 +461,13 @@ export function ContributionGrid() {
                       className="sticky top-0 min-w-[2rem] bg-surface-bright pb-1 align-bottom"
                     >
                       <span className="flex flex-col items-center gap-1">
-                        <AngledLabel text={role.name} />
-                        <RoleInfo role={role} translateRole={translateRole} describeRole={describeRole} />
+                        <AngledLabel text={translateInterfaceRole(role.name)} />
+                        <RoleInfo
+                          role={role}
+                          translateRole={translateInterfaceRole}
+                          describeRole={describeRole}
+                          language={interfaceRoleLanguage}
+                        />
                       </span>
                     </th>
                   ))
@@ -485,10 +518,15 @@ export function ContributionGrid() {
                       className="sticky left-0 z-10 bg-surface-bright py-0 text-left font-medium text-[13px] text-on-surface"
                     >
                       <span className="flex items-center gap-1.5 min-w-0">
-                        <span className="truncate" title={role.name}>
-                          {role.name}
+                        <span className="truncate" title={translateInterfaceRole(role.name)}>
+                          {translateInterfaceRole(role.name)}
                         </span>
-                        <RoleInfo role={role} translateRole={translateRole} describeRole={describeRole} />
+                        <RoleInfo
+                          role={role}
+                          translateRole={translateInterfaceRole}
+                          describeRole={describeRole}
+                          language={interfaceRoleLanguage}
+                        />
                       </span>
                     </th>
                     {authors.map((author, authorCol) => renderCell(author, roleIndex, roleIndex, authorCol))}
@@ -566,10 +604,12 @@ function RoleInfo({
   role,
   translateRole,
   describeRole,
+  language,
 }: {
   role: (typeof CREDIT_ROLES)[number];
   translateRole: RoleTranslator;
   describeRole: RoleDescriber;
+  language: string;
 }) {
   const t = useTranslations();
   // The name follows the output language (it must match the statement); the
@@ -585,7 +625,7 @@ function RoleInfo({
           <Info className="h-4 w-4" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="max-w-xs text-xs leading-relaxed text-on-surface-variant">
+      <PopoverContent lang={language} className="max-w-xs text-xs leading-relaxed text-on-surface-variant">
         <strong className="text-on-surface">{translateRole(role.name)}.</strong> {describeRole(role.name)}{" "}
         <a
           href={role.url}
@@ -701,17 +741,17 @@ function HeatmapExports({
   const [error, setError] = useState<string | null>(null);
   const [copyStatus, copy] = useCopyStatus({
     copied: t("annHeatmapCopied"),
-    error: "Heatmap copy failed",
+    error: t("errHeatmapCopy"),
   });
 
   function renderSvg() {
     return buildHeatmapSvg(authors, { transpose, monoColor, showLevels, acronyms, translateRole, translateUi });
   }
 
-  function fail(err: unknown, what: string) {
-    const message = err instanceof Error ? err.message : "Export failed";
+  function fail(format: ExportFormat) {
+    const message = t("errHeatmapExport", { format: format.toUpperCase() });
     setError(message);
-    announce(`Heatmap ${what} failed: ${message}`, { assertive: true });
+    announce(message, { assertive: true });
   }
 
   async function download(format: ExportFormat) {
@@ -724,8 +764,8 @@ function HeatmapExports({
       } else {
         downloadBlob(await svgToPngBlob(svg), "credit-heatmap.png");
       }
-    } catch (err) {
-      fail(err, "export");
+    } catch {
+      fail(format);
     } finally {
       setLoading(null);
     }
