@@ -19,14 +19,14 @@ export interface MergeResult {
  * eleven rows they were not asked about. That is the whole conflict story —
  * there is no diff to review and no per-cell merge.
  *
- * `claimIndex` selects who answered, out of the list they returned. It is not
- * used to decide who they are in *your* list: matching runs by ORCID, then by
- * name, and reports them as unmatched when neither hits. Falling back to the
- * position would let a contributor nobody recognises overwrite whoever happens
- * to sit at that index.
+ * `claimId` selects who answered, out of the list they returned. It is not
+ * used to decide who they are in *your* list: matching runs by id, then
+ * ORCID, then name, and reports them as unmatched when none hits. Falling
+ * back to position would let a contributor nobody recognises overwrite
+ * whoever happens to sit at that index.
  */
-export function mergeContributorRow(current: Author[], incoming: Author[], claimIndex: number): MergeResult {
-  const claimed = incoming[claimIndex];
+export function mergeContributorRow(current: Author[], incoming: Author[], claimId: string): MergeResult {
+  const claimed = incoming.find((author) => author.id === claimId);
   if (!claimed) return { authors: current, merged: null, unmatched: null };
 
   const index = findRow(current, claimed);
@@ -43,6 +43,7 @@ export function mergeContributorRow(current: Author[], incoming: Author[], claim
     contributions: claimed.contributions,
     equalContribution: claimed.equalContribution,
     corresponding: claimed.corresponding,
+    contributorType: claimed.contributorType,
     // Their name and iD fill a gap, but never overwrite what you already hold:
     // the corresponding author's spelling of the byline is the one that ships.
     ...(existing.orcid ? {} : claimed.orcid ? { orcid: claimed.orcid } : {}),
@@ -53,8 +54,11 @@ export function mergeContributorRow(current: Author[], incoming: Author[], claim
   return { authors, merged, unmatched: null };
 }
 
-/** ORCID, then name. Returns -1 when neither hits. */
+/** Id, then ORCID, then name. Returns -1 when none hits. */
 function findRow(current: Author[], claimed: Author): number {
+  const byId = current.findIndex((author) => author.id === claimed.id);
+  if (byId !== -1) return byId;
+
   if (claimed.orcid) {
     // ORCID first: a co-author may well correct the spelling of their own name,
     // and that correction should not cost them the match.
