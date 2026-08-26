@@ -33,7 +33,7 @@ async function asReturningVisitor(page: Page) {
  * the two the locator sees is a race, so it passes on an idle machine and fails
  * under parallel load. Excluding the visually-hidden region settles it.
  */
-function onScreen(page: Page, text: string) {
+function onScreen(page: Page, text: string | RegExp) {
   return page.getByText(text).and(page.locator(":not(.sr-only)"));
 }
 
@@ -136,7 +136,9 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: /^Conceptualization for Jane Smith:/ })).toBeVisible();
 
     // Imported names have no roles yet → a validation notice appears.
-    await expect(page.getByText(/has no assigned CRediT roles/).first()).toBeVisible();
+    // .first(): several imported contributors are noticed at once; onScreen
+    // already excludes the live-region duplicate.
+    await expect(onScreen(page, /has no assigned CRediT roles/).first()).toBeVisible();
   });
 
   test("imports the contributor list from a DOI", async ({ page }) => {
@@ -543,7 +545,7 @@ test.describe("Happy path UI flows", () => {
     await add.fill("0000-0002-1825-0098");
     await add.press("Enter");
     await expect(add).toHaveValue("0000-0002-1825-0098");
-    await expect(page.getByText(/invalid checksum/).first()).toBeVisible();
+    await expect(onScreen(page, /invalid checksum/)).toBeVisible();
   });
 
   test("normalizes canonical ORCID URLs imported from JSON", async ({ page }) => {
@@ -697,9 +699,12 @@ test.describe("Happy path UI flows", () => {
     const card = page.locator("section[aria-label='Contribution grid'] > div");
     const before = { x: (await exports.boundingBox())?.x, w: (await card.boundingBox())?.width };
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByText("Click to cycle", { exact: true })).toBeVisible();
-    expect((await exports.boundingBox())?.x).toBe(before.x);
-    expect((await card.boundingBox())?.width).toBe(before.w);
+    await expect(page.getByText("Click to cycle")).toBeVisible();
+    // ±1px, not exact: sub-pixel layout shifts with font/rendering changes
+    // (a Chromium bump, a runner-image update) and is not the regression
+    // this guards against.
+    expect(Math.abs(((await exports.boundingBox())?.x ?? 0) - (before.x ?? 0))).toBeLessThanOrEqual(1);
+    expect(Math.abs(((await card.boundingBox())?.width ?? 0) - (before.w ?? 0))).toBeLessThanOrEqual(1);
 
     // Bulk assign in Levels mode must apply the chosen level, not silently Lead.
     await page.getByRole("button", { name: "Bulk assign" }).click();
@@ -722,8 +727,8 @@ test.describe("Happy path UI flows", () => {
     const table = page.locator("table");
     const beforeY = (await table.boundingBox())?.y;
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByText("Click to cycle", { exact: true })).toBeVisible();
-    expect((await table.boundingBox())?.y).toBe(beforeY);
+    await expect(page.getByText("Click to cycle")).toBeVisible();
+    expect(Math.abs(((await table.boundingBox())?.y ?? 0) - (beforeY ?? 0))).toBeLessThanOrEqual(1);
 
     // Enough contributors that the 14 role columns are squeezed to their minimum
     // width, the condition that used to clip every angled label.
@@ -875,6 +880,27 @@ test.describe("Happy path UI flows", () => {
       code: "INVALID_ID",
       error: "That is not a valid ORCID iD. Check the digits and try again.",
     });
+  });
+
+  test("rejects malformed DOI API requests before upstream lookup", async ({ request }) => {
+    // Mirrors the ORCID spec above: the route's own request-level branches
+    // never ran anywhere (e2e stubs the route in the browser; core tests
+    // cover lookupDoiWork, not the handler).
+    const badDoi = await request.post("/api/doi", { data: { doi: "not-a-doi" } });
+    expect(badDoi.status()).toBe(400);
+    await expect(badDoi.json()).resolves.toEqual({
+      code: "INVALID_DOI",
+      error: "That is not a valid DOI. It should look like 10.1234/abcde.",
+    });
+
+    // A Buffer goes out raw; a string here would be JSON-stringified into a
+    // *valid* JSON string body and take the INVALID_DOI branch instead.
+    const unreadable = await request.post("/api/doi", {
+      headers: { "content-type": "application/json" },
+      data: Buffer.from("{not json"),
+    });
+    expect(unreadable.status()).toBe(400);
+    await expect(unreadable.json()).resolves.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   test("XML export downloads client-side (no API round-trip)", async ({ page }) => {

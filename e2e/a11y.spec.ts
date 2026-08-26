@@ -89,6 +89,19 @@ test.describe("Accessibility (axe-core)", () => {
     expect(results.violations).toEqual([]);
   });
 
+  test("mobile loaded state has no detectable violations", async ({ page }) => {
+    // The md:hidden mobile branch (per-contributor role buttons on dynamic
+    // fills) never renders at the default desktop viewport, so every scan
+    // above is blind to it — a hardcoded text color on a pale fill shipped
+    // exactly that way once.
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Load sample data" }).click();
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
+    const results = await scan(page);
+    expect(results.violations).toEqual([]);
+  });
+
   test("import modal has no detectable violations", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Import" }).click();
@@ -233,7 +246,7 @@ test.describe("Accessibility (axe-core)", () => {
     await page.getByText("Heatmap options", { exact: true }).click();
     await page.getByRole("button", { name: "Heatmap color" }).click();
     // The Okabe-Ito yellow is the worst case: a white glyph vanishes on it.
-    await page.getByRole("button", { name: "Set color #f0e442" }).click();
+    await page.getByRole("button", { name: "Set color Yellow" }).click();
     await page.keyboard.press("Escape");
 
     const glyph = page

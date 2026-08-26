@@ -146,9 +146,11 @@ test.describe("rendering a non-English locale", () => {
     await expect(statement).toContainText("Conceptualization");
   });
 
-  test("falls back to English for a key a locale has not translated", async ({ page }) => {
-    // Every key is translated today; this proves the fallback path itself works,
-    // so a half-translated locale degrades to English instead of a key name.
+  test("no raw message key leaks into the rendered page", async ({ page }) => {
+    // NOTE: this does not exercise the English-fallback path — every key is
+    // translated (the parity test above enforces it), so the fallback never
+    // runs here. It only catches a raw key rendered as text. The prefix list
+    // is best-effort; extend it when a new key family appears.
     await seed(page, "nl", "nl");
     await page.goto("/");
     // innerText, not textContent: the latter includes Next's inlined script
