@@ -221,7 +221,7 @@
   "copiedPng": "PNG copié !",
   "annBadgeHtmlCopied": "HTML du badge copié dans le presse-papiers",
   "importAuthorList": "Liste de noms d'auteurs",
-  "importPlaceholder": "Jane A. Smith\nBob White\nCarol Davis\n\nou un export .csv / .json / .xml, ou un lien qui vous a été renvoyé",
+  "importPlaceholder": "{names}\n\nou un export .csv / .json / .xml, ou un lien qui vous a été renvoyé",
   "errImportUnparsable": "Impossible d'analyser la saisie. Vérifiez le format.",
   "errImportNoNames": "Aucun nom d'auteur trouvé. Saisissez un nom par ligne.",
   "errImportNoCsvRows": "Aucune ligne de contributeur trouvée dans le CSV.",
