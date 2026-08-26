@@ -7,6 +7,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { LanguageSelector } from "@/components/LanguageSelector";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { SkipLink } from "@/components/SkipLink";
+import { StatusBanner } from "@/components/StatusBanner";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Announcer } from "@/lib/announce";
@@ -116,6 +117,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {children}
             </main>
             <Announcer />
+            <StatusBanner />
             <ServiceWorkerRegistrar />
           </ThemeProvider>
         </AppIntlProvider>
