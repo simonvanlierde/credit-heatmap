@@ -21,63 +21,84 @@ function makeAuthors() {
   ];
 }
 
-describe("share payload", () => {
-  it("round-trips names, iDs, type, scores, and markers", () => {
-    const restored = fromSharePayload(toSharePayload(makeAuthors()));
+describe("share payload v2", () => {
+  it("round-trips authors with their stable ids, title, claim, source draft, and reply flag", () => {
+    const authors = makeAuthors();
+    const bob = authors[1];
+    if (!bob) throw new Error("expected Bob");
+    const restored = fromSharePayload(
+      toSharePayload({
+        authors,
+        title: "Trust in electric eels",
+        claimId: bob.id,
+        sourceDraftId: "11111111-2222-3333-4444-555555555555",
+        reply: true,
+      }),
+    );
 
-    expect(restored.map((author) => author.name)).toEqual(["Jane A. Smith", "Bob White"]);
-    expect(restored[0]?.orcid).toBe("0000-0002-1825-0097");
-    expect(restored[0]?.corresponding).toBe(true);
-    expect(restored[0]?.equalContribution).toBe(true);
-    expect(restored[1]?.contributorType).toBe("non-author");
+    expect(restored.authors.map((a) => a.id)).toEqual(authors.map((a) => a.id));
+    expect(restored.title).toBe("Trust in electric eels");
+    expect(restored.claimId).toBe(bob.id);
+    expect(restored.sourceDraftId).toBe("11111111-2222-3333-4444-555555555555");
+    expect(restored.reply).toBe(true);
+  });
 
-    const jane = restored[0];
-    if (!jane) throw new Error("expected Jane");
-    expect(jane.contributions.find((c) => c.role === "Conceptualization")?.score).toBe(100);
-    expect(jane.contributions.find((c) => c.role === "Software")?.score).toBe(50);
-    expect(jane.contributions.find((c) => c.role === "Methodology")?.score).toBe(0);
+  it("round-trips a plain share with no claim, no source, no reply", () => {
+    const restored = fromSharePayload(toSharePayload({ authors: makeAuthors() }));
+    expect(restored.claimId).toBeNull();
+    expect(restored.sourceDraftId).toBeNull();
+    expect(restored.reply).toBe(false);
+    expect(restored.title).toBe("");
+    expect(restored.authors[1]?.contributorType).toBe("non-author");
+    expect(restored.authors[0]?.corresponding).toBe(true);
+  });
+
+  it("rejects a v1 payload outright", () => {
+    expect(() => fromSharePayload(JSON.stringify({ v: 1, a: [{ n: "Jane Smith", s: [] }] }))).toThrow();
+  });
+
+  it("rejects a claim naming a contributor the payload does not carry", () => {
+    const payload = toSharePayload({
+      authors: makeAuthors(),
+      claimId: makeAuthors()[0]?.id ?? "x", // fresh call → different ids than encoded
+      sourceDraftId: "11111111-2222-3333-4444-555555555555",
+    });
+    expect(() => fromSharePayload(payload)).toThrow();
+  });
+
+  it("rejects a claim without a source draft, and a reply without a claim", () => {
+    const authors = makeAuthors();
+    const raw = JSON.parse(toSharePayload({ authors }));
+    expect(() => fromSharePayload(JSON.stringify({ ...raw, c: authors[0]?.id }))).toThrow();
+    expect(() => fromSharePayload(JSON.stringify({ ...raw, r: 1 }))).toThrow();
+  });
+
+  it("rejects duplicate contributor ids", () => {
+    const raw = JSON.parse(toSharePayload({ authors: makeAuthors() }));
+    raw.a[1].i = raw.a[0].i;
+    expect(() => fromSharePayload(JSON.stringify(raw))).toThrow();
+  });
+
+  it("clamps a hand-edited score rather than trusting it", () => {
+    const raw = JSON.parse(toSharePayload({ authors: makeAuthors() }));
+    raw.a[0].s = [900, -5, 50.4];
+    const restored = fromSharePayload(JSON.stringify(raw));
+    const scores = restored.authors[0]?.contributions ?? [];
+    expect(scores[0]?.score).toBe(100);
+    expect(scores[1]?.score).toBe(0);
+    expect(scores[2]?.score).toBe(50);
   });
 
   it("is much smaller than the JSON export it replaces", () => {
     const authors = Array.from({ length: 10 }, (_, i) =>
       createAuthor(`Author ${i} Name`, { contributions: [{ role: "Software", score: 66 }] }),
     );
-
-    // The exact ratio is not the contract; the order of magnitude is. A link is
-    // useless if a mail client wraps it.
-    expect(toSharePayload(authors).length).toBeLessThan(toJson(authors).length / 5);
-  });
-
-  it("clamps a hand-edited score rather than trusting it", () => {
-    const payload = JSON.stringify({ v: 1, a: [{ n: "Jane Smith", s: [900, -5, 50.4] }] });
-    const restored = fromSharePayload(payload);
-    const contributions = restored[0]?.contributions ?? [];
-
-    expect(contributions[0]?.score).toBe(100);
-    expect(contributions[1]?.score).toBe(0);
-    expect(contributions[2]?.score).toBe(50);
-  });
-
-  it("treats roles missing from a shorter payload as unassigned", () => {
-    const restored = fromSharePayload(JSON.stringify({ v: 1, a: [{ n: "Jane Smith", s: [100] }] }));
-    expect(restored[0]?.contributions).toHaveLength(14);
-    expect(restored[0]?.contributions[13]?.score).toBe(0);
-  });
-
-  it("rejects a payload that is not a share payload at all", () => {
-    expect(() => fromSharePayload(JSON.stringify({ v: 2, a: [] }))).toThrow();
-    expect(() => fromSharePayload("not json")).toThrow();
+    expect(toSharePayload({ authors }).length).toBeLessThan(toJson(authors).length / 4);
   });
 
   it("gives contributors unique initials, as the workspace does", () => {
-    const payload = JSON.stringify({
-      v: 1,
-      a: [
-        { n: "Jane Smith", s: [] },
-        { n: "John Smith", s: [] },
-      ],
-    });
-    const restored = fromSharePayload(payload);
-    expect(restored[0]?.initials).not.toBe(restored[1]?.initials);
+    const authors = [createAuthor("Jane Smith"), createAuthor("John Smith")];
+    const restored = fromSharePayload(toSharePayload({ authors }));
+    expect(restored.authors[0]?.initials).not.toBe(restored.authors[1]?.initials);
   });
 });
