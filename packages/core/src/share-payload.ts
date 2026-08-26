@@ -2,7 +2,6 @@ import { z } from "zod";
 import type { Author } from "./author.js";
 import { MAX_AUTHORS } from "./author.js";
 import { CREDIT_ROLES } from "./credit-roles.js";
-import { fromJson } from "./export/json.js";
 import { createAuthor, deduplicateAuthorInitials } from "./parse-authors.js";
 
 /**
@@ -60,17 +59,11 @@ export function toSharePayload(authors: Author[]): string {
 }
 
 /**
- * Read either share shape.
- *
- * Links made before the compact payload existed carry the JSON export instead,
- * and they are already in people's mailboxes, so both are accepted. Throws on
- * anything else, which the caller turns into "that link could not be opened".
+ * Read the compact share shape. Throws on anything else, which the caller
+ * turns into "that link could not be opened".
  */
 export function fromSharePayload(json: string): Author[] {
-  const parsed: unknown = JSON.parse(json);
-  if (parsed !== null && typeof parsed === "object" && "authors" in parsed) return fromJson(json);
-
-  const payload = SharePayloadSchema.parse(parsed);
+  const payload = SharePayloadSchema.parse(JSON.parse(json));
   return deduplicateAuthorInitials(
     payload.a.map((entry) =>
       createAuthor(entry.n, {

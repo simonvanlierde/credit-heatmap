@@ -25,7 +25,9 @@ export function HeaderActions() {
     copied: t("annLinkCopied"),
     error: t("copyFailedMessage"),
   });
-  const authors = useContributionStore((s) => s.authors);
+  // Only the count is needed at render time; the array itself is read inside
+  // the handlers via getState(), so score edits don't re-render the nav bar.
+  const authorCount = useContributionStore((s) => s.authors.length);
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
   const setTitle = useContributionStore((s) => s.setTitle);
   const setClaim = useContributionStore((s) => s.setClaim);
@@ -51,8 +53,9 @@ export function HeaderActions() {
   // re-announce the error each time someone switches language.
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only by design
   useEffect(() => {
-    const fromHash = decodeShareHash(window.location.hash);
-    if (fromHash && fromHash.authors.length > 0) {
+    void (async () => {
+      const fromHash = await decodeShareHash(window.location.hash);
+      if (!fromHash || fromHash.authors.length === 0) return;
       // decodeShareHash validates against the schema, but loadAuthors rebuilds
       // every author through createAuthor, which can still reject one. Throwing
       // here would take down the whole page render on a bad link, so degrade to
@@ -79,7 +82,7 @@ export function HeaderActions() {
       }
       // Drop only the fragment; keep any query string intact.
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    }
+    })();
   }, [createDraft, loadAuthors, setClaim, setTitle]);
 
   function handleImport(importedAuthors: Author[], importedTitle?: string) {
@@ -104,9 +107,9 @@ export function HeaderActions() {
    * - An empty workspace takes the shared draft in place; there is nothing to
    *   protect, and a stray empty draft is just clutter.
    */
-  function handleLink(url: string): "errShareLinkBroken" | null {
+  async function handleLink(url: string): Promise<"errShareLinkBroken" | null> {
     const hashAt = url.indexOf("#");
-    const shared = hashAt === -1 ? null : decodeShareHash(url.slice(hashAt));
+    const shared = hashAt === -1 ? null : await decodeShareHash(url.slice(hashAt));
     if (!shared || shared.authors.length === 0) return "errShareLinkBroken";
 
     if (shared.claimIndex !== null) return mergeReply(shared);
@@ -168,7 +171,7 @@ export function HeaderActions() {
 
   async function handleShare() {
     try {
-      await copyShareUrl(buildShareUrl(authors));
+      await copyShareUrl(await buildShareUrl(useContributionStore.getState().authors));
       setShareOpen(false);
     } catch {
       announce(t("errShareTooLarge"), { assertive: true });
@@ -183,7 +186,7 @@ export function HeaderActions() {
           <PopoverTrigger asChild>
             <button
               type="button"
-              disabled={authors.length === 0}
+              disabled={authorCount === 0}
               aria-label={t("a11yShareLink")}
               title={t("a11yShareLink")}
               className="touch-target flex size-9 items-center justify-center gap-2 rounded-lg border border-primary/30 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-4"
@@ -229,7 +232,7 @@ export function HeaderActions() {
 
       <ImportModal
         open={importOpen}
-        existingContributorCount={authors.length}
+        existingContributorCount={authorCount}
         onImport={handleImport}
         onLink={handleLink}
         onClose={() => setImportOpen(false)}

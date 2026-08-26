@@ -33,7 +33,7 @@ export function ClaimBanner() {
     try {
       // The draft id rides back with the reply, so it lands on the paper it
       // was asked about rather than on whatever the recipient has open.
-      await copy(buildShareUrl(authors, { claimIndex, ...(claimDraftId ? { draftId: claimDraftId } : {}) }));
+      await copy(await buildShareUrl(authors, { claimIndex, ...(claimDraftId ? { draftId: claimDraftId } : {}) }));
     } catch {
       announce(t("errShareTooLarge"), { assertive: true });
     }

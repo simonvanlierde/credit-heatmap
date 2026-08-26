@@ -48,13 +48,6 @@ describe("share payload", () => {
     expect(toSharePayload(authors).length).toBeLessThan(toJson(authors).length / 5);
   });
 
-  it("still reads a link made before the compact payload existed", () => {
-    // Those links are already in people's mailboxes.
-    const restored = fromSharePayload(toJson(makeAuthors()));
-    expect(restored.map((author) => author.name)).toEqual(["Jane A. Smith", "Bob White"]);
-    expect(restored[0]?.orcid).toBe("0000-0002-1825-0097");
-  });
-
   it("clamps a hand-edited score rather than trusting it", () => {
     const payload = JSON.stringify({ v: 1, a: [{ n: "Jane Smith", s: [900, -5, 50.4] }] });
     const restored = fromSharePayload(payload);

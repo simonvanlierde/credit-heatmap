@@ -1,6 +1,7 @@
 import type { Author } from "@credit-generator/core";
 import { fromSharePayload, MAX_IMPORT_BYTES, toSharePayload } from "@credit-generator/core";
 
+/** The payload is base64url over deflate-raw compressed JSON. */
 const HASH_PREFIX = "#s=";
 /**
  * Marks which contributor the link was built for: `#s=<payload>&c=<index>`.
@@ -45,18 +46,75 @@ function fromBase64Url(encoded: string): Uint8Array {
 }
 
 /**
- * Build a shareable absolute URL that encodes the draft in the fragment.
+ * Push bytes through a compression transform and collect the output, refusing
+ * to grow past `maxBytes`: on the inflate side a few kB of hostile input can
+ * otherwise decompress to gigabytes out of a mount effect.
+ */
+async function transformBytes(
+  bytes: Uint8Array,
+  transform: ReadableWritablePair<Uint8Array, BufferSource>,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  const source = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(bytes);
+      controller.close();
+    },
+  });
+  // The DOM lib types the writable side as WritableStream<BufferSource>, which
+  // pipeThrough's ReadableWritablePair<T, Uint8Array> shape rejects; the bytes
+  // fed in are Uint8Arrays, so the pair is narrower in practice than in type.
+  const reader = source.pipeThrough(transform as ReadableWritablePair<Uint8Array, Uint8Array>).getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error("Share payload is too large.");
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
+
+/** Deflate the payload so the link stays short enough to paste into an email. */
+function deflate(bytes: Uint8Array): Promise<Uint8Array> {
+  // Deflate never grows input meaningfully; the bound is a formality.
+  return transformBytes(bytes, new CompressionStream("deflate-raw"), MAX_IMPORT_BYTES);
+}
+
+/** Inflate, capped at the same size every other import path enforces. */
+function inflate(bytes: Uint8Array): Promise<Uint8Array> {
+  return transformBytes(bytes, new DecompressionStream("deflate-raw"), MAX_IMPORT_BYTES);
+}
+
+/**
+ * Build a shareable absolute URL that encodes the draft, deflate-compressed,
+ * in the fragment. Throws on a browser without CompressionStream (pre-2023);
+ * the caller already turns a throw into the copy-failed state.
  *
  * Pass `claimIndex` to address the link at one contributor: opening it says
  * whose row is being asked for, and sending it back collects only that row.
  * Pass `draftId` so the reply can find its way back to the right paper.
  */
-export function buildShareUrl(authors: Author[], options: { claimIndex?: number; draftId?: string } = {}): string {
+export async function buildShareUrl(
+  authors: Author[],
+  options: { claimIndex?: number; draftId?: string } = {},
+): Promise<string> {
   const bytes = new TextEncoder().encode(toSharePayload(authors));
   if (bytes.byteLength > MAX_IMPORT_BYTES) {
     throw new Error("This draft is too large to share as a link.");
   }
-  const encoded = toBase64Url(bytes);
+  const encoded = toBase64Url(await deflate(bytes));
   const claim = options.claimIndex === undefined ? "" : `${CLAIM_PARAM}${options.claimIndex}`;
   const draft = options.draftId ? `${DRAFT_PARAM}${encodeURIComponent(options.draftId)}` : "";
   const { origin, pathname } = window.location;
@@ -76,7 +134,7 @@ export interface SharedDraft {
  * absent or malformed, so a bad link degrades to the normal app rather than
  * crashing. Links made before claims existed decode with `claimIndex: null`.
  */
-export function decodeShareHash(hash: string): SharedDraft | null {
+export async function decodeShareHash(hash: string): Promise<SharedDraft | null> {
   if (!hash.startsWith(HASH_PREFIX)) return null;
   const body = hash.slice(HASH_PREFIX.length);
   // The payload is base64url, so it never contains "&": everything after the
@@ -92,8 +150,8 @@ export function decodeShareHash(hash: string): SharedDraft | null {
   const draftId = readDraftId(params.get("d"));
 
   try {
-    const bytes = fromBase64Url(encoded);
-    if (bytes.byteLength > MAX_IMPORT_BYTES) return null;
+    // inflate caps the decompressed size at MAX_IMPORT_BYTES.
+    const bytes = await inflate(fromBase64Url(encoded));
     return { authors: fromSharePayload(new TextDecoder().decode(bytes)), claimIndex, draftId };
   } catch {
     return null;

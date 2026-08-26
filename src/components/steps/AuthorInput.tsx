@@ -697,7 +697,7 @@ function AuthorRow({
    */
   async function handleAsk() {
     if (!author) return;
-    await copyAsk(buildShareUrl(authors, { claimIndex: index, draftId: activeDraftId }));
+    await copyAsk(await buildShareUrl(authors, { claimIndex: index, draftId: activeDraftId }));
   }
 
   const nameInputRef = useRef<HTMLInputElement>(null);

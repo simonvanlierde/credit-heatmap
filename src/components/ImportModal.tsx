@@ -28,7 +28,7 @@ interface Props {
    * used, or null on success. Lives with the caller because merging a returned
    * link needs the current workspace, which this dialog does not hold.
    */
-  onLink: (url: string) => "errShareLinkBroken" | null;
+  onLink: (url: string) => Promise<"errShareLinkBroken" | null>;
   onClose: () => void;
 }
 
@@ -192,7 +192,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
     e.target.value = "";
   }
 
-  function handleImport() {
+  async function handleImport() {
     setError(null);
     if (format === "unknown") return;
     try {
@@ -203,7 +203,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
       if (format === "link") {
         // The whole-draft and merge cases both need the current workspace, so
         // the caller owns this one; failures come back as a message key.
-        const failure = onLink(text.trim());
+        const failure = await onLink(text.trim());
         if (failure) {
           showError(t(failure));
           return;
@@ -485,7 +485,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
           <button
             ref={importRef}
             type="button"
-            onClick={handleImport}
+            onClick={() => void handleImport()}
             disabled={format === "unknown" || pending !== null}
             className="px-7 py-2 bg-primary text-on-primary text-sm font-bold rounded-lg shadow hover:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
