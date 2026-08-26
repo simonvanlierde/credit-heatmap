@@ -43,8 +43,8 @@ the full term in prose, documentation, and help text, so it travels into methods
 space-constrained control may shorten it to *Heatmap* once the full term is established on screen.
 
 The voice is direct, precise, calm, and useful. Explain specialist concepts without weakening their
-meaning. A non-author contributor is called exactly that in prose and docs; a space-constrained
-control may shorten it to *Non-author*, never to *Contributor*, which describes everyone on the
+meaning. A non-author contributor is called exactly that in prose and docs. A space-constrained
+control may shorten it to *Non-author* — never to *Contributor*, which describes everyone on the
 list.
 
 Support every claim from the workflow in `src/`, the screenshots in `docs/screenshots/`, the tests

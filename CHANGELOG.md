@@ -16,9 +16,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   published records do not carry them.
 - Drafts, one per paper. A picker in the header switches, renames, duplicates, and deletes them, up
   to fifty. They live in this browser, as everything else does.
-- Collecting contributions from co-authors: send each person a link addressed to their own row.
-  They tick what they did and send the same link back; importing it takes that row alone and
-  discards anything they changed about anyone else.
+- Collecting contributions from co-authors. A contributor's row menu copies a link addressed to
+  that person, and an *Asked* chip on the row tracks the open request. Opening the link locks the
+  draft to the recipient's own row; a banner explains the lock, builds the reply link, and can
+  release the draft into an ordinary one. The lock and the banner survive a refresh, and
+  re-opening the same request resumes it instead of forking a duplicate.
+- Replies merge on open. The originator clicks the returned link — or pastes it into Import — and
+  that one row lands on the paper it was asked about, confirmed by a visible banner with an Undo.
+- A visible status strip for share and merge outcomes. These previously reached only screen
+  readers, so a merge, a refusal, or a broken link looked like nothing happened.
 - Shared first authorship and corresponding authors, which CRediT has no term for. They are noted
   under the statement and the Markdown table, carried as columns in CSV, and written as JATS4R
   `equal-contrib` and `corresp` attributes.
@@ -29,9 +35,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Share links encode contributions positionally instead of repeating all fourteen role names per
-  contributor. A ten-author link falls from roughly 18 kB to 1.4 kB, which is the difference
-  between a link that survives an email client and one that does not. Older links still open.
+- Share links carry everything in one compressed fragment: the roster with stable contributor
+  ids, the draft title, and — on requests and replies — whom the link addresses and which draft
+  it came from. A ten-author link is roughly 1.4 kB instead of 18 kB, which is the difference
+  between a link that survives an email client and one that does not. **Links built by earlier
+  versions no longer open**; they fail with a visible message and leave the open draft untouched.
+- UI copy: device-neutral *Select* for grid interactions, *Non-author* for the non-author
+  contributor type, one neutral copy-failure announcement, and a localizable detected-format
+  label.
 - One rate limiter now covers both upstream proxies, so the Worker binding is `API_RATE_LIMITER`
   rather than `ORCID_RATE_LIMITER`. **A deploy that does not rename it leaves both proxies
   unthrottled**, which is logged but does not fail the request.
@@ -44,8 +55,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   asked about, switching to it first, and a reply whose draft is not in this browser says so instead
   of merging into whichever paper happened to be open.
 - The title and the add-contributor field are read-only until the persisted draft has been restored.
-  The store rehydrates from a mount effect, so there was a window in which the interface was live but
-  still empty, and anything typed into it was overwritten the moment the draft landed.
+  The store rehydrates from a mount effect, so there was a window in which the interface was live
+  but still empty, and anything typed into it was overwritten the moment the draft landed.
 - Renaming a contributor no longer clears the authorship markers set on them. Every mutation
   rebuilds the contributor through `createAuthor`, and two rebuild sites were dropping the fields.
 
@@ -151,7 +162,8 @@ Persisted local drafts migrate automatically.
 - axe-core accessibility scans of the main screens in the Playwright suite.
 - `CITATION.cff`, a `CONTRIBUTING.md` guide, and the first architecture decision
   record (`docs/adr`).
-- Zenodo archival with a citable DOI ([10.5281/zenodo.21213659](https://doi.org/10.5281/zenodo.21213659)).
+- Zenodo archival with a citable DOI
+  ([10.5281/zenodo.21213659](https://doi.org/10.5281/zenodo.21213659)).
 
 ### Fixed
 

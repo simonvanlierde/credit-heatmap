@@ -30,8 +30,8 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
 - **Contribution grid**: click a cell to assign one of the 14 roles, as a yes/no value or as a
   contribution level. The grid is the heatmap, so you can transpose it, swap initials for full
   names, and recolor it
-- **Statements**: group by role or by author, with full names or initials, and optional level labels.
-  Copy as rich text or plain, and mark shared first authorship and corresponding authors
+- **Statements**: group by role or by author, with full names or initials, and optional level
+  labels. Copy as rich text or plain, and mark shared first authorship and corresponding authors
 - **Nine languages**: the interface and the generated statement each pick their own language, so a
   Dutch interface can produce an English statement. Role names come from
   [credit-translation](https://github.com/contributorshipcollaboration/credit-translation);
@@ -75,17 +75,17 @@ Nearly everything runs in the browser. [`packages/core`](packages/core/README.md
 logic as pure TypeScript, with `zod` as its only runtime dependency. XML import uses the native
 `DOMParser`, and the PNG is drawn from the heatmap SVG onto a `<canvas>`.
 
-The ORCID and DOI lookups are the exceptions, proxied by `/api/orcid` and `/api/doi`: ORCID's public
-API sends no CORS headers, and Crossref's polite-pool contact address belongs on the server rather
-than in every client bundle.
+The ORCID and DOI lookups are the exceptions, proxied by `/api/orcid` and `/api/doi`. ORCID's
+public API sends no CORS headers. Crossref's polite-pool contact address belongs on the server,
+not in every client bundle.
 
 Contributions store a 0–100 integer `score` rather than a boolean, so the UI switches between
 binary and level-based editing without changing the stored model. See
 [`packages/core/README.md`](packages/core/README.md#domain-model) for the score-to-level boundaries.
 
 **No accounts, no server-side storage.** This is a deliberate constraint, not a missing feature. A
-draft holds the names and ORCID iDs of co-authors who never visited this site, and keeping those in
-your browser means there is nothing to ask us to delete. Drafts are therefore per-browser: move one
+draft holds the names and ORCID iDs of co-authors who never visited this site. Keeping those in
+your browser means there is nothing to ask anyone to delete. Drafts are per-browser: move one
 between devices by exporting JSON. See
 [ADR 0002](docs/adr/0002-no-accounts-or-server-side-storage.md) for what would have to change for
 this to be revisited.
@@ -122,7 +122,7 @@ pnpm deploy         # build + deploy to your Cloudflare account
 ```
 
 Both upstream proxies (`/api/orcid`, `/api/doi`) share one rate-limiter binding, `API_RATE_LIMITER`.
-If it is missing, they fail open: the lookups keep working, unthrottled, and say so once in the
+Without the binding, they fail open: the lookups keep working, unthrottled, and say so once in the
 invocation log. After changing the binding, check the first deploy's logs for
 `API_RATE_LIMITER binding missing`.
 

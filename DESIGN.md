@@ -97,9 +97,9 @@ explanations. Use IBM Plex Mono for contributor initials and compact data labels
 
 ## Brand
 
-The mark is a 3×3 crop of the contribution matrix, lead on the diagonal, drawn on a 32px grid with
-8px cells and 1px gaps. Its fills are the heatmap's real intensity tiers, not decorative tints, so
-the mark and the product's data speak the same language.
+The mark is a 3×3 crop of the contribution matrix, lead on the diagonal. It is drawn on a 32px
+grid with 8px cells and 1px gaps. Its fills are the heatmap's real intensity tiers, not decorative
+tints, so the mark and the product's data speak the same language.
 
 Use the mark in `currentColor` wherever it sits beside text (the header lockup does), and with
 literal ink-blue tiers wherever it stands alone. The lockup is the mark at cap height, then a gap,
@@ -125,7 +125,7 @@ scroll; each pane scrolls its own content.
 
 Height-lock only behind both halves of the `desk` guard: ≥80rem wide **and** ≥45rem tall. Without
 the height half, a short window, a zoomed page, or a phone in landscape traps the app in a nested
-scroller instead of ordinary document flow.
+scroller. Those windows need ordinary document flow.
 
 Give a pane that scrolls but holds no focusable content a tab stop, or keyboard users can't reach
 its overflow.
