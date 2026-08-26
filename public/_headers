@@ -1,0 +1,6 @@
+# Headers for statically served assets. The worker's responses get these from
+# next.config.ts headers(); the ASSETS binding serves /sw.js, icons, and
+# /_next/static/* before the worker runs, so they need their own copy.
+/*
+  X-Content-Type-Options: nosniff
+  Strict-Transport-Security: max-age=31536000
