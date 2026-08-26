@@ -78,6 +78,7 @@ export function ContributionGrid() {
     toggleContribution,
     welcomeOpen,
   } = useContributionStore();
+  const recentReply = useContributionStore((s) => s.recentReply);
   const {
     describeRole,
     translateInterfaceRole,
@@ -271,6 +272,10 @@ export function ContributionGrid() {
     const role = CREDIT_ROLES[roleIndex];
     const score = author.contributions[roleIndex]?.score ?? 0;
     const frozen = isFrozen(author.id);
+    // The row a just-opened reply filled in. The worded Updated badge lives on
+    // the contributor row; here the same fact is a halo over their cells, in
+    // either orientation, so the change is visible where the roles landed.
+    const recent = author.id === recentReply;
     const level = translateUi(graded ? scoreToLevel(score) : score > 0 ? "contributed" : "none");
     const fill = score > 0 ? heatCellColor(heatmapMonoColor, graded ? score : 100) : null;
     const label = t("a11yRoleAssignment", {
@@ -320,7 +325,7 @@ export function ContributionGrid() {
           // against the card, which loses the click target on dim displays.
           className={`contribution-cell flex h-7 w-full items-center justify-center rounded transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             frozen ? "cursor-not-allowed opacity-40" : "hover:ring-2 hover:ring-primary/50"
-          } ${fill ? "" : "ring-1 ring-inset ring-outline/70"}`}
+          } ${fill ? "" : "ring-1 ring-inset ring-outline/70"} ${recent ? "outline outline-2 outline-primary/40" : ""}`}
           style={{ backgroundColor: fill ?? "var(--color-surface-container-high)" }}
         >
           {fill && (

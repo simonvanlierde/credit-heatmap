@@ -82,9 +82,13 @@ test("full round trip: ask → locked fill → reply link click → visible merg
   await pageA.goto(replyLink);
   await expect(onScreen(pageA, /Bob B\. White's roles were filled in/)).toBeVisible();
   await expect(pageA.getByRole("button", { name: "Investigation for Bob B. White: Contributed" })).toBeVisible();
-  // The row itself says what changed: the corrected name and an Updated mark.
+  // The row itself says what changed: the corrected name and an Updated mark,
+  // and the matrix haloes that contributor's cells where the roles landed.
   await expect(pageA.getByLabel("Name or ORCID iD", { exact: true }).nth(1)).toHaveValue("Bob B. White");
   await expect(pageA.getByText("Updated", { exact: true })).toBeVisible();
+  await expect(pageA.getByRole("button", { name: "Investigation for Bob B. White: Contributed" })).toHaveClass(
+    /outline-primary/,
+  );
   // The reply answers the ask, so the chip comes down.
   await expect(pageA.getByText("Asked", { exact: true })).toHaveCount(0);
 
@@ -93,6 +97,9 @@ test("full round trip: ask → locked fill → reply link click → visible merg
   await expect(pageA.getByRole("button", { name: "Investigation for Bob White: None" })).toBeVisible();
   await expect(pageA.getByRole("button", { name: /^Remove / })).toHaveCount(2);
   await expect(pageA.getByText("Updated", { exact: true })).toHaveCount(0);
+  await expect(pageA.getByRole("button", { name: "Investigation for Bob White: None" })).not.toHaveClass(
+    /outline-primary/,
+  );
   await expect(pageA.getByText("Asked", { exact: true })).toBeVisible();
 
   await originator.close();
