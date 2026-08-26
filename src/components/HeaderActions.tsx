@@ -160,7 +160,13 @@ export function HeaderActions() {
         showStatus({ kind: "success", message: t("claimResumed") });
         return null;
       }
-      const existing = Object.values(state.drafts).find((draft) => matches(draft.claim));
+      // The active draft's map copy is only as fresh as its last stash; its
+      // truth is state.claim, checked above. Without the id filter, unlocking
+      // the open draft and re-opening the same link would "resume" a claim
+      // that no longer exists.
+      const existing = Object.values(state.drafts).find(
+        (draft) => draft.id !== state.activeDraftId && matches(draft.claim),
+      );
       if (existing) {
         // Re-opening the same request revisits the draft it made, never forks it.
         switchDraft(existing.id);
