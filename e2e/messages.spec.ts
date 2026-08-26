@@ -5,7 +5,7 @@ import path from "node:path";
 // biome-ignore lint/correctness/noNodejsModules: Playwright tests run in Node.
 import process from "node:process";
 import { AVAILABLE_LOCALES } from "@credit-generator/core";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /**
  * Interface messages live in the app (`src/messages`), not in core: they are
@@ -84,5 +84,61 @@ test.describe("interface messages", () => {
         }
       }
     }
+  });
+});
+
+/**
+ * The catalog checks above are static. This renders the app in a non-English
+ * locale, which nothing else does: every other spec runs in English, so a
+ * broken ICU message, a locale chunk that fails to load, or a provider wired to
+ * the wrong locale would pass the whole suite and only surface for a real user.
+ */
+test.describe("rendering a non-English locale", () => {
+  const seed = (page: Page, uiLocale: string, outputLocale: string) =>
+    page.addInitScript(
+      ([ui, out]) => {
+        window.localStorage.setItem(
+          "credit-generator-state",
+          // Must match the store's persist version: there is no migrate, so a
+          // stale version is discarded and the seed silently does nothing.
+          JSON.stringify({ state: { authors: [], welcomeSeen: true, uiLocale: ui, outputLocale: out }, version: 6 }),
+        );
+      },
+      [uiLocale, outputLocale],
+    );
+
+  test("translates the interface and declares the document language", async ({ page }) => {
+    await seed(page, "nl", "nl");
+    await page.goto("/");
+
+    // A translated string that only exists in the Dutch catalog.
+    await expect(page.getByRole("button", { name: "Voorbeeldgegevens laden" })).toBeVisible();
+    // Screen readers pick pronunciation from this; "en" here would be a lie.
+    await expect(page.locator("html")).toHaveAttribute("lang", "nl");
+  });
+
+  test("keeps the statement in the output language when the two differ", async ({ page }) => {
+    await seed(page, "nl", "en");
+    await page.goto("/");
+    await page.getByRole("button", { name: "Voorbeeldgegevens laden" }).click();
+
+    // Interface Dutch, document declared Dutch...
+    await expect(page.locator("html")).toHaveAttribute("lang", "nl");
+    // ...but the statement is English and says so, so a screen reader switches.
+    const statement = page.locator("section[lang]");
+    await expect(statement).toHaveAttribute("lang", "en");
+    await expect(statement).toContainText("Conceptualization");
+  });
+
+  test("falls back to English for a key a locale has not translated", async ({ page }) => {
+    // Every key is translated today; this proves the fallback path itself works,
+    // so a half-translated locale degrades to English instead of a key name.
+    await seed(page, "nl", "nl");
+    await page.goto("/");
+    // innerText, not textContent: the latter includes Next's inlined script
+    // payload, whose minified identifiers look exactly like message keys.
+    const visible = await page.locator("body").innerText();
+    // A raw key leaking into the page is the failure this guards against.
+    expect(visible).not.toMatch(/\b(a11y|ann|err|dnd|step|bulk)[A-Z]\w+/);
   });
 });

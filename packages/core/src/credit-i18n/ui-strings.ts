@@ -10,7 +10,17 @@
  * not the community role repo's, hence a separate directory.
  */
 
-export type UiKey = "acknowledgements" | "lead" | "equal" | "supporting" | "none" | "contributed" | "emptyState";
+export type UiKey =
+  | "acknowledgements"
+  | "lead"
+  | "equal"
+  | "supporting"
+  | "none"
+  | "contributed"
+  | "emptyState"
+  | "equalContributionNote"
+  | "correspondenceNote"
+  | "and";
 
 export type UiTranslator = (key: UiKey) => string;
 
@@ -26,6 +36,10 @@ const EN_UI: Record<UiKey, string> = {
   none: "None",
   contributed: "Contributed",
   emptyState: "No contributions assigned yet.",
+  // `{names}` is substituted with the marked contributors, joined with `and`.
+  equalContributionNote: "{names} contributed equally to this work.",
+  correspondenceNote: "Correspondence: {names}.",
+  and: "and",
 };
 
 // One static import() per locale so bundlers code-split each catalog (only the

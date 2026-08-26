@@ -52,7 +52,7 @@ async function asReturningVisitor(page: Page) {
     if (window.localStorage.getItem("credit-generator-state")) return;
     window.localStorage.setItem(
       "credit-generator-state",
-      JSON.stringify({ state: { authors: [], welcomeSeen: true }, version: 4 }),
+      JSON.stringify({ state: { authors: [], welcomeSeen: true }, version: 6 }),
     );
   });
 }

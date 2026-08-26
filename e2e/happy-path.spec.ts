@@ -14,7 +14,7 @@ async function asReturningVisitor(page: Page) {
     if (window.localStorage.getItem("credit-generator-state")) return;
     window.localStorage.setItem(
       "credit-generator-state",
-      JSON.stringify({ state: { authors: [], welcomeSeen: true }, version: 4 }),
+      JSON.stringify({ state: { authors: [], welcomeSeen: true }, version: 6 }),
     );
   });
 }
@@ -121,6 +121,42 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByText(/has no assigned CRediT roles/).first()).toBeVisible();
   });
 
+  test("imports the contributor list from a DOI", async ({ page }) => {
+    // Stub the proxy: what is under test is the modal wiring, not Crossref.
+    await page.route("**/api/doi", (route) =>
+      route.fulfill({
+        json: {
+          ok: true,
+          title: "A study of studies",
+          authors: [{ name: "Jane A. Smith", orcid: "0000-0002-1825-0097" }, { name: "Bob White" }],
+        },
+      }),
+    );
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Import" }).click();
+    await page.locator("#import-doi").fill("10.1038/s41586-020-2649-2");
+    await page.getByRole("button", { name: "Look up" }).click();
+
+    await expect(page.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Jane A. Smith");
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(2);
+  });
+
+  test("explains a DOI that resolves to nothing, and keeps the dialog open", async ({ page }) => {
+    await page.route("**/api/doi", (route) =>
+      route.fulfill({ status: 404, json: { code: "NOT_FOUND", error: "No published record matches that DOI." } }),
+    );
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Import" }).click();
+    await page.locator("#import-doi").fill("10.1038/nope");
+    await page.getByRole("button", { name: "Look up" }).click();
+
+    await expect(page.getByText("No published record matches that DOI.")).toBeVisible();
+    // The dialog stays up so the DOI can be corrected in place.
+    await expect(page.locator("#import-doi")).toBeVisible();
+  });
+
   test("imports surname-first notation as one correctly structured contributor", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Import" }).click();
@@ -219,23 +255,12 @@ test.describe("Happy path UI flows", () => {
     expect(new URL(fresh.url()).hash).toBe("");
   });
 
-  test("persists, migrates, and clears the local draft", async ({ page }) => {
+  test("persists and clears the local draft", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
     await page.reload();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
-
-    await page.evaluate(() => {
-      const raw = window.localStorage.getItem("credit-generator-state");
-      if (!raw) throw new Error("expected persisted state");
-      const persisted = JSON.parse(raw) as { version: number; state: { inputMode: string } };
-      persisted.version = 0;
-      persisted.state.inputMode = "slider";
-      window.localStorage.setItem("credit-generator-state", JSON.stringify(persisted));
-    });
-    await page.reload();
-    await expect(page.getByRole("radio", { name: "Levels" })).toBeChecked();
 
     await page.getByRole("button", { name: "Clear local draft" }).click();
     await page.getByRole("button", { name: "Clear draft" }).click();
@@ -244,11 +269,13 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
   });
 
-  // A draft saved before MAX_AUTHOR_NAME_LENGTH existed can hold a longer name.
-  // It rehydrates fine, but every later mutation then throws inside
-  // createAuthor; so adding, removing or renaming anything bricked the
-  // workspace. The v5 migration trims on the way in.
-  test("keeps a pre-limit draft with an over-long name usable", async ({ page }) => {
+  /**
+   * The store has no `migrate`, so a draft persisted under an older version is
+   * discarded rather than upgraded. That is a deliberate trade while the app
+   * has no users; this pins it, because the failure mode is silent data loss
+   * and the moment it stops being acceptable a test should say so.
+   */
+  test("discards a draft saved under an older schema version", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
@@ -256,28 +283,15 @@ test.describe("Happy path UI flows", () => {
     await page.evaluate(() => {
       const raw = window.localStorage.getItem("credit-generator-state");
       if (!raw) throw new Error("expected persisted state");
-      const persisted = JSON.parse(raw) as { version: number; state: { authors: { name: string }[] } };
+      const persisted = JSON.parse(raw) as { version: number };
       persisted.version = 4;
-      const first = persisted.state.authors[0];
-      if (!first) throw new Error("expected an author");
-      first.name = "A".repeat(600);
       window.localStorage.setItem("credit-generator-state", JSON.stringify(persisted));
     });
     await page.reload();
-    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
-    // The operation that used to throw: mutate the list at all.
-    await page
-      .getByRole("button", { name: /^Remove / })
-      .last()
-      .click();
-    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(2);
-
-    const stored = await page.evaluate(() => {
-      const raw = window.localStorage.getItem("credit-generator-state") ?? "{}";
-      return (JSON.parse(raw) as { state?: { authors?: { name: string }[] } }).state?.authors?.[0]?.name ?? "";
-    });
-    expect(stored.length).toBeLessThanOrEqual(500);
+    // The draft is gone, and the workspace is usable rather than broken.
+    await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Load sample data" })).toBeVisible();
   });
 
   test("handles invalid contributor names and ORCID checksums without losing input", async ({ page }) => {

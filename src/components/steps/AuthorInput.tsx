@@ -28,6 +28,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  AtSign,
   Fingerprint,
   GripVertical,
   Plus,
@@ -38,8 +39,10 @@ import {
   UserMinus,
   UserPlus,
   UserSearch,
+  Users,
   X,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 import { StepHeader } from "@/components/ui/step-header";
@@ -56,7 +59,6 @@ function detectOrcid(text: string): string | null {
 }
 
 /** Written once: the same advice is reachable from the add field and from a row. */
-const ORCID_CHECKSUM_ERROR = "That ORCID iD has an invalid checksum. Check the digits and try again.";
 
 interface OrcidLookupResult {
   firstName: string;
@@ -177,7 +179,7 @@ export function AuthorList() {
     return () => window.clearTimeout(timer);
   }, [removed]);
 
-  // The "Clear local draft" button is replaced by the Cancel/Clear draft pair,
+  // The t("clearDraft") button is replaced by the Cancel/Clear draft pair,
   // so activating it unmounts the focused element. Carry focus across the swap
   // in both directions instead of letting it fall back to <body>.
   const clearWasPending = useRef(false);
@@ -342,8 +344,8 @@ export function AuthorList() {
     const orcid = detectOrcid(trimmed);
     if (orcid) {
       if (!isValidOrcid(orcid)) {
-        setAddError(ORCID_CHECKSUM_ERROR);
-        announce(ORCID_CHECKSUM_ERROR, { assertive: true });
+        setAddError(t("errOrcidChecksum"));
+        announce(t("errOrcidChecksum"), { assertive: true });
         return;
       }
       setNewName("");
@@ -370,7 +372,7 @@ export function AuthorList() {
     reset();
     useContributionStore.persist.clearStorage();
     setClearPending(false);
-    announce("Local draft cleared.");
+    announce(t("annDraftCleared"));
   }
 
   /** Pasting a whole author list adds every name; single names paste normally. */
@@ -516,6 +518,44 @@ export function AuthorList() {
 }
 
 /** A single draggable contributor row. ORCID UI state is local to the row. */
+/**
+ * A small pill for one of the two authorship markers that sit outside CRediT.
+ *
+ * Same shape as the contributor-type badge beside it, but hidden until the row
+ * is hovered while the marker is unset: an unmarked contributor is the normal
+ * case and should not carry two extra badges.
+ */
+function MarkerToggle({
+  active,
+  icon,
+  label,
+  title,
+  onClick,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      title={title}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-[color,background-color,opacity] ${
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-on-surface-variant hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
 function AuthorRow({
   index,
   onRemove,
@@ -526,7 +566,7 @@ function AuthorRow({
   enter: boolean;
 }) {
   const t = useTranslations();
-  const { authors, updateAuthorName, updateAuthorOrcid, setAuthorType } = useContributionStore();
+  const { authors, updateAuthorName, updateAuthorOrcid, setAuthorType, setAuthorMarker } = useContributionStore();
   const author = authors[index];
 
   const [loading, setLoading] = useState(false);
@@ -544,7 +584,7 @@ function AuthorRow({
   useEffect(() => {
     // Set on mount, not just at creation: React re-runs effects on a StrictMode
     // remount, and the cleanup would otherwise leave this false for good, so every
-    // later lookup would bail out before clearing "Looking up…".
+    // later lookup would bail out before clearing t("doiLookingUp").
     mounted.current = true;
     return () => {
       mounted.current = false;
@@ -603,8 +643,8 @@ function AuthorRow({
   /** Returns true when the iD was accepted and the editor closed. */
   function applyOrcid(orcid: string): boolean {
     if (!isValidOrcid(orcid)) {
-      setLookupError(ORCID_CHECKSUM_ERROR);
-      announce(ORCID_CHECKSUM_ERROR, { assertive: true });
+      setLookupError(t("errOrcidChecksum"));
+      announce(t("errOrcidChecksum"), { assertive: true });
       setEditingOrcid(true);
       return false;
     }
@@ -642,7 +682,7 @@ function AuthorRow({
       setNameError(null);
       return;
     }
-    setNameError("Enter a name with at least one letter and no more than 500 characters.");
+    setNameError(t("errNameTooLong"));
   }
 
   return (
@@ -726,6 +766,23 @@ function AuthorRow({
                 {isNonAuthor ? <UserMinus className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
                 {isNonAuthor ? t("contributorTypeNonAuthor") : t("contributorTypeAuthor")}
               </button>
+              {/* The two markers CRediT has no term for. Hidden until hovered
+                  while unset, so an unmarked row stays quiet; always visible
+                  once set, because it now says something about the paper. */}
+              <MarkerToggle
+                active={author.equalContribution}
+                icon={<Users className="h-3 w-3" />}
+                label={t("equalContributionShort")}
+                title={author.equalContribution ? t("equalContributionUnset") : t("equalContributionSet")}
+                onClick={() => setAuthorMarker(author.id, "equalContribution", !author.equalContribution)}
+              />
+              <MarkerToggle
+                active={author.corresponding}
+                icon={<AtSign className="h-3 w-3" />}
+                label={t("correspondingShort")}
+                title={author.corresponding ? t("correspondingUnset") : t("correspondingSet")}
+                onClick={() => setAuthorMarker(author.id, "corresponding", !author.corresponding)}
+              />
               {!hasOrcid && !editingOrcid && (
                 // Short label: the trigger is hover-revealed but still occupies its
                 // width, and "ORCID iD" pushed this row onto a second line in the
@@ -777,7 +834,7 @@ function AuthorRow({
                       <span className="sr-only">(invalid ORCID iD)</span>
                     </span>
                   )}
-                  <span className="sr-only">(opens in new tab)</span>
+                  <span className="sr-only">{t("opensInNewTab")}</span>
                 </a>
                 {orcidValid && lookedUp !== bareOrcid && (
                   <button

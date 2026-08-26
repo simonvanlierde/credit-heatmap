@@ -1,24 +1,74 @@
 "use client";
 
-import type { Author } from "@credit-generator/core";
+import type { Author, DoiLookupResult } from "@credit-generator/core";
 import {
+  createAuthor,
+  DOI_INPUT_REGEX,
   fromCsv,
   fromJats4rXml,
   fromJson,
   MAX_AUTHORS,
   MAX_IMPORT_BYTES,
+  normalizeDoi,
   parseAuthorText,
 } from "@credit-generator/core";
-import { FileUp, X } from "lucide-react";
+import { FileUp, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
 import { announce } from "@/lib/announce";
+import type { Messages } from "@/lib/intl";
 
 interface Props {
   open: boolean;
   existingContributorCount: number;
-  onImport: (authors: Author[]) => void;
+  /** `title` is set only by the DOI path; the other importers carry no title. */
+  onImport: (authors: Author[], title?: string) => void;
   onClose: () => void;
+}
+
+/** What a resolved import is waiting to write, once any replace is confirmed. */
+interface PendingImport {
+  authors: Author[];
+  title?: string;
+}
+
+/**
+ * Failure code → message key. Explicit rather than built by string
+ * concatenation, so the typed-message guarantee still holds: a key removed from
+ * en.json breaks the build here instead of silently rendering a key name.
+ */
+const DOI_ERROR_KEYS = {
+  INVALID_DOI: "errDoiINVALID_DOI",
+  NOT_FOUND: "errDoiNOT_FOUND",
+  NO_AUTHORS: "errDoiNO_AUTHORS",
+  TOO_MANY_AUTHORS: "errDoiTOO_MANY_AUTHORS",
+  UNAVAILABLE: "errDoiUNAVAILABLE",
+  RATE_LIMITED: "errDoiRATE_LIMITED",
+  BAD_REQUEST: "errDoiBAD_REQUEST",
+  UNREACHABLE: "errDoiUNREACHABLE",
+  OFFLINE: "errDoiOFFLINE",
+} as const;
+
+type DoiFailure = { code: keyof typeof DOI_ERROR_KEYS };
+
+async function fetchDoiWork(doi: string): Promise<Extract<DoiLookupResult, { ok: true }> | DoiFailure> {
+  try {
+    const res = await fetch("/api/doi", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ doi: normalizeDoi(doi) }),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as { code?: string } | null;
+      const code = data?.code ?? "";
+      return { code: code in DOI_ERROR_KEYS ? (code as keyof typeof DOI_ERROR_KEYS) : "BAD_REQUEST" };
+    }
+    return (await res.json()) as Extract<DoiLookupResult, { ok: true }>;
+  } catch {
+    // The lookup is one of two paths that need a network; the rest of the app
+    // works offline, so say which half is unavailable rather than blaming Crossref.
+    return { code: navigator.onLine ? "UNREACHABLE" : "OFFLINE" };
+  }
 }
 
 type DetectedFormat = "csv" | "json" | "xml" | "names" | "unknown";
@@ -44,23 +94,24 @@ function detect(text: string): DetectedFormat {
 /** The import size cap, written the way the messages below say it. */
 const MAX_IMPORT_MB = `${Math.round(MAX_IMPORT_BYTES / 1_000_000)} MB`;
 
+/** Format names are proper nouns; the "names" case is translated at render. */
 const FORMAT_LABEL: Record<DetectedFormat, string> = {
   csv: "CSV",
   json: "JSON export",
   xml: "JATS4R XML",
-  names: "Author name list",
+  names: "",
   unknown: "",
 };
 
 /** Parser + "nothing found" message for each detectable format. */
 const IMPORTERS: Record<
   Exclude<DetectedFormat, "unknown">,
-  { parse: (text: string) => Author[]; emptyMessage: string }
+  { parse: (text: string) => Author[]; emptyMessageKey: keyof Messages }
 > = {
-  json: { parse: fromJson, emptyMessage: "That JSON export contains no contributors." },
-  csv: { parse: fromCsv, emptyMessage: "No contributor rows found in the CSV." },
-  xml: { parse: fromJats4rXml, emptyMessage: "No <contrib> elements found in the XML." },
-  names: { parse: parseAuthorText, emptyMessage: "No author names found. Enter one name per line." },
+  json: { parse: fromJson, emptyMessageKey: "errImportNoJsonContributors" },
+  csv: { parse: fromCsv, emptyMessageKey: "errImportNoCsvRows" },
+  xml: { parse: fromJats4rXml, emptyMessageKey: "errImportNoXmlContribs" },
+  names: { parse: parseAuthorText, emptyMessageKey: "errImportNoNames" },
 };
 
 export function ImportModal({ open, existingContributorCount, onImport, onClose }: Props) {
@@ -68,7 +119,9 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [pendingAuthors, setPendingAuthors] = useState<Author[] | null>(null);
+  const [pending, setPending] = useState<PendingImport | null>(null);
+  const [doi, setDoi] = useState("");
+  const [doiLoading, setDoiLoading] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -99,7 +152,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
       setText(await file.text());
       setError(null);
     } catch {
-      showError("Could not read that file.");
+      showError(t("errFileUnreadable"));
     }
   }
 
@@ -130,45 +183,78 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
         showError(`That import is too large. Paste less than ${MAX_IMPORT_MB} of data.`);
         return;
       }
-      const { parse, emptyMessage } = IMPORTERS[format];
+      const { parse, emptyMessageKey } = IMPORTERS[format];
       const authors = parse(text.trim());
       if (authors.length === 0) {
-        showError(emptyMessage);
+        showError(t(emptyMessageKey));
         return;
       }
       if (authors.length > MAX_AUTHORS) {
         showError(`That import has too many contributors. The limit is ${MAX_AUTHORS}.`);
         return;
       }
-      if (existingContributorCount > 0) {
-        setPendingAuthors(authors);
-        return;
-      }
-      finishImport(authors);
+      stageImport({ authors });
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Could not parse the input. Check the format.");
+      showError(err instanceof Error ? err.message : t("errImportUnparsable"));
     }
   }
 
-  function finishImport(authors: Author[]) {
+  /** Import straight away, or hold it behind the replace confirmation. */
+  function stageImport(next: PendingImport) {
+    if (existingContributorCount > 0) {
+      setPending(next);
+      return;
+    }
+    finishImport(next);
+  }
+
+  async function handleDoiLookup() {
+    setError(null);
+    const trimmed = normalizeDoi(doi);
+    if (!DOI_INPUT_REGEX.test(trimmed)) {
+      showError(t("errDoiINVALID_DOI"));
+      return;
+    }
+    setDoiLoading(true);
+    const result = await fetchDoiWork(trimmed);
+    setDoiLoading(false);
+    if (!("ok" in result)) {
+      showError(t(DOI_ERROR_KEYS[result.code]));
+      return;
+    }
+    try {
+      // Crossref names go through createAuthor like any other import, so the
+      // initials and the empty role row are built exactly as they are for a
+      // pasted list.
+      const authors = result.authors.map((author) =>
+        createAuthor(author.name, author.orcid ? { orcid: author.orcid } : undefined),
+      );
+      stageImport({ authors, title: result.title });
+    } catch (err) {
+      showError(err instanceof Error ? err.message : "Could not import those contributors.");
+    }
+  }
+
+  function finishImport({ authors, title }: PendingImport) {
     // `onImport` runs the authors back through the store's normalizeAuthors,
     // which throws on anything createAuthor cannot rebuild. On the confirm
     // path this sits outside handleImport's try, so an unguarded throw here
     // escaped the click handler instead of showing as an import error.
     try {
-      onImport(authors);
+      onImport(authors, title);
     } catch (err) {
       showError(err instanceof Error ? err.message : "Could not import those contributors.");
       return;
     }
-    setPendingAuthors(null);
+    setPending(null);
     dialogRef.current?.close();
   }
 
   function handleClose() {
     setText("");
+    setDoi("");
     setError(null);
-    setPendingAuthors(null);
+    setPending(null);
     onClose();
   }
 
@@ -208,6 +294,46 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
         </div>
 
         <div className="px-8 py-8 space-y-6">
+          {/* DOI lookup */}
+          <div>
+            <label
+              htmlFor="import-doi"
+              className="block text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-3"
+            >
+              {t("importFromDoi")}
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="import-doi"
+                type="text"
+                inputMode="url"
+                value={doi}
+                onChange={(e) => {
+                  setDoi(e.target.value);
+                  setError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleDoiLookup();
+                  }
+                }}
+                placeholder={t("doiPlaceholder")}
+                className="flex-1 min-w-0 bg-surface-container-low border-0 border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none text-sm font-mono px-4 py-2 text-on-surface rounded-t transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => void handleDoiLookup()}
+                disabled={doiLoading || doi.trim().length === 0 || pending !== null}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded border border-primary px-4 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-primary"
+              >
+                <Search className="h-4 w-4" />
+                {doiLoading ? t("doiLookingUp") : t("doiLookUp")}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-on-surface-variant">{t("doiHint")}</p>
+          </div>
+
           {/* Drop zone */}
           <div>
             <p className="text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-3">
@@ -256,7 +382,10 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
                 {t("pasteRawData")}
               </label>
               {format !== "unknown" && (
-                <span className="text-[10px] text-primary font-medium italic">Detected: {FORMAT_LABEL[format]}</span>
+                <span className="text-[10px] text-primary font-medium italic">
+                  {t("detectedFormat")}
+                  {format === "names" ? t("importAuthorList") : FORMAT_LABEL[format]}
+                </span>
               )}
             </div>
             <textarea
@@ -274,24 +403,24 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
 
           {error && <p className="text-sm text-error bg-error-container/30 rounded px-4 py-2">{error}</p>}
 
-          {pendingAuthors && (
+          {pending && (
             <div role="alert" className="rounded-lg bg-error-container/30 p-4 text-sm text-on-surface">
               <p className="font-semibold">{t("replaceWorkspaceTitle")}</p>
               <p className="mt-1 text-on-surface-variant">
-                Importing {pendingAuthors.length} contributor{pendingAuthors.length === 1 ? "" : "s"} will replace the{" "}
+                Importing {pending.authors.length} contributor{pending.authors.length === 1 ? "" : "s"} will replace the{" "}
                 {existingContributorCount} already in this workspace. This cannot be undone.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => setPendingAuthors(null)}
+                  onClick={() => setPending(null)}
                   className="rounded-lg border border-outline-variant px-4 py-2 font-semibold text-on-surface-variant hover:border-primary hover:text-primary"
                 >
                   {t("keepCurrentWork")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => finishImport(pendingAuthors)}
+                  onClick={() => finishImport(pending)}
                   className="rounded-lg bg-error px-4 py-2 font-semibold text-on-error hover:opacity-90"
                 >
                   {t("replaceWorkspace")}
@@ -312,7 +441,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
           <button
             type="button"
             onClick={handleImport}
-            disabled={format === "unknown" || pendingAuthors !== null}
+            disabled={format === "unknown" || pending !== null}
             className="px-7 py-2 bg-primary text-on-primary text-sm font-bold rounded-lg shadow hover:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {t("importData")}

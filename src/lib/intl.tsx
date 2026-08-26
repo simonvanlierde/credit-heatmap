@@ -60,6 +60,15 @@ export function AppIntlProvider({ children }: { children: ReactNode }) {
     };
   }, [locale]);
 
+  // Keep the document's declared language in step with the interface. The page
+  // is server-rendered as `en`, and the store only knows the reader's choice
+  // after it rehydrates, so this is a client-side correction rather than an SSR
+  // attribute. Without it a Dutch interface still announces itself as English
+  // and a screen reader applies English pronunciation to every label.
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
   return (
     <IntlProvider
       locale={locale}

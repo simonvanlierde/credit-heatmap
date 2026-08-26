@@ -6,6 +6,8 @@ import {
   CREDIT_ROLES,
   heatCellColor,
   onColor,
+  type RoleDescriber,
+  type RoleTranslator,
   scoreToLevel,
   type UiKey,
   type UiTranslator,
@@ -32,7 +34,7 @@ import { StepHeader } from "@/components/ui/step-header";
 import { Switch } from "@/components/ui/switch";
 import { announce } from "@/lib/announce";
 import { useCopyStatus } from "@/lib/use-copy-status";
-import { useOutputTranslators } from "@/lib/use-output-translators";
+import { useCreditTranslators } from "@/lib/use-credit-translators";
 import { useSettled } from "@/lib/use-settled";
 import { download as downloadBlob } from "@/lib/utils";
 import { type InputMode, useContributionStore } from "@/store/contribution-store";
@@ -74,7 +76,7 @@ export function ContributionGrid() {
     toggleContribution,
     welcomeOpen,
   } = useContributionStore();
-  const { translateUi } = useOutputTranslators();
+  const { translateRole, translateUi, describeRole } = useCreditTranslators();
   const t = useTranslations();
   // Second beat of the population sequence; see .enter-fade in globals.css.
   const settled = useSettled();
@@ -283,7 +285,7 @@ export function ContributionGrid() {
                   <SelectContent>
                     {CREDIT_ROLES.map((role, roleIndex) => (
                       <SelectItem key={role.name} value={String(roleIndex)}>
-                        {role.name}
+                        {translateRole(role.name)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -371,8 +373,8 @@ export function ContributionGrid() {
             return (
               <li key={role.name} className="flex min-h-14 items-center gap-2 py-1.5">
                 <span className="flex min-w-0 flex-1 items-center gap-1">
-                  <span className="text-sm font-medium text-on-surface">{role.name}</span>
-                  <RoleInfo role={role} />
+                  <span className="text-sm font-medium text-on-surface">{translateRole(role.name)}</span>
+                  <RoleInfo role={role} translateRole={translateRole} describeRole={describeRole} />
                 </span>
                 <button
                   type="button"
@@ -433,7 +435,7 @@ export function ContributionGrid() {
                     >
                       <span className="flex flex-col items-center gap-1">
                         <AngledLabel text={role.name} />
-                        <RoleInfo role={role} />
+                        <RoleInfo role={role} translateRole={translateRole} describeRole={describeRole} />
                       </span>
                     </th>
                   ))
@@ -487,7 +489,7 @@ export function ContributionGrid() {
                         <span className="truncate" title={role.name}>
                           {role.name}
                         </span>
-                        <RoleInfo role={role} />
+                        <RoleInfo role={role} translateRole={translateRole} describeRole={describeRole} />
                       </span>
                     </th>
                     {authors.map((author, authorCol) => renderCell(author, roleIndex, roleIndex, authorCol))}
@@ -561,21 +563,31 @@ function AngledLabel({ text }: { text: string }) {
 }
 
 /** The role's short description with a link to its full NISO definition. */
-function RoleInfo({ role }: { role: (typeof CREDIT_ROLES)[number] }) {
+function RoleInfo({
+  role,
+  translateRole,
+  describeRole,
+}: {
+  role: (typeof CREDIT_ROLES)[number];
+  translateRole: RoleTranslator;
+  describeRole: RoleDescriber;
+}) {
   const t = useTranslations();
+  // The name follows the output language (it must match the statement); the
+  // description follows the interface language (it is help, never exported).
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`About ${role.name}`}
+          aria-label={t("aboutRole", { role: translateRole(role.name) })}
           className="touch-target flex size-8 shrink-0 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <Info className="h-4 w-4" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="max-w-xs text-xs leading-relaxed text-on-surface-variant">
-        <strong className="text-on-surface">{role.name}.</strong> {role.description}{" "}
+        <strong className="text-on-surface">{translateRole(role.name)}.</strong> {describeRole(role.name)}{" "}
         <a
           href={role.url}
           target="_blank"
@@ -584,7 +596,7 @@ function RoleInfo({ role }: { role: (typeof CREDIT_ROLES)[number] }) {
         >
           {t("fullDefinition")}
           <ExternalLink className="h-3 w-3" aria-hidden="true" />
-          <span className="sr-only">(opens in new tab)</span>
+          <span className="sr-only">{t("opensInNewTab")}</span>
         </a>
       </PopoverContent>
     </Popover>
@@ -684,12 +696,12 @@ function HeatmapExports({
   transpose: boolean;
   acronyms: boolean;
 }) {
-  const { translateRole, translateUi } = useOutputTranslators();
+  const { translateRole, translateUi } = useCreditTranslators();
   const t = useTranslations();
   const [loading, setLoading] = useState<ExportFormat | "copy" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copyStatus, copy] = useCopyStatus({
-    copied: "Heatmap PNG copied to clipboard",
+    copied: t("annHeatmapCopied"),
     error: "Heatmap copy failed",
   });
 

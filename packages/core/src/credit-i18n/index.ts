@@ -70,6 +70,28 @@ export async function loadRoleCatalog(locale: string): Promise<RoleCatalog | nul
  * localized name, falling back to the English name when the catalog is null or
  * lacks the role. Safe to call with any string (unknown names pass through).
  */
+/** Maps a canonical English role name to its localized description. */
+export type RoleDescriber = (englishName: string) => string;
+
+/**
+ * Localized role descriptions, from the same community catalog as the names.
+ *
+ * Descriptions are explanatory help and never reach an export, so the app reads
+ * them in the *interface* language, while role names follow the *output*
+ * language — a role name has to match the statement it will appear in.
+ */
+export function makeRoleDescriber(catalog: RoleCatalog | null | undefined, fallback: RoleDescriber): RoleDescriber {
+  if (!catalog) return fallback;
+  return (name) => {
+    try {
+      // `||` (not `??`) so an empty localized description falls back to English.
+      return catalog[getRoleByName(name).url]?.description || fallback(name);
+    } catch {
+      return fallback(name);
+    }
+  };
+}
+
 export function makeRoleTranslator(catalog: RoleCatalog | null | undefined): RoleTranslator {
   if (!catalog) return (name) => name;
   return (name) => {

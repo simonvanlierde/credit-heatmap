@@ -25,7 +25,7 @@ export function AboutPopover({ version }: { version: string }) {
           <p className="font-semibold text-on-surface">
             CRediT Matrix <span className="font-mono text-xs font-normal text-on-surface-variant">v{version}</span>
           </p>
-          <p className="mt-0.5">Draft CRediT contribution statements, and export the grid as a contribution heatmap.</p>
+          <p className="mt-0.5">{t("aboutTagline")}</p>
         </div>
         <a
           href="https://github.com/simonvanlierde/credit-heatmap"
@@ -34,13 +34,13 @@ export function AboutPopover({ version }: { version: string }) {
           className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
         >
           <Code className="size-4" aria-hidden="true" />
-          Source code on GitHub
+          {t("sourceOnGitHub")}
           <ExternalLink className="size-3" aria-hidden="true" />
-          <span className="sr-only">(opens in new tab)</span>
+          <span className="sr-only">{t("opensInNewTab")}</span>
         </a>
         <div className="border-t border-outline-variant/30 pt-2 text-xs space-y-1.5">
           <p>
-            Inspired by the original{" "}
+            {t("aboutInspiredBy")}{" "}
             <a
               href="https://github.com/IPHYS-Bioinformatics/CRediT-Generator"
               target="_blank"
@@ -49,12 +49,12 @@ export function AboutPopover({ version }: { version: string }) {
             >
               Python/Dash CRediT Generator
               <ExternalLink className="size-3" aria-hidden="true" />
-              <span className="sr-only">(opens in new tab)</span>
+              <span className="sr-only">{t("opensInNewTab")}</span>
             </a>
             .
           </p>
           <p>
-            Output translations by{" "}
+            {t("aboutOutputTranslations")}{" "}
             <a
               href="https://github.com/contributorshipcollaboration/credit-translation"
               target="_blank"
@@ -63,14 +63,11 @@ export function AboutPopover({ version }: { version: string }) {
             >
               credit-translation contributors
               <ExternalLink className="size-3" aria-hidden="true" />
-              <span className="sr-only">(opens in new tab)</span>
+              <span className="sr-only">{t("opensInNewTab")}</span>
             </a>
             , CC BY 4.0.
           </p>
-          <p>
-            The CRediT taxonomy is an ANSI/NISO standard, CC BY 4.0. This is an independent project, not affiliated with
-            or endorsed by NISO.
-          </p>
+          <p>{t("aboutTaxonomy")}</p>
         </div>
       </PopoverContent>
     </Popover>

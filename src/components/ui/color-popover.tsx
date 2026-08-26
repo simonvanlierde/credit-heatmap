@@ -16,7 +16,7 @@ export function ColorPopover({
   onChange,
   onReset,
   trigger,
-  label = "Choose color",
+  label,
 }: {
   value: string;
   onChange: (hex: string) => void;
@@ -29,7 +29,9 @@ export function ColorPopover({
     <Popover>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent className="w-56">
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</p>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          {label ?? t("chooseColor")}
+        </p>
         <div className="grid grid-cols-8 gap-1.5">
           {OKABE_ITO.map((hex) => {
             const selected = hex.toLowerCase() === value.toLowerCase();
@@ -58,7 +60,7 @@ export function ColorPopover({
               aria-label={t("a11yCustomColor")}
               className="h-6 w-6 cursor-pointer rounded border border-outline-variant bg-transparent p-0"
             />
-            Custom
+            {t("customColor")}
           </label>
           {onReset && (
             <button

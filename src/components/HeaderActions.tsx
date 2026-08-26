@@ -24,6 +24,7 @@ export function HeaderActions() {
   });
   const authors = useContributionStore((s) => s.authors);
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
+  const setTitle = useContributionStore((s) => s.setTitle);
   const t = useTranslations();
 
   // Rehydrate persisted state on the client (the store skips hydration at
@@ -35,6 +36,11 @@ export function HeaderActions() {
 
   // On first load, a `#s=…` share link overrides the persisted/local state.
   // The hash is then cleared so later edits and reloads aren't reverted.
+  //
+  // Adding `t` to the deps would re-run this on every language change; on the
+  // failure path the hash is deliberately left in place, so it would
+  // re-announce the error each time someone switches language.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only by design
   useEffect(() => {
     const fromHash = decodeShareHash(window.location.hash);
     if (fromHash && fromHash.length > 0) {
@@ -45,7 +51,7 @@ export function HeaderActions() {
       try {
         loadAuthors(fromHash);
       } catch {
-        announce("That shared link could not be opened. Your own draft was kept.", { assertive: true });
+        announce(t("errShareLinkBroken"), { assertive: true });
         return;
       }
       // Drop only the fragment; keep any query string intact.
@@ -53,9 +59,12 @@ export function HeaderActions() {
     }
   }, [loadAuthors]);
 
-  function handleImport(importedAuthors: Author[]) {
+  function handleImport(importedAuthors: Author[], importedTitle?: string) {
     // Errors surface in ImportModal, which keeps the dialog open on failure.
     loadAuthors(importedAuthors);
+    // Only the DOI path carries a title. Guard on it rather than on emptiness,
+    // so a record with no title still clears a stale one from the last import.
+    if (importedTitle !== undefined) setTitle(importedTitle);
   }
 
   async function handleShare() {
@@ -63,7 +72,7 @@ export function HeaderActions() {
       await copyShareUrl(buildShareUrl(authors));
       setShareOpen(false);
     } catch {
-      announce("This draft is too large to share as a link. Export it as JSON instead.", { assertive: true });
+      announce(t("errShareTooLarge"), { assertive: true });
     }
   }
 
@@ -103,7 +112,7 @@ export function HeaderActions() {
               onClick={() => void handleShare()}
               className="mt-3 inline-flex min-h-9 items-center rounded-lg bg-primary px-3 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-container"
             >
-              Copy data link
+              {t("copyDataLink")}
             </button>
           </PopoverContent>
         </Popover>

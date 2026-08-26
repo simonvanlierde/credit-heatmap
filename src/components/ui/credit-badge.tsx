@@ -3,6 +3,7 @@
 import { BadgeCheck, Check, Copy, Download, ImageDown } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 import { announce } from "@/lib/announce";
 import { type CopyStatus, useCopyStatus } from "@/lib/use-copy-status";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
@@ -28,7 +29,8 @@ function htmlSnippet() {
  * `className` overrides the trigger's styling (e.g. a lighter secondary look).
  */
 export function CreditBadge({ className }: { className?: string }) {
-  const [htmlStatus, copyHtml] = useCopyStatus({ copied: "Badge HTML copied to clipboard", error: "Copy failed" });
+  const t = useTranslations();
+  const [htmlStatus, copyHtml] = useCopyStatus({ copied: t("annBadgeHtmlCopied"), error: t("copyFailedMessage") });
   const [pngStatus, setPngStatus] = useState<CopyStatus>("idle");
 
   // Copy the image bytes (not a URL) so it pastes straight into a doc/editor.
@@ -37,10 +39,10 @@ export function CreditBadge({ className }: { className?: string }) {
       const blob = await (await fetch(BADGE_SRC)).blob();
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
       setPngStatus("copied");
-      announce("Badge PNG copied to clipboard");
+      announce(t("annBadgeCopied"));
     } catch {
       setPngStatus("error");
-      announce("Copy failed", { assertive: true });
+      announce(t("copyFailedMessage"), { assertive: true });
     }
     setTimeout(() => setPngStatus("idle"), 2000);
   }
@@ -56,11 +58,13 @@ export function CreditBadge({ className }: { className?: string }) {
           }
         >
           <BadgeCheck className="h-[18px] w-[18px]" />
-          Get the CRediT badge
+          {t("getCreditBadge")}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-4">
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">CRediT badge</p>
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          {t("creditBadge")}
+        </p>
 
         {/* Live preview, exactly as the snippet renders it */}
         <a
@@ -71,7 +75,7 @@ export function CreditBadge({ className }: { className?: string }) {
         >
           <Image src={BADGE_SRC} alt={ALT} width={88} height={88} />
           <span className="text-[11px] text-on-surface-variant">credit.niso.org</span>
-          <span className="sr-only">(opens in new tab)</span>
+          <span className="sr-only">{t("opensInNewTab")}</span>
         </a>
 
         <p className="mb-3 text-xs leading-relaxed text-on-surface-variant">
@@ -85,7 +89,7 @@ export function CreditBadge({ className }: { className?: string }) {
             className="flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary"
           >
             {htmlStatus === "copied" ? <Check className="h-[18px] w-[18px]" /> : <Copy className="h-[18px] w-[18px]" />}
-            {htmlStatus === "copied" ? "Copied HTML!" : htmlStatus === "error" ? "Copy failed" : "Copy HTML"}
+            {htmlStatus === "copied" ? t("copiedHtml") : htmlStatus === "error" ? t("copyFailedMessage") : "Copy HTML"}
           </button>
           <button
             type="button"
@@ -97,7 +101,7 @@ export function CreditBadge({ className }: { className?: string }) {
             ) : (
               <ImageDown className="h-[18px] w-[18px]" />
             )}
-            {pngStatus === "copied" ? "Copied PNG!" : pngStatus === "error" ? "Copy failed" : "Copy PNG"}
+            {pngStatus === "copied" ? t("copiedPng") : pngStatus === "error" ? t("copyFailedMessage") : "Copy PNG"}
           </button>
           <a
             href={BADGE_SRC}

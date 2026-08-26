@@ -159,9 +159,9 @@ export function WelcomeCard() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sm text-on-surface-variant transition-colors hover:text-primary"
             >
-              Full CRediT standard
+              {t("fullCreditStandard")}
               <ExternalLink className="h-3 w-3" aria-hidden="true" />
-              <span className="sr-only">(opens in new tab)</span>
+              <span className="sr-only">{t("opensInNewTab")}</span>
             </a>
             <a
               href="https://doi.org/10.5281/zenodo.18421449"
@@ -169,9 +169,9 @@ export function WelcomeCard() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sm text-on-surface-variant transition-colors hover:text-primary"
             >
-              CRediT Roles & Examples
+              {t("creditRolesExamples")}
               <ExternalLink className="h-3 w-3" aria-hidden="true" />
-              <span className="sr-only">(opens in new tab)</span>
+              <span className="sr-only">{t("opensInNewTab")}</span>
             </a>
           </span>
         </div>
