@@ -27,7 +27,7 @@ import {
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslations } from "use-intl";
 import { ColorPopover } from "@/components/ui/color-popover";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StepHeader } from "@/components/ui/step-header";
@@ -98,6 +98,16 @@ export function ContributionGrid() {
   // The roster as it stood before the last bulk action. One click can rewrite
   // fourteen assignments, so it earns the same undo bar a row removal has.
   const [bulkUndo, setBulkUndo] = useState<Author[] | null>(null);
+  // Right-click level picker: direct selection for pointer users, so correcting
+  // an overshoot never means cycling a value through None. The anchor is the
+  // cursor point; the cell element takes focus back when the panel closes.
+  const [picker, setPicker] = useState<{
+    authorId: string;
+    roleIndex: number;
+    x: number;
+    y: number;
+    cell: HTMLButtonElement;
+  } | null>(null);
 
   useEffect(() => {
     if (!bulkUndo) return;
@@ -259,7 +269,23 @@ export function ContributionGrid() {
           tabIndex={row === active.row && col === active.col ? 0 : -1}
           onFocus={() => setActiveCell({ row, col })}
           onKeyDown={(event) => handleCellKeyDown(event, row, col, author, roleIndex)}
-          aria-pressed={score > 0}
+          // A toggle only in yes/no mode: pressed semantics misdescribe a
+          // four-way value, whose level the accessible name carries instead.
+          aria-pressed={graded ? undefined : score > 0}
+          onContextMenu={
+            graded
+              ? (event) => {
+                  event.preventDefault();
+                  setPicker({
+                    authorId: author.id,
+                    roleIndex,
+                    x: event.clientX,
+                    y: event.clientY,
+                    cell: event.currentTarget,
+                  });
+                }
+              : undefined
+          }
           aria-label={t("a11yRoleAssignment", {
             role: role ? translateInterfaceRole(role.name) : "",
             name: author.name,
@@ -470,7 +496,8 @@ export function ContributionGrid() {
                 </span>
                 <button
                   type="button"
-                  aria-pressed={score > 0}
+                  // Same as the desktop cell: pressed semantics only fit yes/no.
+                  aria-pressed={graded ? undefined : score > 0}
                   aria-label={t("a11yRoleAssignment", {
                     role: translateInterfaceRole(role.name),
                     name: selectedAuthor.name,
@@ -609,6 +636,55 @@ export function ContributionGrid() {
           </tbody>
         </table>
       </div>
+
+      {/* Right-click level picker: one shared panel, anchored at the cursor.
+          Focus returns to the cell on every close, as a context menu's does. */}
+      {picker &&
+        (() => {
+          const pickerAuthor = authors.find((candidate) => candidate.id === picker.authorId);
+          const pickerRole = CREDIT_ROLES[picker.roleIndex];
+          if (!pickerAuthor || !pickerRole) return null;
+          const current = pickerAuthor.contributions[picker.roleIndex]?.score ?? 0;
+          const close = () => {
+            picker.cell.focus();
+            setPicker(null);
+          };
+          return (
+            <Popover open onOpenChange={(open) => !open && close()}>
+              <PopoverAnchor className="fixed" style={{ left: picker.x, top: picker.y }} />
+              <PopoverContent align="start" className="w-40 p-1" onCloseAutoFocus={(event) => event.preventDefault()}>
+                {LEVEL_KEY.map(({ key, score }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      setAuthorScore(pickerAuthor.id, picker.roleIndex, score);
+                      announce(
+                        t("a11yRoleAssignment", {
+                          role: translateInterfaceRole(pickerRole.name),
+                          name: pickerAuthor.name,
+                          level: translateUi(key),
+                        }),
+                      );
+                      close();
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-on-surface transition-colors hover:bg-surface-container"
+                  >
+                    <span
+                      className="h-3 w-3 rounded-sm border border-outline-variant"
+                      style={{
+                        backgroundColor:
+                          score > 0 ? heatCellColor(heatmapMonoColor, score) : "var(--color-surface-container-high)",
+                      }}
+                    />
+                    {translateUi(key)}
+                    {score === current && <Check aria-hidden="true" className="ml-auto size-3.5 text-primary" />}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+          );
+        })()}
 
       {/* Same open-from-zero bar a row removal gets; see .undo-enter. */}
       {bulkUndo && (
