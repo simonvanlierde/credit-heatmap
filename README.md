@@ -76,6 +76,13 @@ proxies it. Contributions store a 0–100 integer `score` rather than a boolean,
 between binary and level-based editing without changing the stored model. See
 [`packages/core/README.md`](packages/core/README.md#domain-model) for the score-to-level boundaries.
 
+**No accounts, no server-side storage.** This is a deliberate constraint, not a missing feature. A
+draft holds the names and ORCID iDs of co-authors who never visited this site, and keeping those in
+your browser means there is nothing to ask us to delete. Drafts are therefore per-browser: move one
+between devices by exporting JSON. See
+[ADR 0002](docs/adr/0002-no-accounts-or-server-side-storage.md) for what would have to change for
+this to be revisited.
+
 ---
 
 ## Self-hosting
@@ -109,8 +116,6 @@ pnpm deploy         # build + deploy to your Cloudflare account
 
 ## Roadmap
 
-- **Work offline.** Everything except the ORCID lookup already runs in the browser, so a draft
-  should survive a flight. The ORCID lookup is the one path that degrades.
 - **Review the translations.** The interface ships in eight languages, machine-translated and
   checked for consistency, ICU correctness, and CRediT terminology. Japanese and Chinese in
   particular still want a native speaker: the term for a contribution *statement* is unsettled.
