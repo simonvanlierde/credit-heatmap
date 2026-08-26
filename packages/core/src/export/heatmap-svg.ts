@@ -1,10 +1,11 @@
-import type { Author } from "../author.js";
-import { rolesWithContributions } from "../author.js";
-import { DEFAULT_MONO_COLOR, heatCellColor } from "../contributor-color.js";
-import type { RoleTranslator } from "../credit-i18n/index.js";
-import { makeUiTranslator, type UiTranslator } from "../credit-i18n/ui-strings.js";
-import { CREDIT_ROLES } from "../credit-roles.js";
-import { escapeXml } from "./escape-xml.js";
+import type { Author } from "../author";
+import { rolesWithContributions } from "../author";
+import { DEFAULT_MONO_COLOR, heatCellColor } from "../contributor-color";
+import type { RoleTranslator } from "../credit-i18n/index";
+import { makeUiTranslator, type UiTranslator } from "../credit-i18n/ui-strings";
+import { CREDIT_ROLES } from "../credit-roles";
+import { escapeXml } from "./escape-xml";
+import { GENERATOR_NOTE } from "./generator-note";
 
 // Layout constants (unscaled)
 const CELL = 22;
@@ -44,14 +45,14 @@ export interface HeatmapSvgOptions {
 /**
  * Render a contribution heatmap as a self-contained SVG string.
  *
- * Pure and dependency-free — runs in the browser (for live preview, SVG
+ * Pure and dependency-free. Runs in the browser (for live preview, SVG
  * download, and canvas→PNG export) and in Node (for tests). The SVG uses
  * system font stacks, so no font embedding is required.
  *
  * The label bands are orientation-aware: the axis carrying long role names gets
  * a wide/tall band, the one carrying short initials gets a small one, so
  * nothing overflows the viewBox. Roles that no author contributed to are
- * omitted, matching the live chart. There is no baked-in image title —
+ * omitted, matching the live chart. There is no baked-in image title:
  * captions belong to the embedding document.
  */
 export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): string {
@@ -71,12 +72,13 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
 
   const PAD_S = PAD * scale;
 
-  // Nothing to show — render a small placeholder rather than a 0-row grid.
+  // Nothing to show: render a small placeholder rather than a 0-row grid.
   if (roles.length === 0) {
     const w = 320 * scale;
     const h = 56 * scale;
     return [
       `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
+      `<!-- ${GENERATOR_NOTE} -->`,
       `<rect width="${w}" height="${h}" fill="${COLOR_BG}"/>`,
       `<text x="${PAD_S}" y="${PAD_S + 8}" font-family="${FONT}" font-size="${11 * scale}" fill="${COLOR_TEXT_DIM}">${escapeXml(translateUi("emptyState"))}</text>`,
       "</svg>",
@@ -94,10 +96,15 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
   const CELL_S = CELL * scale;
   const GAP_S = GAP * scale;
 
-  // Approx rendered width of the longest label on each axis (≈0.62em per char).
-  const authorMaxChars = Math.max(1, ...authors.map((_, ai) => authorLabel(ai).length));
+  // Approx rendered width of the longest label on each axis (≈0.62em per
+  // Latin char). CJK glyphs render full-width (≈1em), so count them as 1.6
+  // units or a six-character Japanese name overflows its band.
+  const CJK_CHAR = /[ᄀ-ᇿ⺀-꓏가-힣豈-﫿︰-﹏＀-￯]/;
+  const labelUnits = (label: string): number =>
+    [...label].reduce((units, char) => units + (CJK_CHAR.test(char) ? 1.6 : 1), 0);
+  const authorMaxChars = Math.max(1, ...authors.map((_, ai) => labelUnits(authorLabel(ai))));
   const authorLabelW = authorMaxChars * 11 * 0.62 * scale;
-  const roleMaxChars = Math.max(1, ...roles.map((r) => translateRole(r.name).length));
+  const roleMaxChars = Math.max(1, ...roles.map((r) => labelUnits(translateRole(r.name))));
   const roleLabelW = roleMaxChars * 10.5 * 0.62 * scale;
   const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -152,6 +159,7 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
   const lines: string[] = [];
   lines.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}">`,
+    `<!-- ${GENERATOR_NOTE} -->`,
   );
   lines.push(`<rect width="${totalW}" height="${totalH}" fill="${COLOR_BG}"/>`);
 

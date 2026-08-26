@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { makeUiTranslator } from "../credit-i18n/ui-strings.js";
-import { generateStatement } from "../generate-statement.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { makeUiTranslator } from "../credit-i18n/ui-strings";
+import { generateStatement } from "../generate-statement";
+import { parseAuthorText } from "../parse-authors";
 
 function makeAuthors() {
   const authors = parseAuthorText("Jane Smith\nBob White");
@@ -19,6 +19,64 @@ function makeAuthors() {
   bobConc.score = 20; // Conceptualization supporting
   bobInv.score = 100; // Investigation lead
   return authors;
+}
+
+describe("generateStatement, as HTML", () => {
+  it("bolds the prefix and each leading label, and keeps the text identical", () => {
+    const authors = makeAuthors();
+    const html = generateStatement(authors, { format: "by-role", asHtml: true });
+
+    expect(html).toBe(
+      "<p><strong>CRediT:</strong> <strong>Conceptualization</strong>: Jane Smith, Bob White; " +
+        "<strong>Investigation</strong>: Bob White; <strong>Software</strong>: Jane Smith</p>",
+    );
+    // The rich and plain forms must say the same thing: they travel together on
+    // the clipboard, and the recipient sees whichever their editor prefers.
+    expect(stripTags(html)).toBe(generateStatement(authors, { format: "by-role" }));
+  });
+
+  it("bolds the contributor in a by-author statement", () => {
+    const html = generateStatement(makeAuthors(), { format: "by-author", asHtml: true });
+    expect(html).toContain("<strong>Jane Smith</strong>: Conceptualization, Software");
+  });
+
+  it("escapes characters that would otherwise be markup", () => {
+    const authors = parseAuthorText("O'Brien & Sons <lab>");
+    const first = authors[0];
+    if (!first) throw new Error("expected an author");
+    const conc = first.contributions[0];
+    if (!conc) throw new Error("expected contributions");
+    conc.score = 100;
+
+    const html = generateStatement(authors, { format: "by-author", asHtml: true });
+    expect(html).toContain("&amp;");
+    expect(html).toContain("&lt;lab&gt;");
+    // An apostrophe is left alone: it needs no escaping in element text, and
+    // `&apos;` is the entity older word processors render literally.
+    expect(html).toContain("O'Brien");
+    expect(html).not.toContain("&apos;");
+  });
+
+  it("puts the acknowledgements line in its own paragraph", () => {
+    const authors = makeAuthors();
+    const bob = authors[1];
+    if (!bob) throw new Error("expected 2 authors");
+    bob.contributorType = "non-author";
+
+    const html = generateStatement(authors, { format: "by-role", asHtml: true });
+    expect(html.match(/<p>/g)).toHaveLength(2);
+    expect(html).toContain("<strong>Acknowledgements:</strong>");
+  });
+
+  it("returns an empty string when nobody has contributions", () => {
+    expect(generateStatement(parseAuthorText("Jane Smith"), { format: "by-role", asHtml: true })).toBe("");
+  });
+});
+
+/** The statement's visible text, to compare the HTML form against the plain one. */
+function stripTags(html: string): string {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return [...doc.querySelectorAll("p")].map((p) => p.textContent).join("\n\n");
 }
 
 describe("generateStatement", () => {
@@ -143,5 +201,26 @@ describe("generateStatement", () => {
     // "CRediT:" stays English (proper noun); Acknowledgements + level labels localize.
     expect(stmt).toContain("CRediT: Jane Smith: Conceptualization, Software (Égal)");
     expect(stmt).toContain("Remerciements: Bob White: Conceptualization (Secondaire)");
+  });
+});
+
+describe("catalog-owned separators", () => {
+  it("joins with full-width punctuation when the catalog says so (ja/zh)", () => {
+    // The marker notes already join with the catalog's separators; the body
+    // must not mix ASCII "," and ";" into otherwise full-width punctuation.
+    const translateUi = makeUiTranslator({
+      nameListSeparator: "、",
+      segmentSeparator: "；",
+      levelAnnotation: "{label}（{level}）",
+      equal: "同等",
+    });
+    const authors = makeAuthors();
+    const byRole = generateStatement(authors, { format: "by-role", translateUi });
+    expect(byRole).toContain("、");
+    expect(byRole).toContain("；");
+    expect(byRole).not.toMatch(/, |; /);
+
+    const withLevels = generateStatement(authors, { format: "by-author", showLevels: true, translateUi });
+    expect(withLevels).toContain("（同等）");
   });
 });

@@ -5,6 +5,11 @@ export default defineConfig({
     environment: "node",
     globals: true,
     restoreMocks: true,
+    // These tests are pure functions with no cross-file global state, and the
+    // one global the setup file sets (DOMParser) is assigned idempotently.
+    // Sharing a worker across files skips re-importing linkedom for each one,
+    // which was most of the run.
+    isolate: false,
     // Timeout per test in milliseconds
     timeout: 10000,
     // Run this file before tests to provide DOMParser in Node via linkedom

@@ -44,6 +44,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/components/**"],
+      "linter": {
+        "rules": {
+          "security": {
+            "noSecrets": "off"
+          }
+        }
+      }
     }
   ],
   "vcs": {

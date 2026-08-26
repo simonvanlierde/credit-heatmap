@@ -1,11 +1,11 @@
 # @credit-generator/core
 
-Framework-agnostic TypeScript for the CRediT generator. It models contributors,
-validates contribution data, and produces [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/)
+Framework-agnostic TypeScript for CRediT Matrix. It models contributors, validates
+contribution data, and produces [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/)
 statements and exports.
 
-The package has one runtime dependency (`zod`) and no React or Node APIs at import time, so the web
-app can use it directly in the browser.
+The package has one runtime dependency, `zod`, and no React or Node APIs at import time. The web app
+uses it directly in the browser.
 
 ## Domain model
 
@@ -16,7 +16,7 @@ CRediT role.
 `contributorType` is either `author` or `non-author`. Statement generation can keep non-author
 contributors on a separate `Acknowledgements:` line; JATS4R export uses the value for `contrib-type`.
 
-A contribution stores a **0-100 integer score**, not a boolean. The UI can collect that as a toggle,
+A contribution stores a **0–100 integer score**, not a boolean. The UI can collect that as a toggle,
 picker, or slider without changing the data model. `scoreToLevel()` maps scores to CRediT's optional
 degree-of-contribution terms:
 
@@ -62,15 +62,15 @@ Only non-zero contributions appear in statements.
 `buildHeatmapSvg` returns a self-contained SVG string using system fonts and no embedded assets. The
 web app uses that same SVG for preview, SVG download, and canvas-to-PNG export.
 
-`fromJats4rXml(xml)` uses the global `DOMParser`, which is native in browsers. In Node, provide one on
-`globalThis` (the tests use `linkedom` in `src/test-setup.ts`) or parse the XML yourself and call
-`fromXmlDocument(doc)`. Malformed-XML detection relies on browsers emitting a `<parsererror>` element;
-`linkedom` does not reproduce that behavior.
+`fromJats4rXml(xml)` uses the global `DOMParser`, which is native in browsers. In Node, either put
+one on `globalThis` (the tests use `linkedom` in `src/test-setup.ts`) or parse the XML yourself and
+call `fromXmlDocument(doc)`. Malformed-XML detection relies on a browser emitting a `<parsererror>`
+element, which `linkedom` doesn't reproduce.
 
 ## Validation
 
 `AuthorSchema` and `ContributionSchema` validate imported or otherwise untrusted data. Scores must be
-`0-100` integers, roles must be known CRediT names, and ORCID iDs are checked for shape and checksum.
+`0–100` integers, roles must be known CRediT names, and ORCID iDs are checked for shape and checksum.
 
 ## Testing
 

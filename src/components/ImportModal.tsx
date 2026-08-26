@@ -1,21 +1,80 @@
 "use client";
 
-import type { Author } from "@credit-generator/core";
-import { fromCsv, fromJats4rXml, fromJson, parseAuthorText } from "@credit-generator/core";
-import { FileUp, X } from "lucide-react";
+import type { Author, DoiLookupResult } from "@credit-generator/core";
+import {
+  createAuthor,
+  DOI_INPUT_REGEX,
+  fromCsv,
+  fromJats4rXml,
+  fromJson,
+  MAX_AUTHORS,
+  MAX_IMPORT_BYTES,
+  normalizeDoi,
+  parseAuthorText,
+} from "@credit-generator/core";
+import { FileUp, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "use-intl";
 import { announce } from "@/lib/announce";
+import type { Messages } from "@/lib/intl";
+import { postLookup } from "@/lib/post-lookup";
+import { MAX_DRAFTS } from "@/store/contribution-store";
 
 interface Props {
   open: boolean;
-  onImport: (authors: Author[]) => void;
+  existingContributorCount: number;
+  /** `title` is set only by the DOI path; the other importers carry no title. */
+  onImport: (authors: Author[], title?: string) => void;
+  /**
+   * Handle a pasted share link. Returns a message key when it could not be
+   * used, or null on success. Lives with the caller because merging a returned
+   * link needs the current workspace, which this dialog does not hold.
+   */
+  onLink: (
+    url: string,
+  ) => Promise<"errShareLinkBroken" | "mergeWrongDraft" | "mergeUnmatched" | "draftLimitReached" | null>;
   onClose: () => void;
 }
 
-type DetectedFormat = "csv" | "json" | "xml" | "names" | "unknown";
+/** What a resolved import is waiting to write, once any replace is confirmed. */
+interface PendingImport {
+  authors: Author[];
+  title?: string;
+}
+
+/**
+ * Failure code → message key. Explicit rather than built by string
+ * concatenation, so the typed-message guarantee still holds: a key removed from
+ * en.json breaks the build here instead of silently rendering a key name.
+ */
+const DOI_ERROR_KEYS = {
+  INVALID_DOI: "errDoiINVALID_DOI",
+  NOT_FOUND: "errDoiNOT_FOUND",
+  NO_AUTHORS: "errDoiNO_AUTHORS",
+  TOO_MANY_AUTHORS: "errDoiTOO_MANY_AUTHORS",
+  UNAVAILABLE: "errDoiUNAVAILABLE",
+  RATE_LIMITED: "errDoiRATE_LIMITED",
+  BAD_REQUEST: "errDoiBAD_REQUEST",
+  UNREACHABLE: "errDoiUNREACHABLE",
+  OFFLINE: "errDoiOFFLINE",
+} as const;
+
+type DoiFailure = { code: keyof typeof DOI_ERROR_KEYS };
+
+async function fetchDoiWork(doi: string): Promise<Extract<DoiLookupResult, { ok: true }> | DoiFailure> {
+  const result = await postLookup<Extract<DoiLookupResult, { ok: true }>>("/api/doi", { doi: normalizeDoi(doi) });
+  if ("code" in result) {
+    return { code: result.code in DOI_ERROR_KEYS ? (result.code as keyof typeof DOI_ERROR_KEYS) : "BAD_REQUEST" };
+  }
+  return result;
+}
+
+type DetectedFormat = "link" | "csv" | "json" | "xml" | "names" | "unknown";
 
 function detect(text: string): DetectedFormat {
   const trimmed = text.trim();
+  // A share link, most usefully one a co-author sent back with their own roles.
+  if (/^https?:\/\/\S+#s=/.test(trimmed)) return "link";
   if (trimmed.startsWith("<")) return "xml";
   // JSON must be checked before the CSV heuristic: a toJson() payload contains
   // both a comma and a "name" field, so the CSV check would misclassify it.
@@ -32,31 +91,57 @@ function detect(text: string): DetectedFormat {
   return "unknown";
 }
 
-const FORMAT_LABEL: Record<DetectedFormat, string> = {
-  csv: "CSV",
-  json: "JSON export",
-  xml: "JATS4R XML",
-  names: "Author name list",
-  unknown: "",
-};
+/** The import size cap, written the way the messages below say it. */
+const MAX_IMPORT_MB = `${Math.round(MAX_IMPORT_BYTES / 1_000_000)} MB`;
 
 /** Parser + "nothing found" message for each detectable format. */
 const IMPORTERS: Record<
-  Exclude<DetectedFormat, "unknown">,
-  { parse: (text: string) => Author[]; emptyMessage: string }
+  Exclude<DetectedFormat, "unknown" | "link">,
+  { parse: (text: string) => Author[]; emptyMessageKey: keyof Messages }
 > = {
-  json: { parse: fromJson, emptyMessage: "That JSON export contains no contributors." },
-  csv: { parse: fromCsv, emptyMessage: "No contributor rows found in the CSV." },
-  xml: { parse: fromJats4rXml, emptyMessage: "No <contrib> elements found in the XML." },
-  names: { parse: parseAuthorText, emptyMessage: "No author names found. Enter one name per line." },
+  json: { parse: fromJson, emptyMessageKey: "errImportNoJsonContributors" },
+  csv: { parse: fromCsv, emptyMessageKey: "errImportNoCsvRows" },
+  xml: { parse: fromJats4rXml, emptyMessageKey: "errImportNoXmlContribs" },
+  names: { parse: parseAuthorText, emptyMessageKey: "errImportNoNames" },
 };
 
-export function ImportModal({ open, onImport, onClose }: Props) {
+/** Label shown beside the paste area; "JATS4R XML" and "CSV" are format names, not prose. */
+const FORMAT_LABEL: Record<Exclude<DetectedFormat, "unknown">, (t: ReturnType<typeof useTranslations>) => string> = {
+  names: (t) => t("importAuthorList"),
+  link: (t) => t("formatShareLink"),
+  json: (t) => t("formatJsonExport"),
+  xml: () => "JATS4R XML",
+  csv: () => "CSV",
+};
+
+export function ImportModal({ open, existingContributorCount, onImport, onLink, onClose }: Props) {
+  const t = useTranslations();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [pending, setPending] = useState<PendingImport | null>(null);
+  const [doi, setDoi] = useState("");
+  const [doiLoading, setDoiLoading] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const keepRef = useRef<HTMLButtonElement>(null);
+  const importRef = useRef<HTMLButtonElement>(null);
+
+  // The confirmation disables the Import button the user just activated, so
+  // hand focus to the safe choice; declining hands it back once Import is
+  // re-enabled (post-render, hence the effect). A confirm closes the dialog,
+  // where onClose owns focus, so the dialog-open check skips that path.
+  const hadPending = useRef(false);
+  useEffect(() => {
+    if (pending) {
+      hadPending.current = true;
+      keepRef.current?.focus();
+      return;
+    }
+    if (!hadPending.current) return;
+    hadPending.current = false;
+    if (dialogRef.current?.open) importRef.current?.focus();
+  }, [pending]);
 
   const format: DetectedFormat = detect(text);
 
@@ -77,11 +162,15 @@ export function ImportModal({ open, onImport, onClose }: Props) {
   }, [open]);
 
   async function handleFileRead(file: File) {
+    if (file.size > MAX_IMPORT_BYTES) {
+      showError(t("errFileTooLarge", { limit: MAX_IMPORT_MB }));
+      return;
+    }
     try {
       setText(await file.text());
       setError(null);
     } catch {
-      showError("Could not read that file.");
+      showError(t("errFileUnreadable"));
     }
   }
 
@@ -104,26 +193,103 @@ export function ImportModal({ open, onImport, onClose }: Props) {
     e.target.value = "";
   }
 
-  function handleImport() {
+  async function handleImport() {
     setError(null);
     if (format === "unknown") return;
     try {
-      const { parse, emptyMessage } = IMPORTERS[format];
-      const authors = parse(text.trim());
-      if (authors.length === 0) {
-        showError(emptyMessage);
+      if (new TextEncoder().encode(text).byteLength > MAX_IMPORT_BYTES) {
+        showError(t("errImportTooLarge", { limit: MAX_IMPORT_MB }));
         return;
       }
-      onImport(authors);
-      dialogRef.current?.close();
-    } catch (err) {
-      showError(err instanceof Error ? err.message : "Could not parse the input. Check the format.");
+      if (format === "link") {
+        // The whole-draft and merge cases both need the current workspace, so
+        // the caller owns this one; failures come back as a message key.
+        const failure = await onLink(text.trim());
+        if (failure) {
+          showError(failure === "draftLimitReached" ? t(failure, { count: MAX_DRAFTS }) : t(failure));
+          return;
+        }
+        dialogRef.current?.close();
+        return;
+      }
+      const { parse, emptyMessageKey } = IMPORTERS[format];
+      const authors = parse(text.trim());
+      if (authors.length === 0) {
+        showError(t(emptyMessageKey));
+        return;
+      }
+      if (authors.length > MAX_AUTHORS) {
+        showError(t("errTooManyContributors", { limit: MAX_AUTHORS }));
+        return;
+      }
+      stageImport({ authors });
+    } catch {
+      showError(t("errImportFailed"));
     }
+  }
+
+  /** Import straight away, or hold it behind the replace confirmation. */
+  function stageImport(next: PendingImport) {
+    if (existingContributorCount > 0) {
+      setPending(next);
+      return;
+    }
+    finishImport(next);
+  }
+
+  async function handleDoiLookup() {
+    setError(null);
+    const trimmed = normalizeDoi(doi);
+    if (!DOI_INPUT_REGEX.test(trimmed)) {
+      showError(t("errDoiINVALID_DOI"));
+      return;
+    }
+    setDoiLoading(true);
+    const result = await fetchDoiWork(trimmed);
+    setDoiLoading(false);
+    if (!("ok" in result)) {
+      showError(t(DOI_ERROR_KEYS[result.code]));
+      return;
+    }
+    // Crossref names go through createAuthor like any other import, so the
+    // initials and the empty role row are built exactly as they are for a
+    // pasted list. Per entry, not around the whole map: one unusable entry
+    // (a name Crossref sends but createAuthor rejects) costs that row, not
+    // the other forty authors of the record.
+    const authors = result.authors.flatMap((author) => {
+      try {
+        return [createAuthor(author.name, author.orcid ? { orcid: author.orcid } : undefined)];
+      } catch {
+        return [];
+      }
+    });
+    if (authors.length === 0) {
+      showError(t("errImportFailed"));
+      return;
+    }
+    stageImport({ authors, title: result.title });
+  }
+
+  function finishImport({ authors, title }: PendingImport) {
+    // `onImport` runs the authors back through the store's normalizeAuthors,
+    // which throws on anything createAuthor cannot rebuild. On the confirm
+    // path this sits outside handleImport's try, so an unguarded throw here
+    // escaped the click handler instead of showing as an import error.
+    try {
+      onImport(authors, title);
+    } catch {
+      showError(t("errImportFailed"));
+      return;
+    }
+    setPending(null);
+    dialogRef.current?.close();
   }
 
   function handleClose() {
     setText("");
+    setDoi("");
     setError(null);
+    setPending(null);
     onClose();
   }
 
@@ -146,10 +312,10 @@ export function ImportModal({ open, onImport, onClose }: Props) {
             className="text-2xl italic font-semibold text-primary"
             style={{ fontFamily: "var(--font-headline)" }}
           >
-            Import Contributors
+            {t("importTitle")}
           </h2>
           <p id="import-description" className="text-sm text-on-surface-variant mt-1">
-            Paste author names, or upload a JSON export / JATS4R XML file from a previous session.
+            {t("importDescription")}
           </p>
           <button
             type="button"
@@ -157,15 +323,55 @@ export function ImportModal({ open, onImport, onClose }: Props) {
             className="absolute right-5 top-5 text-on-surface-variant hover:text-on-surface transition-colors"
           >
             <X className="h-5 w-5" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t("close")}</span>
           </button>
         </div>
 
         <div className="px-8 py-8 space-y-6">
+          {/* DOI lookup */}
+          <div>
+            <label
+              htmlFor="import-doi"
+              className="block text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-3"
+            >
+              {t("importFromDoi")}
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="import-doi"
+                type="text"
+                inputMode="url"
+                value={doi}
+                onChange={(e) => {
+                  setDoi(e.target.value);
+                  setError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleDoiLookup();
+                  }
+                }}
+                placeholder={t("doiPlaceholder")}
+                className="flex-1 min-w-0 bg-surface-container-low border-0 border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none text-sm font-mono px-4 py-2 text-on-surface rounded-t transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => void handleDoiLookup()}
+                disabled={doiLoading || doi.trim().length === 0 || pending !== null}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded border border-primary px-4 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-on-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-primary"
+              >
+                <Search className="h-4 w-4" />
+                {doiLoading ? t("doiLookingUp") : t("doiLookUp")}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-on-surface-variant">{t("doiHint")}</p>
+          </div>
+
           {/* Drop zone */}
           <div>
             <p className="text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-3">
-              Structured File Upload
+              {t("structuredFileUpload")}
             </p>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop is a mouse-only progressive enhancement; the Browse button + file input below provide the accessible path. */}
             {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: same as above. */}
@@ -180,14 +386,14 @@ export function ImportModal({ open, onImport, onClose }: Props) {
               <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
                 <FileUp className="h-7 w-7 text-primary" />
               </div>
-              <p className="text-sm font-medium text-on-surface">Drag and drop a file here</p>
-              <p className="text-xs text-on-surface-variant mt-1 mb-4">Accepts .csv, .json, or .xml</p>
+              <p className="text-sm font-medium text-on-surface">{t("dragDropFile")}</p>
+              <p className="text-xs text-on-surface-variant mt-1 mb-4">{t("acceptedFileTypes")}</p>
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 className="px-4 py-1.5 border border-primary text-primary text-xs font-semibold rounded hover:bg-primary hover:text-on-primary transition-colors"
               >
-                Browse files
+                {t("browseFiles")}
               </button>
               <input
                 ref={fileRef}
@@ -195,7 +401,7 @@ export function ImportModal({ open, onImport, onClose }: Props) {
                 accept=".csv,.json,.xml"
                 className="hidden"
                 onChange={handleFileInput}
-                aria-label="Upload CSV, JSON, or XML file"
+                aria-label={t("a11yUploadFile")}
               />
             </div>
           </div>
@@ -207,10 +413,12 @@ export function ImportModal({ open, onImport, onClose }: Props) {
                 htmlFor="import-text"
                 className="block text-xs uppercase tracking-widest font-bold text-on-surface-variant"
               >
-                Paste Raw Data
+                {t("pasteRawData")}
               </label>
               {format !== "unknown" && (
-                <span className="text-[10px] text-primary font-medium italic">Detected: {FORMAT_LABEL[format]}</span>
+                <span className="text-[11px] text-primary font-medium italic">
+                  {t("detectedFormat", { format: FORMAT_LABEL[format](t) })}
+                </span>
               )}
             </div>
             <textarea
@@ -220,21 +428,42 @@ export function ImportModal({ open, onImport, onClose }: Props) {
                 setText(e.target.value);
                 setError(null);
               }}
-              placeholder={"Jane A. Smith\nBob White\nCarol Davis\n\n— or paste a .json / .xml export —"}
+              placeholder={t("importPlaceholder", { names: t("sampleNames") })}
               rows={6}
               className="w-full bg-surface-container-low border-0 border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none text-sm font-mono p-4 text-on-surface rounded-t resize-none transition-colors"
             />
           </div>
 
-          {/* Tip */}
-          <div className="bg-surface-container-high border-l-2 border-primary p-4">
-            <p className="text-sm italic text-primary" style={{ fontFamily: "var(--font-headline)" }}>
-              "Paste a comma- or newline-separated list and initials will be assigned automatically. Or upload a
-              JSON/XML file from a previous session to restore all contribution scores."
-            </p>
-          </div>
-
           {error && <p className="text-sm text-error bg-error-container/30 rounded px-4 py-2">{error}</p>}
+
+          {pending && (
+            <div role="alert" className="rounded-lg bg-error-container/30 p-4 text-sm text-on-surface">
+              <p className="font-semibold">{t("replaceWorkspaceTitle")}</p>
+              <p className="mt-1 text-on-surface-variant">
+                {t("replaceWorkspaceBody", {
+                  incoming: pending.authors.length,
+                  existing: existingContributorCount,
+                })}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  ref={keepRef}
+                  type="button"
+                  onClick={() => setPending(null)}
+                  className="rounded-lg border border-outline-variant px-4 py-2 font-semibold text-on-surface-variant hover:border-primary hover:text-primary"
+                >
+                  {t("keepCurrentWork")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => finishImport(pending)}
+                  className="rounded-lg bg-error px-4 py-2 font-semibold text-on-error hover:opacity-90"
+                >
+                  {t("replaceWorkspace")}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="px-8 py-5 border-t border-outline-variant/10 bg-surface-container-low flex justify-end gap-3">
@@ -243,15 +472,16 @@ export function ImportModal({ open, onImport, onClose }: Props) {
             onClick={() => dialogRef.current?.close()}
             className="px-5 py-2 text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
+            ref={importRef}
             type="button"
-            onClick={handleImport}
-            disabled={format === "unknown"}
+            onClick={() => void handleImport()}
+            disabled={format === "unknown" || pending !== null}
             className="px-7 py-2 bg-primary text-on-primary text-sm font-bold rounded-lg shadow hover:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Import Data
+            {t("importData")}
           </button>
         </div>
       </div>

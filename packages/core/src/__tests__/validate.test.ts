@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseAuthorText } from "../parse-authors.js";
-import { validateContributions } from "../validate.js";
+import { parseAuthorText } from "../parse-authors";
+import { validateContributions } from "../validate";
 
 function setScore(authors: ReturnType<typeof parseAuthorText>, index: number, role: string, score: number) {
   const author = authors[index];
@@ -22,8 +22,13 @@ describe("validateContributions", () => {
     // Bob has nothing assigned.
 
     const issues = validateContributions(authors);
+    const bob = authors[1];
+    expect(bob).toBeDefined();
     expect(issues).toContainEqual({
       level: "warning",
+      code: "authorNoRoles",
+      authorId: bob?.id,
+      authorName: "Bob White",
       message: "Bob White has no assigned CRediT roles.",
     });
   });
@@ -33,8 +38,8 @@ describe("validateContributions", () => {
     setScore(authors, 0, "Investigation", 100); // present, but not an expected role
 
     const messages = validateContributions(authors).map((i) => i.message);
-    expect(messages).toContain('No contributor is assigned "Conceptualization".');
-    expect(messages).toContain('No contributor is assigned "Writing – original draft".');
+    expect(messages).toContain("No contributor is assigned \u201cConceptualization\u201d.");
+    expect(messages).toContain("No contributor is assigned \u201cWriting – original draft\u201d.");
   });
 
   it("is clean when expected roles are covered and everyone contributes", () => {

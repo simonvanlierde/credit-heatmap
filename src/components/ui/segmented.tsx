@@ -11,7 +11,7 @@ export interface SegmentedOption<T extends string> {
 }
 
 /**
- * A pill-group segmented control — the app's standard for picking one of a few
+ * A pill-group segmented control: the app's standard for picking one of a few
  * mutually exclusive options (input mode, statement format, heatmap colors).
  *
  * Implemented as a radiogroup: one tab stop, arrow keys move between (and select)
@@ -45,7 +45,6 @@ export function SegmentedControl<T extends string>({
     if (!next) return;
     onChange(next.value);
     // Roving tabindex: move focus to the newly selected radio.
-    // biome-ignore lint/security/noSecrets: this is a CSS attribute selector, not a credential.
     groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[nextIndex]?.focus();
   }
 
@@ -71,7 +70,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(optionValue)}
             className={cn(
               "flex items-center justify-center gap-1.5 rounded font-bold uppercase tracking-wider transition-all",
-              size === "sm" ? "px-2.5 py-1 text-[10px]" : "px-3 py-1.5 text-[11px]",
+              size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-xs",
               active ? "bg-surface-bright text-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface",
             )}
           >

@@ -2,14 +2,13 @@
 
 import { BadgeCheck, Check, Copy, Download, ImageDown } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
-import { announce } from "@/lib/announce";
-import { type CopyStatus, useCopyStatus } from "@/lib/use-copy-status";
+import { useTranslations } from "use-intl";
+import { useCopyStatus } from "@/lib/use-copy-status";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
 const BADGE_SRC = "/credit-badge.png";
 const CREDIT_URL = "https://credit.niso.org/";
-const ALT = "CRediT — Contributor Roles Taxonomy";
+const ALT = "CRediT: Contributor Roles Taxonomy";
 
 /** The page's own origin, so a pasted snippet keeps working off this deployment. */
 function origin() {
@@ -28,21 +27,18 @@ function htmlSnippet() {
  * `className` overrides the trigger's styling (e.g. a lighter secondary look).
  */
 export function CreditBadge({ className }: { className?: string }) {
-  const [htmlStatus, copyHtml] = useCopyStatus({ copied: "Badge HTML copied to clipboard", error: "Copy failed" });
-  const [pngStatus, setPngStatus] = useState<CopyStatus>("idle");
+  const t = useTranslations();
+  const [htmlStatus, copyHtml] = useCopyStatus({ copied: t("annBadgeHtmlCopied") });
+  const [pngStatus, copyPngBlob] = useCopyStatus({ copied: t("annBadgeCopied") });
 
   // Copy the image bytes (not a URL) so it pastes straight into a doc/editor.
-  async function copyPng() {
-    try {
+  // useCopyStatus owns the status, the announce and the 2s reset; this only
+  // supplies the clipboard write.
+  function copyPng() {
+    return copyPngBlob(async () => {
       const blob = await (await fetch(BADGE_SRC)).blob();
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-      setPngStatus("copied");
-      announce("Badge PNG copied to clipboard");
-    } catch {
-      setPngStatus("error");
-      announce("Copy failed", { assertive: true });
-    }
-    setTimeout(() => setPngStatus("idle"), 2000);
+    });
   }
 
   return (
@@ -56,11 +52,13 @@ export function CreditBadge({ className }: { className?: string }) {
           }
         >
           <BadgeCheck className="h-[18px] w-[18px]" />
-          Get the CRediT badge
+          {t("getCreditBadge")}
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-4">
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">CRediT badge</p>
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          {t("creditBadge")}
+        </p>
 
         {/* Live preview, exactly as the snippet renders it */}
         <a
@@ -71,12 +69,10 @@ export function CreditBadge({ className }: { className?: string }) {
         >
           <Image src={BADGE_SRC} alt={ALT} width={88} height={88} />
           <span className="text-[11px] text-on-surface-variant">credit.niso.org</span>
-          <span className="sr-only">(opens in new tab)</span>
+          <span className="sr-only">{t("opensInNewTab")}</span>
         </a>
 
-        <p className="mb-3 text-xs leading-relaxed text-on-surface-variant">
-          Add this badge to your article to show it uses the taxonomy.
-        </p>
+        <p className="mb-3 text-xs leading-relaxed text-on-surface-variant">{t("badgeIntro")}</p>
 
         <div className="flex flex-col gap-2">
           <button
@@ -85,11 +81,15 @@ export function CreditBadge({ className }: { className?: string }) {
             className="flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary"
           >
             {htmlStatus === "copied" ? <Check className="h-[18px] w-[18px]" /> : <Copy className="h-[18px] w-[18px]" />}
-            {htmlStatus === "copied" ? "Copied HTML!" : htmlStatus === "error" ? "Copy failed" : "Copy HTML"}
+            {htmlStatus === "copied"
+              ? t("copiedHtml")
+              : htmlStatus === "error"
+                ? t("copyFailedMessage")
+                : t("copyHtml")}
           </button>
           <button
             type="button"
-            onClick={copyPng}
+            onClick={() => void copyPng()}
             className="flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary"
           >
             {pngStatus === "copied" ? (
@@ -97,7 +97,7 @@ export function CreditBadge({ className }: { className?: string }) {
             ) : (
               <ImageDown className="h-[18px] w-[18px]" />
             )}
-            {pngStatus === "copied" ? "Copied PNG!" : pngStatus === "error" ? "Copy failed" : "Copy PNG"}
+            {pngStatus === "copied" ? t("copiedPng") : pngStatus === "error" ? t("copyFailedMessage") : t("copyPng")}
           </button>
           <a
             href={BADGE_SRC}
@@ -105,7 +105,7 @@ export function CreditBadge({ className }: { className?: string }) {
             className="flex items-center gap-1.5 rounded-lg border border-outline-variant px-3 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary"
           >
             <Download className="h-[18px] w-[18px]" />
-            Download PNG
+            {t("downloadPng")}
           </a>
         </div>
       </PopoverContent>

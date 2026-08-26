@@ -3,7 +3,7 @@
 import * as SwitchPrimitive from "@radix-ui/react-switch";
 import { cn } from "@/lib/utils";
 
-/** A labelled on/off switch — the app's standard binary toggle. */
+/** A labelled on/off switch: the app's standard binary toggle. */
 export function Switch({ className, ref, ...props }: React.ComponentPropsWithRef<typeof SwitchPrimitive.Root>) {
   return (
     <SwitchPrimitive.Root

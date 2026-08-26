@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in the CRediT Generator. Bug reports, fixes, and small
+Thanks for your interest in CRediT Matrix. Bug reports, fixes, and small
 features are welcome.
 
 ## Getting set up
@@ -20,10 +20,9 @@ pnpm dev            # → http://localhost:3000
 - `packages/core`: pure, framework-agnostic domain logic (statements, exports,
   validation, heatmap SVG). No React/Next/Node APIs at import time. Most changes
   and most tests belong here.
-- `src/`: the Next.js UI and the single `/api/orcid` route handler.
+- `src/`: the Next.js UI and the `/api/orcid` and `/api/doi` route handlers.
 
-See the [README](README.md#architecture) and
-[ADR&nbsp;0001](docs/adr/0001-client-side-architecture.md) for why it's split
+[ADR&nbsp;0001](docs/adr/0001-client-side-architecture.md) records why it's split
 this way.
 
 ## Before you open a PR
@@ -32,7 +31,7 @@ this way.
 pnpm lint           # Biome (format + lint); append :fix to auto-fix
 pnpm typecheck      # TypeScript across all packages
 pnpm test           # Vitest unit tests
-pnpm test:e2e       # Playwright (optional locally; label a PR `e2e` to run in CI)
+pnpm test:e2e       # Playwright (optional locally)
 ```
 
 `pnpm lint`, `pnpm typecheck`, and `pnpm test` all run in CI on every push and PR.
@@ -43,12 +42,14 @@ Add or update tests in `packages/core/src/__tests__` for any change to domain lo
 - **Unit (Vitest)**: `pnpm --filter @credit-generator/core test`. Covers the domain layer: name
   parsing, initials deduplication, statement formats, score-to-level boundaries, import/export round
   trips, validation, and heatmap SVG generation.
-- **End-to-end (Playwright)**: `pnpm test:e2e`. Covers sample data, name import, the client-side XML
-  download, and share-link round trips, plus axe accessibility scans. The full E2E suite runs on
-  manual dispatch or on PRs labelled `e2e`.
+- **End-to-end (Playwright)**: `pnpm test:e2e`. `happy-path.spec.ts` covers sample data, DOI and
+  name import, the grid, and the client-side XML download. `sharing.spec.ts` covers share links and
+  the co-author claim round trip. `a11y.spec.ts` runs the axe scans. `messages.spec.ts`,
+  `design-tokens.spec.ts`, and `offline.spec.ts` guard the locale catalogs, the design tokens, and
+  the service worker.
 
-CI runs Biome, typecheck, unit coverage, the axe accessibility scans, and the Cloudflare Worker build
-on every push and PR.
+Every push and PR runs Biome, typecheck, unit coverage, the axe scans, and the Cloudflare Worker
+build. The rest of the E2E suite runs on manual dispatch or on PRs labeled `e2e`.
 
 ### Accessibility
 
@@ -59,9 +60,9 @@ Two automated checks guard the UI. They are guardrails, not a WCAG conformance c
 | Biome [`a11y`](https://biomejs.dev/linter/rules/#accessibility) lint | `pnpm lint` | alt text, ARIA validity, button `type`, keyboard handlers | Every push and PR |
 | [axe-core](https://github.com/dequelabs/axe-core-npm) scan ([`e2e/a11y.spec.ts`](e2e/a11y.spec.ts)) | `pnpm test:e2e` | WCAG 2.0/2.1 A/AA rules over the main screens, light + dark | Every push and PR |
 
-The UI includes a skip link, landmark regions, keyboard-accessible drag-to-reorder with
-screen-reader announcements, radiogroup segmented controls, a live region for copy, ORCID-lookup, and
-import status, and a `prefers-reduced-motion` fallback that neutralizes transitions and animations.
+The UI includes a skip link, landmark regions, radiogroup segmented controls, and a
+`prefers-reduced-motion` fallback that neutralizes transitions and animations. Drag-to-reorder is
+keyboard-accessible, and a live region announces copy, ORCID-lookup, and import status.
 
 ## Commit and PR conventions
 

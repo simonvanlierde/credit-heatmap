@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { loadRoleCatalog, makeRoleTranslator } from "../credit-i18n/index.js";
-import { DEFAULT_UI_TRANSLATOR, loadUiCatalog, makeUiTranslator, type UiKey } from "../credit-i18n/ui-strings.js";
-import { generateStatement } from "../generate-statement.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { loadRoleCatalog, makeRoleDescriber, makeRoleTranslator, normalizeLocaleCode } from "../credit-i18n/index";
+import { DEFAULT_UI_TRANSLATOR, loadUiCatalog, makeUiTranslator, type UiKey } from "../credit-i18n/ui-strings";
+import { CREDIT_ROLES } from "../credit-roles";
+import { generateStatement } from "../generate-statement";
+import { parseAuthorText } from "../parse-authors";
 
 function makeAuthors() {
   const authors = parseAuthorText("Jane Smith\nBob White");
@@ -15,6 +16,9 @@ function makeAuthors() {
   bobInv.score = 100;
   return authors;
 }
+
+/** Every locale offered besides `en`, which is the canonical source and ships no catalog. */
+const CATALOG_LOCALES = ["fr", "de", "es", "it", "pt-PT", "nl", "zh-Hans", "ja"];
 
 describe("makeRoleTranslator", () => {
   it("falls back to English when catalog is null", () => {
@@ -40,11 +44,61 @@ describe("loadRoleCatalog", () => {
     // From the credit-translation repo's fr_Latn.json.
     expect(t("Conceptualization")).toBe("Conceptualisation");
   });
+
+  // Every offered language has to resolve its own loader: a catalog missed in
+  // the regeneration script leaves that language silently English.
+  it.each(CATALOG_LOCALES)("loads %s with a name and description for every CRediT role", async (locale) => {
+    const catalog = await loadRoleCatalog(locale);
+    expect(catalog).not.toBeNull();
+
+    const translate = makeRoleTranslator(catalog);
+    const describeRole = makeRoleDescriber(catalog, () => "");
+    for (const role of CREDIT_ROLES) {
+      expect(translate(role.name).trim()).not.toBe("");
+      expect(describeRole(role.name).trim()).not.toBe("");
+    }
+  });
 });
 
-// Every locale that ships a UI catalog, and every key one may contain.
-const UI_LOCALES = ["fr", "de", "es", "it", "pt", "nl", "zh", "ja"];
-const UI_KEYS: UiKey[] = ["acknowledgements", "lead", "equal", "supporting", "none", "contributed", "emptyState"];
+describe("makeRoleDescriber", () => {
+  it("falls back for a null catalog, an unknown role, and a blank description", () => {
+    const fallback = (name: string) => `English ${name}`;
+    expect(makeRoleDescriber(null, fallback)("Conceptualization")).toBe("English Conceptualization");
+
+    const url = CREDIT_ROLES[0]?.url ?? "";
+    const describeRole = makeRoleDescriber({ [url]: { name: "Conceptualisation", description: "" } }, fallback);
+    expect(describeRole("Conceptualization")).toBe("English Conceptualization");
+    expect(describeRole("Not A Role")).toBe("English Not A Role");
+  });
+});
+
+describe("normalizeLocaleCode", () => {
+  it("migrates legacy locale aliases to explicit BCP 47 tags", () => {
+    expect(normalizeLocaleCode("pt")).toBe("pt-PT");
+    expect(normalizeLocaleCode("zh")).toBe("zh-Hans");
+  });
+
+  it("falls back to English for unsupported or malformed values", () => {
+    expect(normalizeLocaleCode("xx")).toBe("en");
+    expect(normalizeLocaleCode(null)).toBe("en");
+  });
+});
+
+// Every key a UI catalog may contain.
+const UI_KEYS: UiKey[] = [
+  "acknowledgements",
+  "lead",
+  "equal",
+  "supporting",
+  "none",
+  "contributed",
+  "emptyState",
+  "equalContributionNote",
+  "correspondenceNote",
+  "nameListSeparator",
+  "segmentSeparator",
+  "levelAnnotation",
+];
 
 describe("loadUiCatalog", () => {
   it("returns null for en (canonical source) and unknown locales", async () => {
@@ -52,12 +106,12 @@ describe("loadUiCatalog", () => {
     expect(await loadUiCatalog("xx")).toBeNull();
   });
 
-  it.each(UI_LOCALES)("loads %s with only known, non-empty keys", async (locale) => {
+  it.each(CATALOG_LOCALES)("loads %s with every known key populated", async (locale) => {
     const catalog = await loadUiCatalog(locale);
     expect(catalog).not.toBeNull();
 
     const entries = Object.entries(catalog ?? {});
-    expect(entries.length).toBeGreaterThan(0);
+    expect(entries).toHaveLength(UI_KEYS.length);
     for (const [key, value] of entries) {
       // Catches a key left behind after a rename or removal, which would
       // otherwise sit in the catalogs untranslated and unnoticed.

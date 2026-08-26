@@ -24,3 +24,6 @@ Thumbs.db
 
 # Next.js generated
 next-env.d.ts
+
+# pnpm
+.pnpm-store

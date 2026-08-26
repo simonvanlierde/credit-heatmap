@@ -1,17 +1,17 @@
 import { z } from "zod";
-import type { Author } from "../author.js";
-import { AuthorSchema } from "../author.js";
+import type { Author } from "../author";
+import { AuthorSchema, MAX_AUTHORS } from "../author";
 
 const ExportSchema = z.object({
   version: z.literal(1),
-  authors: z.array(AuthorSchema),
+  authors: z.array(AuthorSchema).max(MAX_AUTHORS),
 });
 
 export type CreditExport = z.infer<typeof ExportSchema>;
 
 /** Serialize authors to a JSON string (pretty-printed). */
 export function toJson(authors: Author[]): string {
-  const payload: CreditExport = { version: 1, authors };
+  const payload = ExportSchema.parse({ version: 1, authors });
   return JSON.stringify(payload, null, 2);
 }
 

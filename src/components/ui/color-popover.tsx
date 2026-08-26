@@ -1,13 +1,25 @@
 "use client";
 
-import { luminance, OKABE_ITO } from "@credit-generator/core";
+import { OKABE_ITO, onColor } from "@credit-generator/core";
 import { Check, RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslations } from "use-intl";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
-function textColorOn(hex: string): string {
-  return luminance(hex) > 0.6 ? "#16181c" : "#ffffff";
-}
+/**
+ * Human names for the Okabe–Ito swatches, keyed by hex: a screen reader can do
+ * nothing with "Set color #f0e442".
+ */
+const OKABE_ITO_NAME_KEYS = {
+  "#0072b2": "colorBlue",
+  "#e69f00": "colorOrange",
+  "#009e73": "colorBluishGreen",
+  "#cc79a7": "colorReddishPurple",
+  "#d55e00": "colorVermilion",
+  "#56b4e9": "colorSkyBlue",
+  "#f0e442": "colorYellow",
+  "#404040": "colorDarkGray",
+} as const;
 
 /**
  * A small color picker in a popover: the Okabe–Ito swatches, a native custom
@@ -19,7 +31,7 @@ export function ColorPopover({
   onChange,
   onReset,
   trigger,
-  label = "Choose color",
+  label,
 }: {
   value: string;
   onChange: (hex: string) => void;
@@ -27,26 +39,30 @@ export function ColorPopover({
   trigger: ReactNode;
   label?: string;
 }) {
+  const t = useTranslations();
   return (
     <Popover>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent className="w-56">
-        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{label}</p>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          {label ?? t("chooseColor")}
+        </p>
         <div className="grid grid-cols-8 gap-1.5">
           {OKABE_ITO.map((hex) => {
             const selected = hex.toLowerCase() === value.toLowerCase();
+            const name = t(OKABE_ITO_NAME_KEYS[hex]);
             return (
               <button
                 key={hex}
                 type="button"
                 onClick={() => onChange(hex)}
-                title={hex}
-                aria-label={`Set color ${hex}`}
+                title={`${name} (${hex})`}
+                aria-label={t("a11ySetColor", { color: name })}
                 aria-pressed={selected}
-                className="flex h-5 w-5 items-center justify-center rounded-full ring-offset-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="flex size-6 items-center justify-center rounded-full ring-offset-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 style={{ backgroundColor: hex }}
               >
-                {selected && <Check className="h-3 w-3" style={{ color: textColorOn(hex) }} />}
+                {selected && <Check className="h-3 w-3" style={{ color: onColor(hex) }} />}
               </button>
             );
           })}
@@ -57,10 +73,10 @@ export function ColorPopover({
               type="color"
               value={value}
               onChange={(event) => onChange(event.target.value)}
-              aria-label="Custom color"
+              aria-label={t("a11yCustomColor")}
               className="h-6 w-6 cursor-pointer rounded border border-outline-variant bg-transparent p-0"
             />
-            Custom
+            {t("customColor")}
           </label>
           {onReset && (
             <button
@@ -69,7 +85,7 @@ export function ColorPopover({
               className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant transition-colors hover:text-primary"
             >
               <RotateCcw className="h-3 w-3" />
-              Reset
+              {t("resetColor")}
             </button>
           )}
         </div>

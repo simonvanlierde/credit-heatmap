@@ -1,6 +1,17 @@
 /* spell-checker: ignore wght */
 @import "tailwindcss";
 
+/*
+ * `desk` height-locks the workspace into the viewport, but only when there is
+ * genuinely room for it: a short window, a zoomed-in page, or a phone in
+ * landscape falls back to ordinary document flow rather than trapping the
+ * whole app in a nested scroller.
+ */
+@custom-variant desk (@media (min-width: 80rem) and (min-height: 45rem));
+
+/* Source of truth for the design tokens. DESIGN.md's front matter mirrors the
+   colors, radii and type stacks below for documentation; a drift test in
+   packages/core keeps the two honest. Change a value here first. */
 :root {
   /* --- Accent (single ink-blue: links, focus, primary buttons only) --- */
   --color-primary: #1f4e79;
@@ -81,7 +92,7 @@
 }
 
 /*
- * Dark theme — next-themes toggles `class="dark"` on <html> (system-aware on
+ * Dark theme. next-themes toggles `class="dark"` on <html> (system-aware on
  * first visit, persisted after). Only the neutrals/accent are overridden here;
  * everything else (typography, radii, the colorblind-safe contributor hues) is
  * shared, so every `bg-surface`/`text-on-surface` utility recolors for free.
@@ -149,9 +160,26 @@
  * color/font utilities (bg-primary, text-on-surface-variant, font-mono, …)
  * actually generate. `inline` makes each utility reference the :root variable
  * directly, keeping :root as the single source of truth (and themeable).
- * Radii are intentionally left on Tailwind's defaults — the --radius-full token
+ * Radii are intentionally left on Tailwind's defaults. The --radius-full token
  * (0.75rem) would otherwise un-round every rounded-full pill.
  */
+/*
+ * Motion. One curve for the whole app — exponential ease-out, so a panel
+ * arrives fast and settles rather than drifting in at a constant rate.
+ *
+ * `--ease-out` is a name Tailwind already ships (its own default is the far
+ * flatter cubic-bezier(0, 0, 0.2, 1)), so this is an override rather than a new
+ * token, and it belongs in @theme: declaring it in :root would win only by
+ * coming later in the file, which is a build-order accident rather than a
+ * decision. Overriding it deliberately is the point — the `ease-out` utility
+ * and `var(--ease-out)` then resolve to the same house curve, so a control
+ * written either way cannot drift off-system. This is the opposite call from
+ * the radii below, where taking the namespace would have un-rounded every pill.
+ */
+@theme {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @theme inline {
   --color-primary: var(--color-primary);
   --color-primary-container: var(--color-primary-container);
@@ -227,20 +255,174 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* First-run welcome card entrance — transform only (an opacity fade lets an
-   accessibility scan catch the card mid-transition at reduced contrast).
-   Neutralized by the reduced-motion block below. */
-@keyframes welcome-in {
-  from {
-    transform: translateY(-6px);
+@media (pointer: coarse), (max-width: 47.999rem) {
+  .contribution-cell,
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
   }
+}
+
+/*
+ * A row action that keeps quiet until its row is hovered.
+ *
+ * Gated on a hover-capable pointer, not on width alone. A tablet or a touch
+ * laptop is wide enough to pass any width breakpoint and still has no hover,
+ * so hiding the action there puts it out of reach entirely — and these are
+ * real actions (mark a corresponding author, ask a co-author, delete a draft),
+ * not decoration. Keyboard users reach them through :focus-visible.
+ */
+@media (hover: hover) and (min-width: 40rem) {
+  .reveal-on-hover {
+    opacity: 0;
+  }
+
+  .group:hover .reveal-on-hover,
+  .reveal-on-hover:focus-visible {
+    opacity: 1;
+  }
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/*
+ * Popovers and selects. Radix keeps a closing panel mounted only while a CSS
+ * *animation* is running: it listens for `animationend` and ignores
+ * transitions, so the exit has to be a keyframe or the node is torn out before
+ * anything can play. The scale runs from the trigger's own corner (each
+ * primitive exposes a --radix-*-content-transform-origin, set per component),
+ * so a panel reads as belonging to the control that opened it.
+ */
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes panel-out {
   to {
-    transform: translateY(0);
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.panel-motion[data-state="open"] {
+  animation: panel-in 150ms var(--ease-out);
+}
+
+.panel-motion[data-state="closed"] {
+  animation: panel-out 110ms var(--ease-out) forwards;
+}
+
+/*
+ * The two modals (welcome, import). Transform only on the panel: an opacity
+ * fade lets an accessibility scan catch the dialog mid-transition at reduced
+ * contrast, so the backdrop carries the fade instead. `allow-discrete` on
+ * `display`/`overlay` is what lets the close play out rather than cut. Without
+ * it the dialog is display:none the instant close() lands. Exit is quicker than
+ * entrance; leaving should not cost as much as arriving.
+ */
+dialog {
+  transform: translateY(-8px);
+  transition:
+    transform 160ms var(--ease-out),
+    overlay 160ms allow-discrete,
+    display 160ms allow-discrete;
+}
+
+dialog[open] {
+  transform: translateY(0);
+  transition:
+    transform 220ms var(--ease-out),
+    overlay 220ms allow-discrete,
+    display 220ms allow-discrete;
+}
+
+dialog::backdrop {
+  opacity: 0;
+  transition:
+    opacity 160ms var(--ease-out),
+    overlay 160ms allow-discrete,
+    display 160ms allow-discrete;
+}
+
+dialog[open]::backdrop {
+  opacity: 1;
+  transition:
+    opacity 220ms var(--ease-out),
+    overlay 220ms allow-discrete,
+    display 220ms allow-discrete;
+}
+
+@starting-style {
+  dialog[open] {
+    transform: translateY(-8px);
+  }
+
+  dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/*
+ * The population sequence: the one authored moment in the app. When a draft
+ * arrives all at once (Load sample data, an import, a share link), the three
+ * panes fill in workflow order, contributors then matrix then statement, so the
+ * connection the product is built on is visible for the half second it takes to
+ * land. It is deliberately not a page-load entrance: both classes are applied
+ * only once the app has settled (see use-settled.ts), and adding a class to an
+ * element already on screen changes no property and re-runs no @starting-style,
+ * so a reload with a restored draft stays perfectly still.
+ *
+ * Different content, different arrival: a list assembles row by row, while a
+ * matrix and a paragraph resolve in place; travel would read as a slipped
+ * table rather than an entrance. Delays are set inline at each site.
+ */
+.enter-rise {
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+.enter-fade {
+  transition: opacity 240ms var(--ease-out);
+}
+
+@starting-style {
+  .enter-rise {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  .enter-fade {
+    opacity: 0;
+  }
+}
+
+/* The undo bar opens the space it needs instead of shoving the name field down
+   under the pointer. Animating grid-template-rows is the sanctioned way to
+   transition to an unknown height; the inner wrapper does the clipping. */
+.undo-enter {
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 200ms var(--ease-out),
+    opacity 200ms var(--ease-out);
+}
+
+@starting-style {
+  .undo-enter {
+    grid-template-rows: 0fr;
+    opacity: 0;
   }
 }
 
 /* Respect users who prefer reduced motion: neutralize transitions/animations
-   (Radix select/popover zoom-fade, heatmap, hover color shifts). */
+   (panel and modal entrances, the population sequence, hover color shifts). */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -249,5 +431,14 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* One carve-out, because reduced motion means less movement rather than less
+     feedback. In Levels mode a click's only visual result is the cell's fill
+     stepping up one shade, with no travel, no scale, nothing the preference is
+     asking us to remove, and flattening it to zero leaves the strongest
+     confirmation that an assignment landed indistinguishable from a misfire. */
+  .contribution-cell {
+    transition-duration: 120ms !important;
   }
 }

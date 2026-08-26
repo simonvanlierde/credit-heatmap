@@ -5,5 +5,10 @@
   "supporting": "Ondersteunend",
   "none": "Geen",
   "contributed": "Bijgedragen",
-  "emptyState": "Nog geen bijdragen toegewezen."
+  "emptyState": "Nog geen bijdragen toegewezen.",
+  "equalContributionNote": "{names} hebben in gelijke mate aan dit werk bijgedragen.",
+  "correspondenceNote": "Correspondentie: {names}.",
+  "nameListSeparator": ", ",
+  "segmentSeparator": "; ",
+  "levelAnnotation": "{label} ({level})"
 }

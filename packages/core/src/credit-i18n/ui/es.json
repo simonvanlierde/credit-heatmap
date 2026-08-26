@@ -5,5 +5,10 @@
   "supporting": "De apoyo",
   "none": "Ninguno",
   "contributed": "Contribuyó",
-  "emptyState": "Aún no se han asignado contribuciones."
+  "emptyState": "Aún no se han asignado contribuciones.",
+  "equalContributionNote": "{names} contribuyeron por igual a este trabajo.",
+  "correspondenceNote": "Autoría de correspondencia: {names}.",
+  "nameListSeparator": ", ",
+  "segmentSeparator": "; ",
+  "levelAnnotation": "{label} ({level})"
 }

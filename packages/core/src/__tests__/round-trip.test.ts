@@ -1,9 +1,10 @@
 import { DOMParser } from "linkedom";
 import { describe, expect, it } from "vitest";
-import { fromJson, toJson } from "../export/json.js";
-import { toJats4rXml } from "../export/xml.js";
-import { fromXmlDocument } from "../export/xml-import.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { MAX_AUTHORS } from "../author";
+import { fromJson, toJson } from "../export/json";
+import { toJats4rXml } from "../export/xml";
+import { fromXmlDocument } from "../export/xml-import";
+import { parseAuthorText } from "../parse-authors";
 
 describe("round-trip exports", () => {
   it("XML round-trip preserves names, initials, contributions, and ORCID", () => {
@@ -70,6 +71,14 @@ describe("round-trip exports", () => {
     expect(parsed[0]?.contributions[0]?.score).toBe(100);
   });
 
+  it("rejects JSON payloads beyond the contributor limit", () => {
+    const [author] = parseAuthorText("Jane Smith");
+    if (!author) throw new Error("expected author");
+    const payload = JSON.stringify({ version: 1, authors: Array.from({ length: MAX_AUTHORS + 1 }, () => author) });
+
+    expect(() => fromJson(payload)).toThrow();
+  });
+
   it("XML round-trip preserves ORCID value", () => {
     const authors = parseAuthorText("Jane Smith");
     const [jane] = authors;
@@ -78,10 +87,51 @@ describe("round-trip exports", () => {
     jane.orcid = "0000-0001-2345-6789";
     const xml = toJats4rXml(authors);
 
-    // Use fromJats4rXml path that throws if DOMParser absent — but in Node we'll parse
+    // Use fromJats4rXml path that throws if DOMParser absent, but in Node we'll parse
     // with linkedom and call fromXmlDocument instead
     const doc = new DOMParser().parseFromString(xml, "text/xml");
     const parsed = fromXmlDocument(doc as unknown as Document);
     expect(parsed[0]?.orcid).toBe("0000-0001-2345-6789");
+  });
+
+  it("XML round-trip preserves non-author contributor type", () => {
+    const [contributor] = parseAuthorText("Alex Rivera");
+    if (!contributor) throw new Error("expected contributor");
+    contributor.contributorType = "non-author";
+
+    const doc = new DOMParser().parseFromString(toJats4rXml([contributor]), "text/xml");
+    const [parsed] = fromXmlDocument(doc as unknown as Document);
+
+    expect(parsed?.contributorType).toBe("non-author");
+  });
+
+  it("exports surname-first names into the correct JATS fields", () => {
+    const [curie] = parseAuthorText("Curie, Marie");
+    if (!curie) throw new Error("expected contributor");
+
+    const xml = toJats4rXml([curie]);
+
+    expect(xml).toContain("<given-names>Marie</given-names>");
+    expect(xml).toContain("<surname>Curie</surname>");
+  });
+
+  // Regression: the importer used to rejoin given + surname and re-parse the
+  // string, which cannot recover a multi-word surname. "van der Berg" came
+  // back as middle name "van" + surname "Berg", changing the initials too.
+  it.each([
+    ["van der Berg, Anne", "Anne", "", "van der Berg", "AV"],
+    ["de la Cruz, Maria", "Maria", "", "de la Cruz", "MD"],
+    ["Smith, John", "John", "", "Smith", "JS"],
+  ])("XML round-trip preserves the particle surname in %s", (input, first, middle, surname, initials) => {
+    const [author] = parseAuthorText(input);
+    if (!author) throw new Error("expected contributor");
+
+    const doc = new DOMParser().parseFromString(toJats4rXml([author]), "text/xml");
+    const [parsed] = fromXmlDocument(doc as unknown as Document);
+
+    expect(parsed?.firstName).toBe(first);
+    expect(parsed?.middleName).toBe(middle);
+    expect(parsed?.surname).toBe(surname);
+    expect(parsed?.initials).toBe(initials);
   });
 });

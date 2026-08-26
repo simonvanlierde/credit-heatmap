@@ -18,9 +18,9 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: pnpm/setup@v2
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2
         with:
           runtime: node@26
           cache: true
@@ -33,19 +33,19 @@ jobs:
         run: pnpm biome check . && pnpm typecheck && pnpm test:coverage
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: packages/core/coverage/lcov.info
+          files: packages/core/coverage/lcov.info,coverage/lcov.info
           fail_ci_if_error: false
 
-  a11y:
-    name: Accessibility (axe)
+  e2e:
+    name: E2E and accessibility
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: pnpm/setup@v2
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2
         with:
           runtime: node@26
           cache: true
@@ -54,25 +54,65 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Only Chromium is needed for the axe scans; skip the other browsers.
+      # The browser download is ~130MB and never varies for a given Playwright
+      # version, so key the cache on the lockfile. `--with-deps` still runs on a
+      # hit: the apt system libraries live outside this path.
+      - name: Cache Playwright browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
+      # Only Chromium is needed; skip the other browsers.
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      # Just the axe accessibility spec on every push/PR (the full E2E suite
-      # stays behind the `e2e` label in e2e.yml). Fast: one browser, one file.
-      - name: Run axe accessibility scans
+      # This job builds the app before the tests run (see playwright.config.ts),
+      # so it wants the same incremental cache the build job keeps.
+      - name: Cache Next.js build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('**/*.{js,jsx,ts,tsx}') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      # The whole Playwright suite gates every push/PR: the axe scans *and*
+      # the critical-workflow specs (import, undo, ORCID lookup, persistence,
+      # bulk assign, export). Running only a subset here once let a regression
+      # in the rest merge with CI fully green.
+      #
+      # Workers are left at Playwright's default (half the runner's cores).
+      # Against a production build the suite runs 62s serially and 46s on two
+      # workers, and the one test that failed under load was an unscoped
+      # locator, not a shared-state problem: `retries: 2` covers the rest.
+      # Retries also hide flakes, so watch the report's "flaky" lines: a test
+      # that starts passing only on retry is a bare locator racing the
+      # announce() duplicate (see e2e/happy-path.spec.ts's onScreen helper),
+      # not noise to ignore.
+      - name: Run Playwright suite
         env:
           CI: true
-        run: pnpm exec playwright test a11y.spec.ts --workers=1
+        run: pnpm exec playwright test
+
+      # trace: "on-first-retry" is already set, so failures produce traces;
+      # without this step they were thrown away and every red run had to be
+      # reproduced locally.
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-traces
+          path: test-results
 
   build:
     name: Build
     runs-on: ubuntu-latest
     needs: [check]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: pnpm/setup@v2
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2
         with:
           runtime: node@26
           cache: true
@@ -85,7 +125,7 @@ jobs:
       # rebuilds are faster. Keyed on lockfile + source; falls back to the last
       # cache for the same deps when only source changed.
       - name: Cache Next.js build
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: .next/cache
           key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('**/*.{js,jsx,ts,tsx}') }}
@@ -96,3 +136,9 @@ jobs:
       # OpenNext), not just `next build`, so worker-bundling failures surface in CI.
       - name: Build
         run: pnpm exec opennextjs-cloudflare build
+
+      # Nothing else in CI reads wrangler.jsonc, and the real deploy runs from
+      # Cloudflare Builds on merge to main: a bad binding, route or `main` path
+      # would first fail in production. The dry run needs no credentials.
+      - name: Validate Worker config
+        run: pnpm exec wrangler deploy --dry-run

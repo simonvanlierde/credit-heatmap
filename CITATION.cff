@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using these metadata."
-title: "CRediT Generator"
+title: "CRediT Matrix"
 abstract: >-
-  A client-side web app and TypeScript library for drafting CRediT (Contributor Roles Taxonomy) contribution statements for scholarly publications, with a contribution heatmap and JATS4R XML, CSV, JSON, and Markdown exports for journal submission systems.
+  A client-side web app and TypeScript library for drafting CRediT (Contributor Roles Taxonomy) contribution statements for scholarly publications, with a contribution heatmap and JATS4R XML, CSV, JSON, and Markdown exports for journal submission systems. Contributors can be filled in from an ORCID iD or a DOI, and the interface and the generated statement are localized independently across nine languages.
 type: software
 authors:
   - given-names: Simon
@@ -21,8 +21,10 @@ keywords:
   - scholarly publishing
   - research software
   - ORCID
-version: "0.2.0"
-date-released: "2026-07-14"
+  - DOI
+  - localization
+version: "0.3.0"
+date-released: "2026-08-26"
 # Concept DOI: resolves to all versions, so it stays fixed across releases.
 doi: "10.5281/zenodo.21213659"
 references:

@@ -5,8 +5,9 @@ Role-name/description translations vendored here are from the community
 project, each licensed **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**.
 
 **Modifications:** each source `translations/<lang>.json` was pruned to
-`metadata` (languageName + translators) and `translations` only; no translated
-text was altered.
+`metadata` (languageName + translators) and `translations` only. The Portuguese
+catalog was adapted from Brazilian Portuguese to Portuguese as used in Portugal
+so it matches the interface locale offered by this app.
 
 | Language | Translators |
 | --- | --- |
@@ -19,4 +20,5 @@ text was altered.
 | Chinese - simplified | Yefeng Yang; Wawa Yu; Alex O. Holcombe (0000-0003-2869-0085) |
 | Japanese | Ayumi Mizuno (0000-0003-0822-5637); Sawaka Oka |
 
-Per-language license statements: https://github.com/contributorshipcollaboration/credit-translation/tree/main/md_files
+Per-language license statements:
+<https://github.com/contributorshipcollaboration/credit-translation/tree/main/md_files>

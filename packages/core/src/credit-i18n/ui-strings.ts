@@ -1,5 +1,5 @@
 /**
- * UI-string translations — the non-role strings in human-facing output
+ * UI-string translations: the non-role strings in human-facing output
  * (statement + heatmap): "Acknowledgements", the contribution-level labels, the
  * heatmap title, and the empty-state line.
  *
@@ -7,17 +7,44 @@
  * the bundler) so the live UI and exports share one mechanism and this can grow
  * to cover the whole app. English is the canonical source and the per-key
  * fallback; per-locale catalogs in ./ui/ hold only the overrides. Our strings,
- * not the community role repo's — hence a separate directory.
+ * not the community role repo's, hence a separate directory.
  */
 
-export type UiKey = "acknowledgements" | "lead" | "equal" | "supporting" | "none" | "contributed" | "emptyState";
+import type { LocaleCode } from "./index";
+
+export type UiKey =
+  | "acknowledgements"
+  | "lead"
+  | "equal"
+  | "supporting"
+  | "none"
+  | "contributed"
+  | "emptyState"
+  | "equalContributionNote"
+  | "correspondenceNote"
+  | "nameListSeparator"
+  | "segmentSeparator"
+  | "levelAnnotation";
 
 export type UiTranslator = (key: UiKey) => string;
 
-/** A locale's overrides; any missing key falls back to {@link EN_UI}. */
-export type UiCatalog = Partial<Record<UiKey, string>>;
+/**
+ * Fill `{name}` placeholders in a catalog template. Replacer functions, not
+ * replacement strings: a value containing "$&" or "$'" would otherwise be
+ * expanded as a replacement pattern.
+ */
+export function fillTemplate(template: string, vars: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(vars)) {
+    result = result.replace(`{${key}}`, () => value);
+  }
+  return result;
+}
 
-/** Canonical English — the source text and the fallback for any missing entry. */
+/** A complete output catalog. Missing prose must fail before release. */
+export type UiCatalog = Record<UiKey, string>;
+
+/** Canonical English: the source text and the fallback for any missing entry. */
 const EN_UI: Record<UiKey, string> = {
   acknowledgements: "Acknowledgements",
   lead: "Lead",
@@ -26,39 +53,48 @@ const EN_UI: Record<UiKey, string> = {
   none: "None",
   contributed: "Contributed",
   emptyState: "No contributions assigned yet.",
+  // `{names}` is substituted with the marked contributors.
+  equalContributionNote: "{names} contributed equally to this work.",
+  correspondenceNote: "Correspondence: {names}.",
+  nameListSeparator: ", ",
+  // Joins the segments of a statement ("Role: names; Role: names"). Its own
+  // key because CJK locales use full-width punctuation ("；"), and mixing
+  // ASCII separators into a ja/zh statement reads as a typo.
+  segmentSeparator: "; ",
+  // How a non-lead level annotates its label; CJK locales use full-width
+  // parentheses.
+  levelAnnotation: "{label} ({level})",
 };
 
 // One static import() per locale so bundlers code-split each catalog (only the
-// selected language ships to the client). Add a line here for each new locale.
-const LOADERS: Record<string, () => Promise<{ default: UiCatalog }>> = {
+// selected language ships to the client). The exhaustive key type makes adding
+// a locale to AVAILABLE_LOCALES without a catalog here a compile error.
+const LOADERS: Record<Exclude<LocaleCode, "en">, () => Promise<{ default: UiCatalog }>> = {
   fr: () => import("./ui/fr.json"),
   de: () => import("./ui/de.json"),
   es: () => import("./ui/es.json"),
   it: () => import("./ui/it.json"),
-  pt: () => import("./ui/pt.json"),
+  "pt-PT": () => import("./ui/pt.json"),
   nl: () => import("./ui/nl.json"),
-  zh: () => import("./ui/zh.json"),
+  "zh-Hans": () => import("./ui/zh.json"),
   ja: () => import("./ui/ja.json"),
 };
 
 /** Load a locale's UI catalog. Returns null for `en` or any unknown locale (→ English). */
 export async function loadUiCatalog(locale: string): Promise<UiCatalog | null> {
-  const loader = LOADERS[locale];
+  const loader = Object.hasOwn(LOADERS, locale) ? LOADERS[locale as Exclude<LocaleCode, "en">] : undefined;
   if (!loader) return null;
   const mod = await loader();
   return mod.default;
 }
 
 /**
- * Build a UI-string translator from a catalog. Falls back to canonical English
- * when the catalog is null/undefined or is missing the key.
+ * Build a UI-string translator from a catalog. A missing catalog uses English.
  */
-export function makeUiTranslator(catalog: UiCatalog | null | undefined): UiTranslator {
+export function makeUiTranslator(catalog: Partial<UiCatalog> | null | undefined): UiTranslator {
   if (!catalog) return (key) => EN_UI[key];
-  // `||` (not `??`) so an empty-string override also falls back to English
-  // rather than rendering a blank label.
-  return (key) => catalog[key] || EN_UI[key];
+  return (key) => catalog[key]?.trim() || EN_UI[key];
 }
 
-/** Canonical English UI translator (no catalog) — the default for all consumers. */
+/** Canonical English UI translator (no catalog): the default for all consumers. */
 export const DEFAULT_UI_TRANSLATOR: UiTranslator = makeUiTranslator(null);

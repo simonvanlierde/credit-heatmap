@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { toMarkdown } from "../export/markdown.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { toMarkdown } from "../export/markdown";
+import { parseAuthorText } from "../parse-authors";
 
 describe("toMarkdown", () => {
   it("renders a contributor → roles table with level annotations", () => {
@@ -50,5 +50,19 @@ describe("toMarkdown", () => {
     conc.score = 100;
 
     expect(toMarkdown(authors)).toContain("Jane \\| Smith");
+  });
+
+  it("renders untrusted Markdown and HTML syntax as literal table text", () => {
+    const [author] = parseAuthorText("Jane Smith");
+    if (!author) throw new Error("expected author");
+    author.name = "Jane\n[click](https://example.com) <img src=x onerror=alert(1)>";
+
+    const md = toMarkdown([author]);
+
+    // Header, separator, the one row, a blank line, and the generator comment:
+    // the newline in the name must not have opened a fourth table line.
+    expect(md.split("\n")).toHaveLength(5);
+    expect(md).toContain("Jane \\[click\\](https://example.com) &lt;img src=x onerror=alert(1)&gt;");
+    expect(md).not.toContain("<img");
   });
 });

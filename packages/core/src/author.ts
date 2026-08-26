@@ -1,6 +1,10 @@
 import { z } from "zod";
-import type { CreditRoleName } from "./credit-roles.js";
-import { CREDIT_ROLES } from "./credit-roles.js";
+import type { CreditRoleName } from "./credit-roles";
+import { CREDIT_ROLES } from "./credit-roles";
+
+export const MAX_AUTHORS = 200;
+export const MAX_AUTHOR_NAME_LENGTH = 500;
+export const MAX_IMPORT_BYTES = 1_000_000;
 
 /**
  * A contribution is a 0–100 integer score for one CRediT role.
@@ -14,7 +18,7 @@ import { CREDIT_ROLES } from "./credit-roles.js";
  *
  * Storing a continuous score (not just a boolean) lets us express
  * contribution levels without committing to a fixed tier count in
- * the data model — the UI input mode is a presentation concern only.
+ * the data model: the UI input mode is a presentation concern only.
  */
 export const ContributionSchema = z.object({
   role: z.enum(CREDIT_ROLES.map((r) => r.name) as [CreditRoleName, ...CreditRoleName[]]),
@@ -29,6 +33,11 @@ export const ORCID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
 /** ORCID iD accepted on input: bare form or the canonical orcid.org URL. */
 export const ORCID_INPUT_REGEX = /^(https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$/;
 
+/** Return the canonical bare ORCID form used in state and exports. */
+export function normalizeOrcid(id: string): string {
+  return id.replace(/^https?:\/\/orcid\.org\//, "");
+}
+
 /**
  * Validate an ORCID iD fully: correct shape *and* a valid ISO 7064 MOD 11-2
  * check digit. The shape regexes alone accept checksum-invalid iDs (e.g. a
@@ -37,11 +46,24 @@ export const ORCID_INPUT_REGEX = /^(https?:\/\/orcid\.org\/)?\d{4}-\d{4}-\d{4}-\
  */
 export function isValidOrcid(id: string): boolean {
   if (!ORCID_INPUT_REGEX.test(id)) return false;
-  const digits = id.replace(/^https?:\/\/orcid\.org\//, "").replace(/-/g, "");
+  const digits = normalizeOrcid(id).replace(/-/g, "");
   let total = 0;
   for (let i = 0; i < 15; i += 1) total = (total + Number(digits[i])) * 2;
   const check = (12 - (total % 11)) % 11;
   return digits[15] === (check === 10 ? "X" : String(check));
+}
+
+/**
+ * A name `createAuthor` can build a contributor from.
+ *
+ * Normally that means at least one letter. A bare ORCID iD is the deliberate
+ * exception: adding a contributor by iD seeds the row named after the iD and
+ * fills the real name from the registry afterwards, and a row whose lookup
+ * failed keeps that placeholder on purpose; so it has to survive validation,
+ * persistence and export.
+ */
+export function isUsableAuthorName(name: string): boolean {
+  return /[\p{L}\p{M}]/u.test(name) || ORCID_INPUT_REGEX.test(name.trim());
 }
 
 export const AuthorSchema = z.object({
@@ -50,32 +72,57 @@ export const AuthorSchema = z.object({
     .string()
     .min(1)
     .default(() => globalThis.crypto.randomUUID()),
-  /** Display name as entered by the user (e.g. "Jane A. Smith") */
-  name: z.string().min(1),
+  /**
+   * Display name as entered by the user (e.g. "Jane A. Smith").
+   *
+   * The letter check mirrors `createAuthor`, which throws on a name that keeps
+   * no letters once punctuation and digits are stripped. Without it the schema
+   * accepts names (e.g. "123") that every downstream `normalizeAuthors` call
+   * then throws on, turning a bad import into a crash instead of an error.
+   */
+  name: z
+    .string()
+    .min(1)
+    .max(MAX_AUTHOR_NAME_LENGTH)
+    .refine(isUsableAuthorName, "Author name must contain at least one letter."),
   /** Parsed first name */
-  firstName: z.string(),
+  firstName: z.string().max(MAX_AUTHOR_NAME_LENGTH),
   /** Parsed middle name (may be empty) */
-  middleName: z.string(),
+  middleName: z.string().max(MAX_AUTHOR_NAME_LENGTH),
   /** Parsed surname */
-  surname: z.string(),
+  surname: z.string().max(MAX_AUTHOR_NAME_LENGTH),
   /**
    * Unique initials (e.g. "JAS"). Generated automatically, deduplicated
    * across the author list. Used in the short statement format.
    */
-  initials: z.string(),
+  initials: z.string().max(MAX_AUTHOR_NAME_LENGTH),
   /**
    * ORCID iD in URL form (e.g. "https://orcid.org/0000-0002-1825-0097")
    * or bare 16-digit format ("0000-0002-1825-0097"). Optional.
    */
-  orcid: z.string().refine(isValidOrcid, "Invalid ORCID iD.").optional(),
+  orcid: z.string().refine(isValidOrcid, "Invalid ORCID iD.").transform(normalizeOrcid).optional(),
   /**
    * Whether this person is a named author or a non-author contributor credited
    * in an Acknowledgements section. CRediT applies to both (see NISO guidance);
    * the distinction drives the JATS `contrib-type`. Defaults to "author".
    */
   contributorType: z.enum(["author", "non-author"]).default("author"),
-  /** Scores for each of the 14 CRediT roles, keyed by role name */
+  /**
+   * Scores for each of the 14 CRediT roles, keyed by role name.
+   *
+   * Deliberately not capped at `CREDIT_ROLES.length`: an imported array may
+   * legally repeat a role, and `normalizeContributions` merges duplicates by
+   * keeping the highest score. A cap here rejects that payload outright.
+   */
   contributions: z.array(ContributionSchema),
+  /**
+   * Whether this person shares first authorship with others so marked. Not a
+   * CRediT role — the taxonomy has no slot for it — but journals ask for it in
+   * the same paragraph, so it travels with the contributions.
+   */
+  equalContribution: z.boolean().default(false),
+  /** Whether this person is a corresponding author. Also outside CRediT. */
+  corresponding: z.boolean().default(false),
 });
 
 export type Author = z.infer<typeof AuthorSchema>;
@@ -102,7 +149,7 @@ export function hasContributions(author: Author): boolean {
 }
 
 /**
- * True when every contribution across all authors is binary (0 or 100) — i.e.
+ * True when every contribution across all authors is binary (0 or 100), i.e.
  * no intermediate levels exist, so a "show levels" control has nothing to show.
  * Treats an empty author list as binary.
  */

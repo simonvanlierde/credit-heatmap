@@ -8,8 +8,19 @@ import {
   ORCID_INPUT_REGEX,
   ORCID_REGEX,
   scoreToLevel,
-} from "../author.js";
-import { parseAuthorText } from "../parse-authors.js";
+} from "../author";
+import { CREDIT_ROLES } from "../credit-roles";
+import { createAuthor, parseAuthorText } from "../parse-authors";
+
+/** Minimal schema-valid author, for tests that vary one field. */
+const VALID_AUTHOR = {
+  name: "Jane Smith",
+  firstName: "Jane",
+  middleName: "",
+  surname: "Smith",
+  initials: "JS",
+  contributions: [],
+};
 
 describe("isValidOrcid", () => {
   it("accepts iDs with a correct MOD 11-2 check digit (bare and URL form)", () => {
@@ -141,5 +152,43 @@ describe("schemas", () => {
     };
     expect(() => AuthorSchema.parse({ ...base, orcid: "bogus" })).toThrow();
     expect(AuthorSchema.parse({ ...base, orcid: "0000-0002-1825-0097" }).orcid).toBe("0000-0002-1825-0097");
+  });
+
+  // Regression: the schema accepted any non-empty name, so an imported "123"
+  // parsed cleanly here and then threw inside createAuthor on the next store
+  // mutation, reaching the user as a crash rather than an import error.
+  it.each(["123", "  ", "-- --", "42.0"])("rejects %o, which createAuthor cannot build", (name) => {
+    expect(() => AuthorSchema.parse({ ...VALID_AUTHOR, name })).toThrow();
+    expect(() => createAuthor(name)).toThrow();
+  });
+
+  // Adding a contributor by iD seeds the row named after the iD, so this
+  // placeholder has to pass validation, persistence and export.
+  it.each([
+    "0000-0002-1825-0097",
+    "https://orcid.org/0000-0002-1825-0097",
+  ])("accepts the ORCID placeholder name %o", (name) => {
+    expect(AuthorSchema.parse({ ...VALID_AUTHOR, name }).name).toBe(name);
+    expect(() => createAuthor(name)).not.toThrow();
+  });
+
+  it.each(["Jane Smith", "李雷", "O'Brien", "Ana-María"])("accepts the real name %o", (name) => {
+    expect(AuthorSchema.parse({ ...VALID_AUTHOR, name }).name).toBe(name);
+    expect(() => createAuthor(name)).not.toThrow();
+  });
+
+  it("accepts a contributions array that repeats a role, so the merge can run", () => {
+    // normalizeContributions keeps the highest score for a repeated role; the
+    // old length cap rejected that payload before the merge could run.
+    const contributions = [
+      { role: "Software" as const, score: 40 },
+      { role: "Software" as const, score: 90 },
+      ...CREDIT_ROLES.map((role) => ({ role: role.name, score: 0 })),
+    ];
+    expect(() => AuthorSchema.parse({ ...VALID_AUTHOR, contributions })).not.toThrow();
+    expect(createAuthor("Jane Smith", { contributions }).contributions).toContainEqual({
+      role: "Software",
+      score: 90,
+    });
   });
 });

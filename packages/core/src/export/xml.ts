@@ -1,9 +1,10 @@
 // spell-checker: ignore archivearticle, mathml
 
-import type { Author } from "../author.js";
-import { activeContributions } from "../author.js";
-import { getRoleByName } from "../credit-roles.js";
-import { escapeXml } from "./escape-xml.js";
+import type { Author } from "../author";
+import { activeContributions } from "../author";
+import { getRoleByName } from "../credit-roles";
+import { escapeXml } from "./escape-xml";
+import { GENERATOR_NOTE } from "./generator-note";
 
 const DOCTYPE =
   '<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD with MathML3 v1.2 20190208//EN" "JATS-archivearticle1-mathml3.dtd">';
@@ -17,6 +18,7 @@ export function toJats4rXml(authors: Author[]): string {
 
   return `<?xml version='1.0' encoding='UTF-8'?>
 ${DOCTYPE}
+<!-- ${GENERATOR_NOTE} -->
 <article xmlns:xlink="http://www.w3.org/1999/xlink"
          xmlns:ali="http://www.niso.org/schemas/ali/1.0/"
          article-type="other"
@@ -48,7 +50,7 @@ function authorToXml(author: Author): string {
     ? `\n      <contrib-id contrib-id-type="orcid">${escapeXml(author.orcid)}</contrib-id>`
     : "";
 
-  // JATS4R encodes role presence only — the 0–100 score is not representable,
+  // JATS4R encodes role presence only; the 0–100 score is not representable,
   // so an export→import round-trip is lossy (see fromXmlDocument).
   const roles = activeContributions(author)
     .map((c) => {
@@ -62,7 +64,12 @@ function authorToXml(author: Author): string {
   // is an open vocabulary).
   const contribType = author.contributorType === "non-author" ? "contributor" : "author";
 
-  return `<contrib contrib-type="${contribType}">${orcidEl}
+  // JATS carries both markers as attributes on <contrib>, outside the CRediT
+  // vocabulary: the taxonomy has no term for either.
+  const equalAttr = author.equalContribution ? ' equal-contrib="yes"' : "";
+  const correspAttr = author.corresponding ? ' corresp="yes"' : "";
+
+  return `<contrib contrib-type="${contribType}"${equalAttr}${correspAttr}>${orcidEl}
       <string-name>
         <given-names>${escapeXml(givenNames)}</given-names>
         <surname>${escapeXml(author.surname)}</surname>

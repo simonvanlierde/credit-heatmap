@@ -4,6 +4,105 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-27
+
+### Added
+
+- Offline support: a service worker caches the app's own files, so a draft survives a lost
+  connection, and a web app manifest makes it installable. The ORCID and DOI lookups are the only
+  paths that still need a network, and now say so.
+- DOI import: paste a DOI to fill the contributor list, their ORCID iDs, and the work's title from
+  the published record, through a new `/api/doi` proxy to Crossref. Roles stay empty, because
+  published records do not carry them.
+- Drafts, one per paper. A picker in the header switches, renames, duplicates, and deletes them, up
+  to fifty. They live in this browser, as everything else does.
+- Collecting contributions from co-authors. A contributor's row menu copies a link addressed to
+  that person, and an *Asked* chip tracks the open request. Opening the link locks the draft to
+  the recipient's own row; a banner explains the lock, builds the reply link, and can release the
+  draft into an ordinary one. The lock survives a refresh, and re-opening the same request resumes
+  it instead of forking a duplicate.
+- Replies merge on open. Clicking the returned link (or pasting it into Import) lands that one row
+  on the paper it was asked about, confirmed by a visible banner with an Undo and an *Updated*
+  mark on the row. On their own row the co-author is the authority: the name, iD, and author
+  status they set on themselves ship back with their roles.
+- A visible status strip for share and merge outcomes. These previously reached only screen
+  readers, so a merge, a refusal, or a broken link looked like nothing happened.
+- Shared first authorship and corresponding authors, which CRediT has no term for. They are noted
+  under the statement and the Markdown table, carried as columns in CSV, and written as JATS4R
+  `equal-contrib` and `corresp` attributes.
+- Rich-text copy: the statement now goes to the clipboard as HTML alongside plain text, so pasting
+  into a word processor keeps the emphasis on each label. Editors that want plain text still get it.
+- A unit test layer for the app itself (Vitest on jsdom), covering the store and the `src/lib`
+  helpers. The domain package and the Playwright suite already had their own.
+- Bulk assignment: set or clear every role for one contributor, or one role across every
+  contributor, from a popover in the contribution step.
+- Undo for a removed contributor, and an explicit "Clear local draft" action with a confirmation.
+- Rate limiting and stricter input validation on the upstream proxies. Both share one Worker
+  binding, `API_RATE_LIMITER`; without it they fail open, unthrottled, and say so once in the
+  invocation log.
+- End-to-end coverage of the critical workflows, and release verification in CI. The whole
+  Playwright suite now runs on every pull request; it previously ran only the accessibility scans,
+  so a regression in import, undo, ORCID lookup, persistence, or export could merge green.
+- `PRODUCT.md` and `DESIGN.md`, documenting the product brief and the design system.
+- Arrow-key navigation in the contribution grid: the matrix is one tab stop, and Arrow, Home, and
+  End move between cells, so crossing it no longer takes a tab press per cell.
+
+### Changed
+
+- Share links carry everything in one compressed fragment: the roster with stable contributor
+  ids, the draft title, and, on requests and replies, whom the link addresses and which draft
+  it came from. A ten-author link is roughly 1.4 kB instead of 18 kB, which is the difference
+  between a link that survives an email client and one that does not. **Links built by earlier
+  versions no longer open**; they fail with a visible message and leave the open draft untouched.
+- UI copy: device-neutral *Select* for grid interactions, *Non-author* for the non-author
+  contributor type, one neutral copy-failure announcement, and a localizable detected-format
+  label.
+- The persisted draft is stored as a map of drafts rather than a single workspace.
+- The desktop workspace fits one viewport: the page no longer scrolls, and each of the three panes
+  scrolls its own content. Short, zoomed, and narrow windows keep ordinary document flow.
+- First-run guidance is a modal over the workspace instead of a band above it, so dismissing it no
+  longer reflows the page.
+- Heatmap controls (color, transpose, initials) moved into a popover beside the grid.
+- The Content-Security-Policy now restricts scripts, connections, and form submissions. It
+  previously set only `base-uri`, `frame-ancestors`, and `object-src`, which left everything else
+  unrestricted.
+- The ORCID proxy checks its rate limit before reading the request body, and gives up on an
+  unresponsive upstream after five seconds instead of holding the request open.
+
+### Fixed
+
+- A share link no longer overwrites the paper you are working on: a whole draft someone sent opens
+  as a new draft beside your own, and a reply whose draft is not in this browser is refused with a
+  message instead of merging into whichever paper happened to be open.
+- The title and the add-contributor field are read-only until the persisted draft has been restored.
+  The store rehydrates from a mount effect, so there was a window in which the interface was live
+  but still empty, and anything typed into it was overwritten the moment the draft landed.
+- Renaming a contributor no longer clears the authorship markers set on them. Every mutation
+  rebuilds the contributor through `createAuthor`, and two rebuild sites were dropping the fields.
+- An ORCID iD attached to a contributor gets its own line, instead of pushing the contributor row
+  onto a second line.
+- Responsive and accessibility fixes across the contributor row, grid, and export controls.
+- Hardened contributor data handling in `core`, and the lookup and response boundaries of the
+  ORCID proxy.
+- A multi-word surname survives a JATS round trip. Exporting and re-importing "van der Berg, Anne"
+  returned middle name "van" with surname "Berg", which also changed the generated initials.
+- The check mark in an assigned grid cell picks its color by measured contrast, so it stays legible
+  on light grid colors. On several palette choices it was previously white on a pale fill.
+- Keyboard focus survives removing a contributor, clearing the draft, and removing an ORCID iD.
+  Each of those unmounted the button being pressed, dropping focus to the top of the page.
+- Screen readers announce the contributor list as a list, with a count and a position per row.
+- The statement and export controls stay reachable on short desktop windows, at high zoom, and with
+  a larger minimum font size, instead of being clipped with no way to scroll to them.
+- A share link carrying an unusable contributor shows an error and keeps the current draft, rather
+  than failing to render the page.
+- Editing one contributor's name is no longer overwritten when another contributor's ORCID lookup
+  finishes.
+- Drafts saved before the 500-character name limit keep working; over-long names are trimmed on
+  load instead of breaking every later edit.
+- Pasting an ORCID iD with a bad check digit says so, instead of reporting it as a name with no
+  letters. At the 200-contributor limit, adding one more explains the limit.
+- Correcting an ORCID iD after a checksum error and clicking away now saves the correction.
+
 ## [0.2.0] - 2026-07-14
 
 ### Added
@@ -52,7 +151,8 @@ Persisted local drafts migrate automatically.
 - axe-core accessibility scans of the main screens in the Playwright suite.
 - `CITATION.cff`, a `CONTRIBUTING.md` guide, and the first architecture decision
   record (`docs/adr`).
-- Zenodo archival with a citable DOI ([10.5281/zenodo.21213659](https://doi.org/10.5281/zenodo.21213659)).
+- Zenodo archival with a citable DOI
+  ([10.5281/zenodo.21213659](https://doi.org/10.5281/zenodo.21213659)).
 
 ### Fixed
 
@@ -72,6 +172,8 @@ Persisted local drafts migrate automatically.
   contribution heatmap, JATS4R XML / CSV / JSON / Markdown exports, ORCID lookup,
   share links, and a framework-agnostic `@credit-generator/core` domain package.
 
+[Unreleased]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/simonvanlierde/credit-heatmap/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/simonvanlierde/credit-heatmap/releases/tag/v0.1.0

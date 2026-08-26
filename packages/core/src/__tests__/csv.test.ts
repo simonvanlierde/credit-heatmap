@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fromCsv, toCsv } from "../export/csv.js";
-import { parseAuthorText } from "../parse-authors.js";
+import { fromCsv, toCsv } from "../export/csv";
+import { parseAuthorText } from "../parse-authors";
 
 describe("CSV import/export", () => {
   it("round-trips authors and contribution scores", () => {

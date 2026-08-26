@@ -17,7 +17,7 @@ export function SelectTrigger({
     <SelectPrimitive.Trigger
       ref={ref}
       className={cn(
-        "flex items-center justify-between gap-1 rounded border border-outline-variant bg-surface-bright",
+        "flex min-w-0 items-center justify-between gap-1 rounded border border-outline-variant bg-surface-bright [&>span]:truncate",
         "px-2 py-1 text-xs text-on-surface",
         "focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary",
         "disabled:cursor-not-allowed disabled:opacity-50",
@@ -45,10 +45,8 @@ export function SelectContent({
         position="popper"
         sideOffset={4}
         className={cn(
-          "z-50 min-w-[8rem] overflow-hidden rounded border border-outline-variant bg-surface-bright shadow-md",
-          "data-[state=open]:animate-in data-[state=closed]:animate-out",
-          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-          "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          "z-50 max-w-[calc(100vw-1rem)] min-w-[8rem] overflow-hidden rounded border border-outline-variant bg-surface-bright shadow-md",
+          "panel-motion [transform-origin:var(--radix-select-content-transform-origin)]",
           className,
         )}
         {...props}
@@ -69,7 +67,7 @@ export function SelectItem({
     <SelectPrimitive.Item
       ref={ref}
       className={cn(
-        "relative flex w-full cursor-pointer select-none items-center rounded py-1.5 pl-8 pr-2 text-xs text-on-surface",
+        "relative flex w-full cursor-pointer select-none items-center overflow-hidden rounded py-1.5 pl-8 pr-2 text-xs text-on-surface",
         "outline-none focus:bg-surface-container-low",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
