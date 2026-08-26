@@ -112,10 +112,14 @@ export function HeaderActions() {
       const result = mergeContributorRow(before, shared.authors, shared.claimId);
       if (result.unmatched) return "mergeUnmatched";
       if (!result.merged) return "errShareLinkBroken";
+      // loadAuthors writes into the live draft, so the switch has to come
+      // first; a throw leaves state untouched, and going back undoes the move.
+      const previous = state.activeDraftId;
       switchDraft(target);
       try {
         loadAuthors(result.authors);
       } catch {
+        switchDraft(previous);
         return "errShareLinkBroken";
       }
       const title = useContributionStore.getState().title.trim() || t("untitledDraft");
