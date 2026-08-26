@@ -3,6 +3,7 @@
 import type { Author } from "@credit-generator/core";
 import { Check, CircleAlert, Link2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslations } from "use-intl";
 import { ImportModal } from "@/components/ImportModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { announce } from "@/lib/announce";
@@ -23,6 +24,7 @@ export function HeaderActions() {
   });
   const authors = useContributionStore((s) => s.authors);
   const loadAuthors = useContributionStore((s) => s.loadAuthors);
+  const t = useTranslations();
 
   // Rehydrate persisted state on the client (the store skips hydration at
   // creation to avoid an SSR mismatch). Runs before the share-hash effect below
@@ -85,7 +87,11 @@ export function HeaderActions() {
                 <Link2 className="h-4 w-4" />
               )}
               <span className="sr-only sm:not-sr-only">
-                {shareStatus === "copied" ? "Link copied" : shareStatus === "error" ? "Copy failed" : "Share"}
+                {shareStatus === "copied"
+                  ? t("linkCopied")
+                  : shareStatus === "error"
+                    ? t("copyFailedMessage")
+                    : t("share")}
               </span>
             </button>
           </PopoverTrigger>
@@ -106,11 +112,11 @@ export function HeaderActions() {
         <button
           type="button"
           onClick={() => setImportOpen(true)}
-          aria-label="Import"
+          aria-label={t("import")}
           className="flex size-9 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-on-primary shadow-sm transition-colors hover:bg-primary-container sm:w-auto sm:px-5"
         >
           <Upload className="h-4 w-4" />
-          <span className="sr-only sm:not-sr-only">Import</span>
+          <span className="sr-only sm:not-sr-only">{t("import")}</span>
         </button>
       </div>
 

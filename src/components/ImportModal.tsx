@@ -11,6 +11,7 @@ import {
 } from "@credit-generator/core";
 import { FileUp, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "use-intl";
 import { announce } from "@/lib/announce";
 
 interface Props {
@@ -63,6 +64,7 @@ const IMPORTERS: Record<
 };
 
 export function ImportModal({ open, existingContributorCount, onImport, onClose }: Props) {
+  const t = useTranslations();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -189,7 +191,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
             className="text-2xl italic font-semibold text-primary"
             style={{ fontFamily: "var(--font-headline)" }}
           >
-            Import contributors
+            {t("importTitle")}
           </h2>
           <p id="import-description" className="text-sm text-on-surface-variant mt-1">
             Paste author names, or upload a CSV, JSON, or JATS4R XML file from a previous session. A JSON or XML import
@@ -201,7 +203,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
             className="absolute right-5 top-5 text-on-surface-variant hover:text-on-surface transition-colors"
           >
             <X className="h-5 w-5" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t("close")}</span>
           </button>
         </div>
 
@@ -224,14 +226,14 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
               <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
                 <FileUp className="h-7 w-7 text-primary" />
               </div>
-              <p className="text-sm font-medium text-on-surface">Drag and drop a file here</p>
-              <p className="text-xs text-on-surface-variant mt-1 mb-4">Accepts .csv, .json, or .xml</p>
+              <p className="text-sm font-medium text-on-surface">{t("dragDropFile")}</p>
+              <p className="text-xs text-on-surface-variant mt-1 mb-4">{t("acceptedFileTypes")}</p>
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 className="px-4 py-1.5 border border-primary text-primary text-xs font-semibold rounded hover:bg-primary hover:text-on-primary transition-colors"
               >
-                Browse files
+                {t("browseFiles")}
               </button>
               <input
                 ref={fileRef}
@@ -251,7 +253,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
                 htmlFor="import-text"
                 className="block text-xs uppercase tracking-widest font-bold text-on-surface-variant"
               >
-                Paste raw data
+                {t("pasteRawData")}
               </label>
               {format !== "unknown" && (
                 <span className="text-[10px] text-primary font-medium italic">Detected: {FORMAT_LABEL[format]}</span>
@@ -274,7 +276,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
 
           {pendingAuthors && (
             <div role="alert" className="rounded-lg bg-error-container/30 p-4 text-sm text-on-surface">
-              <p className="font-semibold">Replace the current workspace?</p>
+              <p className="font-semibold">{t("replaceWorkspaceTitle")}</p>
               <p className="mt-1 text-on-surface-variant">
                 Importing {pendingAuthors.length} contributor{pendingAuthors.length === 1 ? "" : "s"} will replace the{" "}
                 {existingContributorCount} already in this workspace. This cannot be undone.
@@ -285,14 +287,14 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
                   onClick={() => setPendingAuthors(null)}
                   className="rounded-lg border border-outline-variant px-4 py-2 font-semibold text-on-surface-variant hover:border-primary hover:text-primary"
                 >
-                  Keep current work
+                  {t("keepCurrentWork")}
                 </button>
                 <button
                   type="button"
                   onClick={() => finishImport(pendingAuthors)}
                   className="rounded-lg bg-error px-4 py-2 font-semibold text-on-error hover:opacity-90"
                 >
-                  Replace workspace
+                  {t("replaceWorkspace")}
                 </button>
               </div>
             </div>
@@ -305,7 +307,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
             onClick={() => dialogRef.current?.close()}
             className="px-5 py-2 text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-colors"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
             type="button"
@@ -313,7 +315,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onClose 
             disabled={format === "unknown" || pendingAuthors !== null}
             className="px-7 py-2 bg-primary text-on-primary text-sm font-bold rounded-lg shadow hover:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Import data
+            {t("importData")}
           </button>
         </div>
       </div>

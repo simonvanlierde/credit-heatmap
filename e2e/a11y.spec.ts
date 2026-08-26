@@ -226,7 +226,7 @@ test.describe("Accessibility (axe-core)", () => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
     await page.getByText("Heatmap options", { exact: true }).click();
-    await page.getByRole("button", { name: "Grid color" }).click();
+    await page.getByRole("button", { name: "Heatmap color" }).click();
     // The Okabe-Ito yellow is the worst case: a white glyph vanishes on it.
     await page.getByRole("button", { name: "Set color #f0e442" }).click();
     await page.keyboard.press("Escape");
@@ -251,7 +251,7 @@ test.describe("Accessibility (axe-core)", () => {
     const reorder = await settled(page.getByRole("button", { name: /Reorder Jane/ }));
     const roleInfo = await settled(page.getByRole("button", { name: "About Conceptualization" }));
     await page.getByText("Heatmap options", { exact: true }).click();
-    await page.getByRole("button", { name: "Grid color" }).click();
+    await page.getByRole("button", { name: "Heatmap color" }).click();
     const swatch = await settled(page.getByRole("button", { name: /Set color/ }).first());
 
     for (const box of [reorder, roleInfo, swatch]) {

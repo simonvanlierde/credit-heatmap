@@ -1,4 +1,4 @@
-import { isValidOrcid, lookupOrcidPerson, ORCID_REGEX } from "@credit-generator/core";
+import { isValidOrcid, lookupOrcidPerson, ORCID_REGEX, type OrcidErrorCode } from "@credit-generator/core";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -28,19 +28,29 @@ export async function POST(request: NextRequest) {
       id = body.id;
     }
   } catch {
-    return NextResponse.json({ error: "The request body could not be read." }, { status: 400 });
+    return errorResponse(400, "BAD_REQUEST", "The request body could not be read.");
   }
 
   if (!(ORCID_REGEX.test(id) && isValidOrcid(id))) {
-    return NextResponse.json(
-      { error: "That is not a valid ORCID iD. Check the digits and try again." },
-      { status: 400 },
-    );
+    return errorResponse(400, "INVALID_ID", "That is not a valid ORCID iD. Check the digits and try again.");
   }
 
   const result = await lookupOrcidPerson(id);
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  if (!result.ok) return errorResponse(result.status, result.code, result.error);
   return NextResponse.json(result);
+}
+
+/**
+ * Every failure carries a stable `code` plus an English `error`.
+ *
+ * The client localizes from the code; the message is the fallback for a client
+ * that meets a code it does not know, and what shows up in logs and `curl`.
+ * Codes are API surface: add new ones rather than renaming existing ones.
+ */
+type ApiErrorCode = OrcidErrorCode | "BAD_REQUEST" | "RATE_LIMITED";
+
+function errorResponse(status: number, code: ApiErrorCode, error: string) {
+  return NextResponse.json({ code, error }, { status });
 }
 
 /** A 429 response when this client is over the limit, otherwise null. */
@@ -55,7 +65,7 @@ async function checkRateLimit(request: NextRequest): Promise<NextResponse | null
   const clientKey = request.headers.get("cf-connecting-ip") ?? request.headers.get("x-forwarded-for") ?? "unknown";
   const { success } = await rateLimiter.limit({ key: clientKey.split(",")[0]?.trim() || "unknown" });
   if (success) return null;
-  return NextResponse.json({ error: "Too many ORCID lookups. Try again in a minute." }, { status: 429 });
+  return errorResponse(429, "RATE_LIMITED", "Too many ORCID lookups. Try again in a minute.");
 }
 
 function getRateLimiter(): RateLimiter | null {

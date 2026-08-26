@@ -1,4 +1,4 @@
-# CRediT Generator
+# CRediT Matrix
 
 [![CI](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml/badge.svg)](https://github.com/simonvanlierde/credit-heatmap/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/simonvanlierde/credit-heatmap/branch/main/graph/badge.svg)](https://codecov.io/gh/simonvanlierde/credit-heatmap)
@@ -8,30 +8,35 @@
 [![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 A web app for drafting [CRediT (Contributor Roles Taxonomy)](https://credit.niso.org/) contribution
-statements for scholarly publications.
+statements for scholarly publications. Formerly released as *CRediT Generator*.
 
-Add contributors, assign the 14 roles, and copy a manuscript-ready statement. The app also builds a
-contribution heatmap and exports for journal submission systems: JATS4R XML, CSV, JSON, and
-Markdown.
+Add contributors, assign the 14 roles, and copy a manuscript-ready statement. The same grid is a
+**contribution heatmap** you can export as a figure, alongside files for journal submission systems:
+JATS4R XML, CSV, JSON, and Markdown.
+
+CRediT Matrix is an independent project. It is not affiliated with or endorsed by NISO.
 
 **Try it:** [credit.duinlab.nl](https://credit.duinlab.nl)
 
-![The CRediT Generator workspace: a contributors list beside an editable contribution grid, with the generated statement and export controls below](docs/screenshots/hero.png)
+![The CRediT Matrix workspace: a contributors list beside an editable contribution grid, with the generated statement and export controls below](docs/screenshots/hero.png)
 
 ## What it does
 
-- **Contributors**: add, rename, reorder, paste a whole author list, or paste an ORCID iD or URL to
+- **Contributors**: add, rename, reorder, or paste a whole author list. Paste an ORCID iD or URL to
   look up the name
-- **Contribution grid**: click cells to assign the 14 roles as yes/no values or as contribution
-  levels. The grid is the heatmap, so you can transpose it, swap initials for full names, and recolor
-  place
-- **Statements**: render by role or by author, with full names or initials, and optional level labels
-- **Localized output**: translate role names in statements, Markdown tables, and heatmaps (via
-  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation)).
-  Machine-readable exports keep the canonical English CRediT terms
-- **Heatmap**: download the grid as SVG or PNG
-- **Exports**: copy or download JATS4R XML, CSV, JSON, and Markdown
+- **Contribution grid**: click a cell to assign one of the 14 roles, as a yes/no value or as a
+  contribution level. The grid is the heatmap, so you can transpose it, swap initials for full
+  names, and recolor it
+- **Statements**: group by role or by author, with full names or initials, and optional level labels
+- **Eight languages**: the interface and the generated statement each pick their own language, so a
+  Dutch interface can produce an English statement. Role names come from
+  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation);
+  machine-readable exports keep the canonical English CRediT terms
+- **Exports**: copy or download JATS4R XML, CSV, JSON, and Markdown, or download the heatmap as SVG
+  or PNG
 - **Sharing and import**: encode a draft in a URL, paste names, or import JSON, CSV, or JATS4R XML
+- **Works offline**: install it, and a draft survives a flight. Only the ORCID lookup needs a
+  network
 
 | First run | Statement & export |
 |---|---|
@@ -41,9 +46,8 @@ Markdown.
 
 ## Architecture
 
-### Stack
-
-TypeScript 6 throughout, on pnpm workspaces (app at the root, reusable `packages/core`).
+TypeScript 6 throughout, on pnpm workspaces: the app at the root, reusable `packages/core` beside
+it.
 
 | Layer | Choice | Why |
 |---|---|---|
@@ -52,8 +56,7 @@ TypeScript 6 throughout, on pnpm workspaces (app at the root, reusable `packages
 | State | Zustand + immer + persist | Survives a refresh via localStorage |
 | Validation | Zod | Schema checks at trust boundaries |
 | Heatmap | Hand-crafted SVG (`core`) | One SVG source feeds both download and canvas PNG |
-
-### Project structure
+| Offline | Service worker + manifest | Runtime cache of the app's own files; no build step |
 
 ```text
 Browser
@@ -64,16 +67,13 @@ Browser
        └─ /api/orcid  (route handler) ──→ pub.orcid.org    ← the only server-side call
 ```
 
-Nearly everything runs in the browser. [`packages/core`](packages/core/README.md) holds that domain
-logic as pure TypeScript, with one runtime dependency: `zod`. XML import uses the native
-`DOMParser`, and the PNG download is drawn from the heatmap SVG onto a `<canvas>`.
+Nearly everything runs in the browser. [`packages/core`](packages/core/README.md) holds the domain
+logic as pure TypeScript, with `zod` as its only runtime dependency. XML import uses the native
+`DOMParser`, and the PNG is drawn from the heatmap SVG onto a `<canvas>`.
 
-The one server-side call is the ORCID lookup. The ORCID public API sends no CORS headers, so
-`/api/orcid` proxies it through a small Next.js route handler. A `/health` route backs uptime
-monitors.
-
-Contributions are stored as a 0–100 integer `score` rather than a boolean. The UI can switch between
-binary and level-based editing without touching the stored model. See
+The ORCID lookup is the one exception: ORCID's public API sends no CORS headers, so `/api/orcid`
+proxies it. Contributions store a 0–100 integer `score` rather than a boolean, so the UI switches
+between binary and level-based editing without changing the stored model. See
 [`packages/core/README.md`](packages/core/README.md#domain-model) for the score-to-level boundaries.
 
 ---
@@ -95,34 +95,32 @@ Run `just` to list the watch/fix recipes layered on the pnpm scripts.
 ### Deployment
 
 The live demo runs on Cloudflare Workers via
-[`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), which adapts the Next.js build.
+[`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare), which adapts the Next.js build. A
+push to `main` builds and deploys it; [CI](.github/workflows/ci.yml) lints, tests, and
+build-checks, and never deploys.
 
-**Pipeline:** a push to `main` triggers Cloudflare
-[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/), which builds and deploys
-to [credit.duinlab.nl](https://credit.duinlab.nl). The trigger lives in the Cloudflare dashboard,
-mirrored in [wrangler.jsonc](wrangler.jsonc); non-`main` branches and PR previews are turned off.
-[CI](.github/workflows/ci.yml) only lints, tests, and build-checks.
-
-**Manual deploy** (needs Cloudflare credentials):
+To run the Worker yourself, set your own domain and bindings in
+[wrangler.jsonc](wrangler.jsonc) and [open-next.config.ts](open-next.config.ts):
 
 ```bash
 pnpm preview        # build + run the Worker locally
-pnpm deploy         # build + deploy to Cloudflare
+pnpm deploy         # build + deploy to your Cloudflare account
 ```
-
-Config lives in [wrangler.jsonc](wrangler.jsonc) and [open-next.config.ts](open-next.config.ts).
 
 ## Roadmap
 
-- **Localize the app UI.** Today only the output (statements, Markdown tables, heatmaps) uses the
-  bundled role translations; the interface itself is English-only.
-- **Widen locale coverage.** Only a curated subset of
-  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation) locales
-  is vendored under
-  [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations);
-  refresh them with `node packages/core/scripts/fetch-credit-translations.mjs`.
-- **Keep smoothing onboarding.** The first-run card and empty states landed in 0.2.0. The path from
-  a blank workspace to a finished statement can still lose fewer people.
+- **Work offline.** Everything except the ORCID lookup already runs in the browser, so a draft
+  should survive a flight. The ORCID lookup is the one path that degrades.
+- **Review the translations.** The interface ships in eight languages, machine-translated and
+  checked for consistency, ICU correctness, and CRediT terminology. Japanese and Chinese in
+  particular still want a native speaker: the term for a contribution *statement* is unsettled.
+- **Widen locale coverage.** Eight locales ship today (de, es, fr, it, ja, nl, pt, zh), a curated
+  subset of
+  [credit-translation](https://github.com/contributorshipcollaboration/credit-translation), vendored
+  under [`packages/core/src/credit-i18n/translations`](packages/core/src/credit-i18n/translations).
+  Refresh them with `node packages/core/scripts/fetch-credit-translations.mjs`.
+- **Read more from ORCID.** The lookup takes the name only. Affiliation is the field submission
+  systems ask for next.
 
 ## Contributing
 
@@ -133,7 +131,7 @@ are recorded as [ADRs](docs/adr/).
 
 ## Acknowledgements
 
-The CRediT Generator builds on prior tools and scholarship on contributorship:
+CRediT Matrix builds on prior tools and scholarship on contributorship:
 
 - The original
   [Python/Dash CRediT Generator](https://github.com/IPHYS-Bioinformatics/CRediT-Generator), which
@@ -158,12 +156,12 @@ The CRediT Generator builds on prior tools and scholarship on contributorship:
 
 ## Citing this software
 
-If you use the CRediT Generator in your work, please cite it. Metadata lives in
+If you use CRediT Matrix in your work, please cite it. Metadata lives in
 [CITATION.cff](CITATION.cff), and GitHub's "Cite this repository" button generates APA and BibTeX
 from it. The archived, versioned release is on Zenodo:
 [doi:10.5281/zenodo.21213659](https://doi.org/10.5281/zenodo.21213659).
 
-> van Lierde, S. *CRediT Generator* [Computer software]. Zenodo.
+> van Lierde, S. *CRediT Matrix* [Computer software]. Zenodo.
 > <https://doi.org/10.5281/zenodo.21213659>
 
 ## License

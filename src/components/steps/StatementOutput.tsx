@@ -12,6 +12,7 @@ import {
 } from "@credit-generator/core";
 import { CheckCircle2, Copy, Download, Info, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "use-intl";
 import { CreditBadge } from "@/components/ui/credit-badge";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -51,6 +52,7 @@ const DATA_FORMATS: Record<
 export function StatementOutput() {
   const { authors } = useContributionStore();
   const { translateRole, translateUi } = useOutputTranslators();
+  const t = useTranslations();
   // Last beat of the population sequence; see .enter-fade in globals.css.
   const settled = useSettled();
   const [copyStatus, copyText] = useCopyStatus();
@@ -101,20 +103,20 @@ export function StatementOutput() {
       {/* One left-aligned wrapping row: a conditional toggle extends the row
           instead of reflowing a justified cluster, so nothing jumps around. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <StepHeader n={3} title="Statement & export" className="mr-2" />
+        <StepHeader n={3} title={t("statementExportLabel")} className="mr-2" />
         <SegmentedControl
           ariaLabel="Statement grouping"
           size="sm"
           value={grouping}
           onChange={setGrouping}
           options={[
-            { value: "by-author", label: "By author" },
-            { value: "by-role", label: "By role" },
+            { value: "by-author", label: t("groupByAuthor") },
+            { value: "by-role", label: t("groupByRole") },
           ]}
         />
         <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
           <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label="Use initials instead of names" />
-          Use initials
+          {t("useInitials")}
         </span>
         {canShowLevels && (
           <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
@@ -123,7 +125,7 @@ export function StatementOutput() {
               onCheckedChange={setShowLevels}
               aria-label="Show levels: annotate roles with contribution levels"
             />
-            Show levels
+            {t("showLevels")}
           </span>
         )}
         {hasNonAuthors && (
@@ -232,12 +234,12 @@ export function StatementOutput() {
           className="inline-flex items-center justify-center gap-2 px-5 py-2 bg-primary text-on-primary rounded-lg text-sm font-semibold hover:bg-primary-container transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Copy className="h-[18px] w-[18px]" />
-          {copyStatus === "copied" ? "Copied!" : copyStatus === "error" ? "Copy failed" : "Copy statement"}
+          {copyStatus === "copied" ? t("copied") : copyStatus === "error" ? t("copyFailedMessage") : t("copyStatement")}
         </button>
 
         {/* Secondary: pick a data format, then copy or download it */}
         <div className="flex flex-col gap-1.5">
-          <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Export data</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">{t("exportData")}</span>
           {/* The label sits above so it stops competing for the row's width and
               leaving Download dangling on its own line. The controls still wrap
               on a phone, where three of them genuinely do not fit one line. */}
@@ -262,7 +264,11 @@ export function StatementOutput() {
               className="flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Copy className="h-3.5 w-3.5" />
-              {dataCopyStatus === "copied" ? "Copied!" : dataCopyStatus === "error" ? "Copy failed" : "Copy"}
+              {dataCopyStatus === "copied"
+                ? t("copied")
+                : dataCopyStatus === "error"
+                  ? t("copyFailedMessage")
+                  : t("copy")}
             </button>
 
             <button
@@ -272,7 +278,7 @@ export function StatementOutput() {
               className="flex items-center gap-1.5 px-2.5 py-1.5 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Download className="h-3.5 w-3.5" />
-              Download
+              {t("download")}
             </button>
           </div>
         </div>

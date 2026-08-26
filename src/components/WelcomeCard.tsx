@@ -2,6 +2,7 @@
 
 import { ExternalLink, Fingerprint, Sparkles, TableProperties, TextQuote, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "use-intl";
 import { StepNumber } from "@/components/ui/step-number";
 import { useContributionStore } from "@/store/contribution-store";
 
@@ -9,19 +10,19 @@ const STEPS = [
   {
     n: 1,
     icon: Fingerprint,
-    title: "Add contributors",
+    titleKey: "welcomeStepContributors" as const,
     body: "Type a name, or paste a whole author list. Paste an ORCID iD and the app fills the name in for you.",
   },
   {
     n: 2,
     icon: TableProperties,
-    title: "Assign roles",
+    titleKey: "welcomeStepRoles" as const,
     body: "Click cells in the grid to mark which of the 14 CRediT roles each contributor took on.",
   },
   {
     n: 3,
     icon: TextQuote,
-    title: "Review & export",
+    titleKey: "welcomeStepExport" as const,
     body: "The statement updates as you go. Copy it, or download the heatmap, XML, CSV, JSON, or Markdown.",
   },
 ];
@@ -43,6 +44,7 @@ export function WelcomeCard() {
   const closeWelcome = useContributionStore((s) => s.closeWelcome);
   const loadSample = useContributionStore((s) => s.loadSample);
   const hasAuthors = useContributionStore((s) => s.authors.length > 0);
+  const t = useTranslations();
 
   // The store uses skipHydration (see contribution-store.ts), so the persisted
   // flags aren't known until HeaderActions triggers rehydration. Gate on that,
@@ -99,18 +101,18 @@ export function WelcomeCard() {
             id="getting-started-title"
             className="font-headline text-2xl italic font-semibold text-primary md:text-3xl"
           >
-            Draft a manuscript-ready contribution statement in three steps.
+            {t("welcomeIntro")}
           </h2>
         </div>
 
         <ol className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-3">
-          {STEPS.map(({ n, icon: Icon, title, body }) => (
+          {STEPS.map(({ n, icon: Icon, titleKey, body }) => (
             <li key={n} className="flex gap-3">
               <StepNumber n={n} className="mt-0.5 h-7 w-7 text-sm" />
               <div className="min-w-0">
                 <p className="flex items-center gap-1.5 text-sm font-semibold text-on-surface">
                   <Icon className="h-3.5 w-3.5 text-on-surface-variant" aria-hidden="true" />
-                  {title}
+                  {t(titleKey)}
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-on-surface-variant">{body}</p>
               </div>
@@ -126,7 +128,7 @@ export function WelcomeCard() {
               onClick={closeWelcome}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary-container"
             >
-              Got it
+              {t("gotIt")}
             </button>
           ) : (
             <>
@@ -139,14 +141,14 @@ export function WelcomeCard() {
                 className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-primary-container"
               >
                 <Sparkles className="h-4 w-4" />
-                Load sample data
+                {t("loadSample")}
               </button>
               <button
                 type="button"
                 onClick={closeWelcome}
                 className="text-sm font-medium text-on-surface-variant transition-colors hover:text-primary"
               >
-                Start fresh
+                {t("startFresh")}
               </button>
             </>
           )}

@@ -36,6 +36,7 @@ export { DEFAULT_UI_TRANSLATOR, loadUiCatalog, makeUiTranslator } from "./credit
 export type { CreditRoleName } from "./credit-roles.js";
 export { CREDIT_ROLES, getRoleByName } from "./credit-roles.js";
 export { fromCsv, toCsv } from "./export/csv.js";
+export { GENERATOR_NOTE } from "./export/generator-note.js";
 export type { HeatmapSvgOptions } from "./export/heatmap-svg.js";
 export { buildHeatmapSvg } from "./export/heatmap-svg.js";
 export type { CreditExport } from "./export/json.js";
@@ -45,7 +46,7 @@ export { toJats4rXml } from "./export/xml.js";
 export { fromJats4rXml, fromXmlDocument } from "./export/xml-import.js";
 export type { StatementFormat, StatementOptions } from "./generate-statement.js";
 export { generateStatement } from "./generate-statement.js";
-export type { OrcidLookupResult } from "./orcid-lookup.js";
+export type { OrcidErrorCode, OrcidLookupResult } from "./orcid-lookup.js";
 export { lookupOrcidPerson } from "./orcid-lookup.js";
 export {
   createAuthor,

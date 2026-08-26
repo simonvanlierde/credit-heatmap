@@ -22,6 +22,12 @@ interface ContributionState {
   heatmapMonoColor: string;
   /** Language for the generated statement + human-facing exports (role names only). */
   outputLocale: string;
+  /**
+   * Language for the app's own interface. Separate from `outputLocale` on
+   * purpose: a researcher may want a Dutch interface while submitting an
+   * English statement to an English-language journal.
+   */
+  uiLocale: string;
   /** Whether the first-run welcome has ever been shown. Persisted; only ever set
    *  true, so returning users are never auto-greeted again. */
   welcomeSeen: boolean;
@@ -46,6 +52,7 @@ interface ContributionState {
   setInputMode: (mode: InputMode) => void;
   setHeatmapMonoColor: (color: string) => void;
   setOutputLocale: (locale: string) => void;
+  setUiLocale: (locale: string) => void;
   openWelcome: () => void;
   closeWelcome: () => void;
   reset: () => void;
@@ -117,6 +124,7 @@ export const useContributionStore = create<ContributionState>()(
       inputMode: "toggle",
       heatmapMonoColor: DEFAULT_MONO_COLOR,
       outputLocale: "en",
+      uiLocale: "en",
       welcomeSeen: false,
       welcomeOpen: false,
 
@@ -288,6 +296,11 @@ export const useContributionStore = create<ContributionState>()(
           state.outputLocale = locale;
         }),
 
+      setUiLocale: (locale) =>
+        set((state) => {
+          state.uiLocale = locale;
+        }),
+
       // Open marks it seen too: once the card has been shown (first run or an
       // explicit re-open), the user is never auto-greeted on a later visit.
       openWelcome: () =>
@@ -312,6 +325,8 @@ export const useContributionStore = create<ContributionState>()(
           state.inputMode = "toggle";
           state.heatmapMonoColor = DEFAULT_MONO_COLOR;
           state.outputLocale = "en";
+          // uiLocale is a display preference, not draft data: a workspace reset
+          // should not silently switch the interface back to English.
           state.welcomeOpen = false;
         }),
     })),
@@ -358,6 +373,7 @@ export const useContributionStore = create<ContributionState>()(
         inputMode: state.inputMode,
         heatmapMonoColor: state.heatmapMonoColor,
         outputLocale: state.outputLocale,
+        uiLocale: state.uiLocale,
         welcomeSeen: state.welcomeSeen,
       }),
     },

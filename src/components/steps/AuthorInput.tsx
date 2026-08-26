@@ -41,6 +41,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "use-intl";
 import { StepHeader } from "@/components/ui/step-header";
 import { announce } from "@/lib/announce";
 import { useSettled } from "@/lib/use-settled";
@@ -64,7 +65,17 @@ interface OrcidLookupResult {
 }
 
 /** Fetch the canonical display name for an ORCID iD; returns name or error text. */
-async function fetchOrcidName(orcid: string): Promise<{ displayName: string } | { error: string }> {
+/**
+ * Resolve an ORCID iD to a display name.
+ *
+ * Returns a failure *code*, not a message: this runs outside React, so it
+ * cannot translate. The caller holds `t` and renders the code. The server's
+ * English text rides along as `fallback` for a code this client does not know
+ * — new server codes then degrade to readable English instead of a blank.
+ */
+type OrcidFailure = { code: string; fallback: string };
+
+async function fetchOrcidName(orcid: string): Promise<{ displayName: string } | OrcidFailure> {
   try {
     const res = await fetch("/api/orcid", {
       method: "POST",
@@ -72,26 +83,48 @@ async function fetchOrcidName(orcid: string): Promise<{ displayName: string } | 
       body: JSON.stringify({ id: normalizeOrcid(orcid) }),
     });
     if (!res.ok) {
-      const data: unknown = await res.json().catch(() => null);
-      const message =
-        data !== null &&
-        typeof data === "object" &&
-        "error" in data &&
-        typeof (data as Record<string, unknown>).error === "string"
-          ? ((data as Record<string, unknown>).error as string)
-          : "The ORCID lookup failed. Try again, or type the name.";
-      return { error: message };
+      const data = (await res.json().catch(() => null)) as { code?: string; error?: string } | null;
+      return {
+        code: data?.code ?? "BAD_REQUEST",
+        fallback: data?.error ?? "The ORCID lookup failed. Try again, or type the name.",
+      };
     }
     const result = (await res.json()) as OrcidLookupResult;
-    if (!result.displayName.trim()) return { error: "That ORCID record lists no name. Type the name instead." };
+    if (!result.displayName.trim()) {
+      return { code: "NO_NAME", fallback: "That ORCID record lists no name. Type the name instead." };
+    }
     return { displayName: result.displayName };
   } catch {
     // The ORCID proxy is the one path that needs a network: the rest of the app
     // works offline, so say which half is unavailable rather than blaming ORCID.
     return navigator.onLine
-      ? { error: "Could not reach ORCID. Check your connection and try again." }
-      : { error: "You are offline, so ORCID lookups are unavailable. Type the name instead." };
+      ? { code: "UNREACHABLE", fallback: "Could not reach ORCID. Check your connection and try again." }
+      : { code: "OFFLINE", fallback: "You are offline, so ORCID lookups are unavailable. Type the name instead." };
   }
+}
+
+/**
+ * Failure code → message key. Explicit rather than built by string
+ * concatenation, so the typed-message guarantee still holds: a key removed
+ * from en.json breaks the build here instead of silently rendering a key name.
+ */
+const ORCID_ERROR_KEYS = {
+  INVALID_ID: "errOrcidINVALID_ID",
+  NOT_FOUND: "errOrcidNOT_FOUND",
+  UNAVAILABLE: "errOrcidUNAVAILABLE",
+  RATE_LIMITED: "errOrcidRATE_LIMITED",
+  BAD_REQUEST: "errOrcidBAD_REQUEST",
+  NO_NAME: "errOrcidNO_NAME",
+  UNREACHABLE: "errOrcidUNREACHABLE",
+  OFFLINE: "errOffline",
+} as const;
+
+/** Render an ORCID failure in the interface language. */
+function orcidErrorText(failure: OrcidFailure, t: ReturnType<typeof useTranslations>): string {
+  const key = ORCID_ERROR_KEYS[failure.code as keyof typeof ORCID_ERROR_KEYS];
+  // An unknown code means the server is newer than this client: show the
+  // English text it sent rather than nothing.
+  return key ? t(key) : failure.fallback;
 }
 
 /** `plural(1, "entry", "entries")`: the counted noun, matched to its count. */
@@ -112,6 +145,7 @@ async function forEachWithConcurrency<T>(items: T[], limit: number, task: (item:
 }
 
 export function AuthorList() {
+  const t = useTranslations();
   const {
     authors,
     addAuthor,
@@ -220,7 +254,7 @@ export function AuthorList() {
     const id = addAuthor(orcid, orcid);
     if (!id) return { id, error: null };
     const result = await fetchOrcidName(orcid);
-    if ("error" in result) return { id, error: result.error };
+    if ("code" in result) return { id, error: orcidErrorText(result, t) };
     updateAuthorName(id, result.displayName);
     return { id, error: null };
   }
@@ -258,7 +292,7 @@ export function AuthorList() {
     const failed: string[] = [];
     await forEachWithConcurrency(pending, 4, async ({ id, orcid }) => {
       const result = await fetchOrcidName(orcid);
-      if ("error" in result) failed.push(orcid);
+      if ("code" in result) failed.push(orcid);
       else updateAuthorName(id, result.displayName);
     });
 
@@ -350,13 +384,13 @@ export function AuthorList() {
 
   return (
     <div className="flex flex-col bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4 desk:h-full desk:overflow-y-auto">
-      <StepHeader n={1} title="Contributors" className="mb-3" />
+      <StepHeader n={1} title={t("stepContributors")} className="mb-3" />
 
       {authors.length === 0 && !welcomeOpen && (
         <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
           <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
           <p className="text-sm text-on-surface-variant">
-            No contributors yet. Add a name or an ORCID iD below, paste a whole author list, or use{" "}
+            {t("noContributorsYet")} Add a name or an ORCID iD below, paste a whole author list, or use{" "}
             <strong>Import</strong> in the header.
           </p>
           {/* Only for returning/dismissed users (welcomeSeen) with the card closed:
@@ -369,7 +403,7 @@ export function AuthorList() {
               className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-lg hover:bg-primary hover:text-on-primary hover:border-primary transition-colors"
             >
               <Sparkles className="h-4 w-4" />
-              Load sample data
+              {t("loadSample")}
             </button>
           )}
         </div>
@@ -402,13 +436,13 @@ export function AuthorList() {
               role="status"
               className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-surface-container px-3 py-2 text-sm text-on-surface"
             >
-              <span className="min-w-0 truncate">Removed {removed.author.name}</span>
+              <span className="min-w-0 truncate">{t("removedContributor", { name: removed.author.name })}</span>
               <button
                 type="button"
                 onClick={undoRemove}
                 className="shrink-0 rounded-md px-2 py-1 font-semibold text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
-                Undo
+                {t("undo")}
               </button>
             </div>
           </div>
@@ -429,8 +463,8 @@ export function AuthorList() {
           }}
           onKeyDown={handleNewNameKeyDown}
           onPaste={handleAddPaste}
-          placeholder="Add names or an ORCID iD…"
-          aria-label="New author names or ORCID iD"
+          placeholder={t("addPlaceholder")}
+          aria-label={t("addContributor")}
           className="flex-1 min-w-0 text-ellipsis bg-surface-container-low border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none px-3 py-2 text-sm rounded-t text-on-surface placeholder-outline transition-colors"
         />
         <button
@@ -440,29 +474,29 @@ export function AuthorList() {
           className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-primary hover:text-on-primary hover:bg-primary border border-primary/30 hover:border-primary rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <PlusCircle className="h-4 w-4" />
-          Add
+          {t("addButton")}
         </button>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-outline-variant/20 pt-3">
-        <p className="text-xs text-on-surface-variant">This draft stays in this browser until you clear it.</p>
+        <p className="text-xs text-on-surface-variant">{t("draftStaysLocal")}</p>
         {clearPending ? (
           <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
-            <span className="text-on-surface">Clear all saved contributor data?</span>
+            <span className="text-on-surface">{t("clearDraftQuestion")}</span>
             <button
               ref={cancelClearRef}
               type="button"
               onClick={() => setClearPending(false)}
               className="min-h-6 rounded px-2 font-medium text-on-surface-variant hover:text-on-surface"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="button"
               onClick={handleClearDraft}
               className="min-h-6 rounded bg-error-container px-2 font-semibold text-on-error-container"
             >
-              Clear draft
+              {t("clearDraftConfirm")}
             </button>
           </div>
         ) : (
@@ -474,7 +508,7 @@ export function AuthorList() {
             className="inline-flex min-h-6 items-center gap-1.5 rounded text-xs font-medium text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Trash2 className="size-3.5" aria-hidden="true" />
-            Clear local draft
+            {t("clearDraft")}
           </button>
         )}
       </div>
@@ -492,6 +526,7 @@ function AuthorRow({
   onRemove: (author: Author, index: number) => void;
   enter: boolean;
 }) {
+  const t = useTranslations();
   const { authors, updateAuthorName, updateAuthorOrcid, setAuthorType } = useContributionStore();
   const author = authors[index];
 
@@ -555,9 +590,10 @@ function AuthorRow({
     const result = await fetchOrcidName(orcid);
     if (!mounted.current) return;
     setLoading(false);
-    if ("error" in result) {
-      setLookupError(result.error);
-      announce(result.error, { assertive: true });
+    if ("code" in result) {
+      const message = orcidErrorText(result, t);
+      setLookupError(message);
+      announce(message, { assertive: true });
     } else {
       updateAuthorName(authorId, result.displayName);
       setLookedUp(orcid);
@@ -630,7 +666,7 @@ function AuthorRow({
             ref={setActivatorNodeRef}
             {...attributes}
             {...listeners}
-            aria-label={`Reorder ${author.name}`}
+            aria-label={`${t("reorderContributor")} ${author.name}`}
             className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-outline-variant transition-colors hover:text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <GripVertical className="h-4 w-4" />
@@ -649,7 +685,7 @@ function AuthorRow({
               id={`author-name-${author.id}`}
               type="text"
               maxLength={MAX_AUTHOR_NAME_LENGTH}
-              aria-label="Name or ORCID iD"
+              aria-label={t("nameLabel")}
               value={nameDraft}
               onChange={(event) => {
                 setNameDraft(event.target.value);
@@ -689,7 +725,7 @@ function AuthorRow({
                 className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant hover:text-primary transition-colors"
               >
                 {isNonAuthor ? <UserMinus className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
-                {isNonAuthor ? "Contributor" : "Author"}
+                {isNonAuthor ? t("contributorTypeNonAuthor") : t("contributorTypeAuthor")}
               </button>
               {!hasOrcid && !editingOrcid && (
                 // Short label: the trigger is hover-revealed but still occupies its
@@ -698,11 +734,11 @@ function AuthorRow({
                 <button
                   type="button"
                   onClick={() => setEditingOrcid(true)}
-                  aria-label="Add ORCID iD"
+                  aria-label={t("addOrcid")}
                   className="inline-flex items-center gap-1 text-[11px] text-on-surface-variant hover:text-primary transition-[color,opacity] sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100"
                 >
                   <Plus className="h-3 w-3" />
-                  ORCID
+                  {t("orcidShort")}
                 </button>
               )}
             </div>
@@ -713,7 +749,7 @@ function AuthorRow({
             data-remove-author=""
             onClick={() => onRemove(author, index)}
             className="touch-target shrink-0 flex items-center justify-center size-8 rounded text-on-surface-variant hover:bg-error-container/30 hover:text-error transition-colors"
-            aria-label={`Remove ${author.name}`}
+            aria-label={`${t("removeContributor")} ${author.name}`}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -749,24 +785,24 @@ function AuthorRow({
                     type="button"
                     disabled={loading}
                     onClick={() => void lookup(bareOrcid)}
-                    aria-label="Look up name from ORCID"
-                    title="Look up name from ORCID"
+                    aria-label={t("lookupOrcidName")}
+                    title={t("lookupOrcidName")}
                     className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] text-primary transition-opacity hover:underline disabled:opacity-50 focus-visible:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                   >
                     <UserSearch className="h-3.5 w-3.5" />
-                    {loading && "Looking up…"}
+                    {loading && t("lookingUp")}
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={clearOrcid}
-                  aria-label="Remove ORCID iD"
+                  aria-label={t("removeOrcid")}
                   className="ml-auto shrink-0 text-on-surface-variant transition-colors hover:text-error"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
                 {lookedUp === bareOrcid && (
-                  <span className="shrink-0 text-[10px] leading-tight text-primary">Name updated</span>
+                  <span className="shrink-0 text-[10px] leading-tight text-primary">{t("nameUpdated")}</span>
                 )}
               </>
             ) : editingOrcid ? (

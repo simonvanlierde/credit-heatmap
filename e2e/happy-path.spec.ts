@@ -1,5 +1,4 @@
 // biome-ignore lint/correctness/noNodejsModules: Playwright tests run in Node.
-
 import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
 
@@ -439,7 +438,7 @@ test.describe("Happy path UI flows", () => {
     const card = page.locator("section[aria-label='Contribution grid'] > div");
     const before = { x: (await exports.boundingBox())?.x, w: (await card.boundingBox())?.width };
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByText("Click to cycle up", { exact: true })).toBeVisible();
+    await expect(page.getByText("Click to step up; wraps at the top", { exact: true })).toBeVisible();
     expect((await exports.boundingBox())?.x).toBe(before.x);
     expect((await card.boundingBox())?.width).toBe(before.w);
 
@@ -447,7 +446,7 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Bulk assign" }).click();
     await page.getByRole("combobox", { name: "Level to assign" }).click();
     await page.getByRole("option", { name: "Supporting" }).click();
-    await page.getByRole("button", { name: "Assign all" }).click();
+    await page.getByRole("button", { name: "Assign every role" }).click();
     await page.keyboard.press("Escape");
     await expect(
       page.getByRole("button", { name: /^Conceptualization for Jane A\. Smith: Supporting$/ }),
@@ -464,7 +463,7 @@ test.describe("Happy path UI flows", () => {
     const table = page.locator("table");
     const beforeY = (await table.boundingBox())?.y;
     await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByText("Click to cycle up", { exact: true })).toBeVisible();
+    await expect(page.getByText("Click to step up; wraps at the top", { exact: true })).toBeVisible();
     expect((await table.boundingBox())?.y).toBe(beforeY);
 
     // Enough contributors that the 14 role columns are squeezed to their minimum
@@ -506,9 +505,9 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Load sample data" }).click();
     await page.getByText("Bulk assign", { exact: true }).click();
 
-    await page.getByRole("button", { name: "Clear all" }).click();
+    await page.getByRole("button", { name: "Clear every role" }).click();
     await expect(page.getByRole("button", { name: "Conceptualization for Jane A. Smith: None" })).toBeVisible();
-    await page.getByRole("button", { name: "Assign all", exact: true }).click();
+    await page.getByRole("button", { name: "Assign every role", exact: true }).click();
     await expect(page.getByRole("button", { name: "Conceptualization for Jane A. Smith: Contributed" })).toBeVisible();
   });
 
@@ -528,13 +527,13 @@ test.describe("Happy path UI flows", () => {
     await page.getByText("Bulk assign", { exact: true }).click();
     await page.getByRole("combobox", { name: "Role for bulk assignment" }).click();
     await page.getByRole("option", { name: "Software", exact: true }).click();
-    await page.getByRole("button", { name: "Assign to all" }).click();
+    await page.getByRole("button", { name: "Assign to everyone" }).click();
     for (const cell of everyoneOnSoftware) await expect(cell).toBeVisible();
 
     // A different role must be untouched; catches a wrong-index write.
     await expect(page.getByRole("button", { name: "Supervision for Bob White: None" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Clear role" }).click();
+    await page.getByRole("button", { name: "Clear for everyone" }).click();
     await expect(page.getByRole("button", { name: "Software for Jane A. Smith: None" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Software for Carol Davis: None" })).toBeVisible();
   });
@@ -543,7 +542,9 @@ test.describe("Happy path UI flows", () => {
   // must leave no row named after the raw iD.
   test("removes the seeded row when a bare ORCID lookup fails", async ({ page }) => {
     await asReturningVisitor(page);
-    await page.route("**/api/orcid", (route) => route.fulfill({ status: 404, json: { error: "ORCID not found" } }));
+    await page.route("**/api/orcid", (route) =>
+      route.fulfill({ status: 404, json: { code: "NOT_FOUND", error: "No ORCID record matches that iD." } }),
+    );
     await page.goto("/");
 
     const field = page.getByLabel("New author names or ORCID iD");
@@ -551,7 +552,7 @@ test.describe("Happy path UI flows", () => {
     await field.press("Enter");
 
     // The stub controls this text, so it is deterministic.
-    await expect(page.getByText("ORCID not found")).toBeVisible();
+    await expect(page.getByText("No ORCID record matches that iD.")).toBeVisible();
     // No contributor row at all, and specifically none named after the iD.
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
     await expect(page.locator("section[aria-label=Contributors]").getByRole("listitem")).toHaveCount(0);
@@ -609,7 +610,10 @@ test.describe("Happy path UI flows", () => {
   test("rejects malformed ORCID API requests before upstream lookup", async ({ request }) => {
     const response = await request.post("/api/orcid", { data: { id: "0000-0002-1825-0098" } });
     expect(response.status()).toBe(400);
+    // `code` is what a client localizes from; `error` is the English fallback
+    // that rides along for logs and for clients predating a code.
     await expect(response.json()).resolves.toEqual({
+      code: "INVALID_ID",
       error: "That is not a valid ORCID iD. Check the digits and try again.",
     });
   });

@@ -23,6 +23,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { useTranslations } from "use-intl";
 import { ColorPopover } from "@/components/ui/color-popover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented";
@@ -55,11 +56,6 @@ const ASSIGNABLE_LEVELS = LEVEL_KEY.filter(({ score }) => score > 0);
 // Equal, not Lead: bulk-marking everyone as Lead overstates every one of them.
 const DEFAULT_BULK_LEVEL = 66;
 
-const INPUT_MODE_OPTIONS: { value: InputMode; label: string }[] = [
-  { value: "toggle", label: "Yes / no" },
-  { value: "levels", label: "Levels" },
-];
-
 /**
  * The contribution matrix as one editable grid: roles as rows, contributors as
  * columns (or transposed), every cell a toggle. This doubles as the live
@@ -79,6 +75,7 @@ export function ContributionGrid() {
     welcomeOpen,
   } = useContributionStore();
   const { translateUi } = useOutputTranslators();
+  const t = useTranslations();
   // Second beat of the population sequence; see .enter-fade in globals.css.
   const settled = useSettled();
   const [acronyms, setAcronyms] = useState(true);
@@ -94,6 +91,10 @@ export function ContributionGrid() {
   // Graded (level) colors and labels follow the input mode, so the legend and
   // cells always match the way clicks behave.
   const graded = inputMode === "levels";
+  const inputModeOptions: { value: InputMode; label: string }[] = [
+    { value: "toggle", label: t("modeYesNo") },
+    { value: "levels", label: t("modeLevels") },
+  ];
 
   function handleCellClick(author: Author, roleIndex: number, score: number) {
     if (inputMode === "levels") {
@@ -111,7 +112,7 @@ export function ContributionGrid() {
   if (authors.length === 0) {
     return (
       <div className="bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4">
-        <StepHeader n={2} title="Contributions" className="mb-3" />
+        <StepHeader n={2} title={t("stepContributions")} className="mb-3" />
         {welcomeOpen ? (
           <p className="text-sm text-on-surface-variant">
             Add a contributor and this grid fills with the 14 CRediT roles.
@@ -119,9 +120,7 @@ export function ContributionGrid() {
         ) : (
           <div className="rounded-lg border border-dashed border-outline-variant/40 bg-surface-container-low/40 p-6 text-center">
             <UserPlus className="h-8 w-8 text-outline-variant mb-2 mx-auto" />
-            <p className="text-sm text-on-surface-variant">
-              Add contributors to start assigning the 14 CRediT roles in this grid.
-            </p>
+            <p className="text-sm text-on-surface-variant">{t("gridEmptyHint")}</p>
           </div>
         )}
       </div>
@@ -217,23 +216,23 @@ export function ContributionGrid() {
   return (
     <div className="flex min-w-0 max-w-full flex-col bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4 desk:h-full desk:overflow-y-auto">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <StepHeader n={2} title="Contributions" />
+        <StepHeader n={2} title={t("stepContributions")} />
         <div className="flex flex-wrap items-start gap-2">
           <SegmentedControl
-            ariaLabel="Role assignment mode"
-            options={INPUT_MODE_OPTIONS}
+            ariaLabel={t("assignmentMode")}
+            options={inputModeOptions}
             value={inputMode}
             onChange={setInputMode}
           />
           <Popover>
             <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
               <ListChecks className="size-3.5" aria-hidden="true" />
-              Bulk assign
+              {t("bulkAssign")}
             </PopoverTrigger>
             <PopoverContent align="end" className="grid w-72 max-w-[calc(100vw-2rem)] gap-4">
               {graded && (
                 <div className="grid gap-2 text-xs font-semibold text-on-surface">
-                  <span id="bulk-level">Level to assign</span>
+                  <span id="bulk-level">{t("bulkAssignLevel")}</span>
                   <Select value={bulkLevel} onValueChange={setBulkLevel}>
                     <SelectTrigger className="w-full text-xs font-normal" aria-labelledby="bulk-level">
                       <SelectValue />
@@ -252,7 +251,7 @@ export function ContributionGrid() {
                   so the group is labelled by a plain heading instead. */}
               <fieldset aria-labelledby="bulk-one-contributor" className="grid gap-2">
                 <p id="bulk-one-contributor" className="mb-1 text-xs font-semibold text-on-surface">
-                  One contributor
+                  {t("bulkOneContributor")}
                 </p>
                 <Select value={bulkAuthor?.id} onValueChange={setBulkAuthorId}>
                   <SelectTrigger className="w-full text-xs" aria-label="Contributor for bulk assignment">
@@ -267,13 +266,15 @@ export function ContributionGrid() {
                   </SelectContent>
                 </Select>
                 <div className="grid grid-cols-2 gap-2">
-                  <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, assignScore)}>Assign all</BulkButton>
-                  <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, 0)}>Clear all</BulkButton>
+                  <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, assignScore)}>
+                    {t("bulkAssignAll")}
+                  </BulkButton>
+                  <BulkButton onClick={() => setAllAuthorScores(bulkAuthor.id, 0)}>{t("bulkClearAll")}</BulkButton>
                 </div>
               </fieldset>
               <fieldset aria-labelledby="bulk-one-role" className="grid gap-2 border-t border-outline-variant/30 pt-3">
                 <p id="bulk-one-role" className="mb-1 text-xs font-semibold text-on-surface">
-                  One role
+                  {t("bulkOneRole")}
                 </p>
                 <Select value={bulkRoleIndex} onValueChange={setBulkRoleIndex}>
                   <SelectTrigger className="w-full text-xs" aria-label="Role for bulk assignment">
@@ -288,8 +289,11 @@ export function ContributionGrid() {
                   </SelectContent>
                 </Select>
                 <div className="grid grid-cols-2 gap-2">
-                  <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, assignScore)}>Assign to all</BulkButton>
-                  <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, 0)}>Clear role</BulkButton>
+                  <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, assignScore)}>
+                    {/* biome-ignore lint/security/noSecrets: a message key, not a credential. */}
+                    {t("bulkAssignToAll")}
+                  </BulkButton>
+                  <BulkButton onClick={() => setRoleScores(parsedBulkRoleIndex, 0)}>{t("bulkClearRole")}</BulkButton>
                 </div>
               </fieldset>
             </PopoverContent>
@@ -297,21 +301,21 @@ export function ContributionGrid() {
           <Popover>
             <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
               <Settings2 className="size-3.5" aria-hidden="true" />
-              Heatmap options
+              {t("heatmapOptions")}
             </PopoverTrigger>
             <PopoverContent align="end" className="flex w-64 flex-wrap items-center gap-3">
               <ColorPopover
                 value={heatmapMonoColor}
                 onChange={setHeatmapMonoColor}
-                label="Grid color"
+                label={t("gridColor")}
                 trigger={
                   <button
                     type="button"
-                    aria-label="Grid color"
-                    title="Grid color"
+                    aria-label={t("gridColor")}
+                    title={t("gridColor")}
                     className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
-                    Color
+                    {t("colorLabel")}
                     <span
                       className="h-3 w-3 rounded-full border border-outline-variant/50"
                       style={{ backgroundColor: heatmapMonoColor }}
@@ -323,19 +327,19 @@ export function ContributionGrid() {
                 type="button"
                 aria-pressed={transpose}
                 onClick={() => setTranspose(!transpose)}
-                title="Swap the row and column axes"
+                title={t("transposeHint")}
                 className={`flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
                   transpose
                     ? "border-primary text-primary"
                     : "border-outline-variant/60 text-on-surface-variant hover:border-primary hover:text-primary"
                 }`}
               >
-                Transpose
+                {t("transpose")}
                 {transpose ? <Columns3 className="h-3.5 w-3.5" /> : <Rows3 className="h-3.5 w-3.5" />}
               </button>
               <span className="flex min-h-9 items-center gap-1.5 text-xs text-on-surface-variant">
-                <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label="Use contributor initials" />
-                Use initials
+                <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label={t("useContributorInitials")} />
+                {t("useInitials")}
               </span>
             </PopoverContent>
           </Popover>
@@ -345,10 +349,10 @@ export function ContributionGrid() {
       <div className={`md:hidden ${settled ? "enter-fade" : ""}`} style={{ transitionDelay: "120ms" }}>
         <div className="sticky top-13 z-20 -mx-1 mb-2 bg-surface-bright px-1 py-2">
           <label className="mb-1.5 block text-xs font-semibold text-on-surface" htmlFor="mobile-contributor">
-            Contributor to assign
+            {t("contributorToAssign")}
           </label>
           <Select value={selectedAuthor.id} onValueChange={setSelectedAuthorId}>
-            <SelectTrigger id="mobile-contributor" className="w-full" aria-label="Contributor to assign">
+            <SelectTrigger id="mobile-contributor" className="w-full" aria-label={t("contributorToAssign")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -414,7 +418,7 @@ export function ContributionGrid() {
                   transpose && acronyms ? "" : "min-w-40 md:min-w-48"
                 }`}
               >
-                {transpose ? "Contributor" : "Role"}
+                {transpose ? t("contributorColumn") : t("roleColumn")}
               </th>
               {transpose
                 ? CREDIT_ROLES.map((role, columnIndex) => (
@@ -558,6 +562,7 @@ function AngledLabel({ text }: { text: string }) {
 
 /** The role's short description with a link to its full NISO definition. */
 function RoleInfo({ role }: { role: (typeof CREDIT_ROLES)[number] }) {
+  const t = useTranslations();
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -577,7 +582,7 @@ function RoleInfo({ role }: { role: (typeof CREDIT_ROLES)[number] }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-0.5 text-primary hover:underline whitespace-nowrap"
         >
-          Full definition
+          {t("fullDefinition")}
           <ExternalLink className="h-3 w-3" aria-hidden="true" />
           <span className="sr-only">(opens in new tab)</span>
         </a>
@@ -596,17 +601,18 @@ function GridLegend({
   graded: boolean;
   translateUi: UiTranslator;
 }) {
+  const t = useTranslations();
   return (
     // The label heads the legend rather than sharing its line, so the entries
     // get the full width and no longer dangle onto a second row in Levels. Both
     // modes are two lines, so switching them cannot change the row's height.
     <div className="flex min-w-0 flex-col gap-1 text-xs text-on-surface-variant">
       <span className="flex items-center gap-3">
-        <span className="font-mono text-xs uppercase tracking-wider">{graded ? "Level" : "Key"}</span>
+        <span className="font-mono text-xs uppercase tracking-wider">{graded ? t("legendLevel") : t("legendKey")}</span>
         {/* Yes/no needs no hint: the grid says it. Levels does, because the click
             cycle isn't visible. It sits here rather than beside the mode control,
             where switching modes reflowed the whole header and shifted the matrix. */}
-        {graded && <span>Click to cycle up</span>}
+        {graded && <span>{t("clickToCycle")}</span>}
       </span>
       <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {(graded ? LEVEL_KEY : FLAT_KEY).map(({ key, score }) => (
@@ -679,6 +685,7 @@ function HeatmapExports({
   acronyms: boolean;
 }) {
   const { translateRole, translateUi } = useOutputTranslators();
+  const t = useTranslations();
   const [loading, setLoading] = useState<ExportFormat | "copy" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copyStatus, copy] = useCopyStatus({
@@ -731,7 +738,9 @@ function HeatmapExports({
 
   return (
     <div className="flex shrink-0 items-center gap-2">
-      <span className="font-mono uppercase tracking-wider text-[10px] text-on-surface-variant">Heatmap</span>
+      <span className="font-mono uppercase tracking-wider text-[10px] text-on-surface-variant">
+        {t("heatmapLabel")}
+      </span>
       {error && (
         <span className="text-[10px] text-error max-w-[120px] truncate" title={error}>
           {error}
@@ -741,11 +750,11 @@ function HeatmapExports({
         type="button"
         disabled={loading !== null}
         onClick={() => void copyPng()}
-        title="Copy the heatmap as a PNG image"
+        title={t("copyHeatmapHint")}
         className="flex items-center gap-1.5 px-2.5 py-1 border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <Copy className="h-3.5 w-3.5" />
-        {copyStatus === "copied" ? "Copied!" : copyStatus === "error" ? "Failed" : "Copy"}
+        {copyStatus === "copied" ? t("copied") : copyStatus === "error" ? t("copyFailed") : t("copy")}
       </button>
       {(["svg", "png"] as ExportFormat[]).map((format) => (
         <button
