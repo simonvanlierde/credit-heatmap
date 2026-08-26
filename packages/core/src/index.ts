@@ -69,6 +69,7 @@ export {
   parseNameParts,
   splitNameList,
 } from "./parse-authors";
+export type { ShareData, SharePayloadInput } from "./share-payload";
 export { fromSharePayload, toSharePayload } from "./share-payload";
 export type { ValidationIssue, ValidationLevel } from "./validate";
 export { validateContributions } from "./validate";
