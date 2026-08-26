@@ -54,6 +54,7 @@ import { StepHeader } from "@/components/ui/step-header";
 import { announce } from "@/lib/announce";
 import { postLookup } from "@/lib/post-lookup";
 import { buildShareUrl } from "@/lib/share";
+import { useClaimLock } from "@/lib/use-claim-lock";
 import { useCopyStatus } from "@/lib/use-copy-status";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useSettled } from "@/lib/use-settled";
@@ -146,6 +147,7 @@ export function AuthorList() {
     welcomeSeen,
   } = useContributionStore();
 
+  const { locked } = useClaimLock();
   const hydrated = useHydrated();
   // Edited locally, committed on blur — like the contributor name fields. A
   // per-keystroke store write would re-render the grid and statement panes and
@@ -395,6 +397,10 @@ export function AuthorList() {
     <div className="flex flex-col bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4 desk:h-full desk:overflow-y-auto">
       <StepHeader n={1} title={t("stepContributors")} className="mb-3" />
 
+      {locked && (
+        <p className="mb-3 rounded-lg bg-primary/5 px-3 py-2 text-xs text-on-surface-variant">{t("claimLockedHint")}</p>
+      )}
+
       {/* The work's title. Quiet by design — it is optional, it names the draft
           in the picker, and a DOI import fills it in. */}
       <label htmlFor="work-title" className="sr-only">
@@ -436,7 +442,7 @@ export function AuthorList() {
           {/* Only for returning/dismissed users (welcomeSeen) with the card closed:
               on a first run the welcome card owns this action, so the button is never
               duplicated and never flashes during hydration before the card opens. */}
-          {welcomeSeen && !welcomeOpen && (
+          {welcomeSeen && !welcomeOpen && !locked && (
             <button
               type="button"
               onClick={() => loadSample(t("sampleNames").split("\n"))}
@@ -491,37 +497,39 @@ export function AuthorList() {
 
       {addError !== null && <p className="mt-4 -mb-2 text-xs text-error">{addError}</p>}
 
-      <div className="mt-3 flex gap-2 items-center">
-        <input
-          ref={addInputRef}
-          type="text"
-          maxLength={MAX_AUTHOR_NAME_LENGTH}
-          value={newName}
-          onChange={(event) => {
-            setNewName(event.target.value);
-            if (addError !== null) setAddError(null);
-          }}
-          onKeyDown={handleNewNameKeyDown}
-          onPaste={handleAddPaste}
-          readOnly={!hydrated}
-          placeholder={t("addPlaceholder")}
-          aria-label={t("addContributor")}
-          className="flex-1 min-w-0 text-ellipsis bg-surface-container-low border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none px-3 py-2 text-sm rounded-t text-on-surface placeholder-outline transition-colors"
-        />
-        <button
-          type="button"
-          onClick={() => void handleAdd()}
-          disabled={!newName.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-primary hover:text-on-primary hover:bg-primary border border-primary/30 hover:border-primary rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <PlusCircle className="h-4 w-4" />
-          {t("addButton")}
-        </button>
-      </div>
+      {!locked && (
+        <div className="mt-3 flex gap-2 items-center">
+          <input
+            ref={addInputRef}
+            type="text"
+            maxLength={MAX_AUTHOR_NAME_LENGTH}
+            value={newName}
+            onChange={(event) => {
+              setNewName(event.target.value);
+              if (addError !== null) setAddError(null);
+            }}
+            onKeyDown={handleNewNameKeyDown}
+            onPaste={handleAddPaste}
+            readOnly={!hydrated}
+            placeholder={t("addPlaceholder")}
+            aria-label={t("addContributor")}
+            className="flex-1 min-w-0 text-ellipsis bg-surface-container-low border-b-2 border-outline-variant/40 focus:border-primary focus:ring-0 outline-none px-3 py-2 text-sm rounded-t text-on-surface placeholder-outline transition-colors"
+          />
+          <button
+            type="button"
+            onClick={() => void handleAdd()}
+            disabled={!newName.trim()}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-primary hover:text-on-primary hover:bg-primary border border-primary/30 hover:border-primary rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <PlusCircle className="h-4 w-4" />
+            {t("addButton")}
+          </button>
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-outline-variant/20 pt-3">
         <p className="text-xs text-on-surface-variant">{t("draftStaysLocal")}</p>
-        {clearPending ? (
+        {locked ? null : clearPending ? (
           <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
             <span className="text-on-surface">{t("clearDraftQuestion")}</span>
             <button
@@ -580,6 +588,7 @@ function RowMenu({
   corresponding,
   canAddOrcid,
   askCopied,
+  allowAsk,
   onToggleEqual,
   onToggleCorresponding,
   onAsk,
@@ -590,6 +599,8 @@ function RowMenu({
   corresponding: boolean;
   canAddOrcid: boolean;
   askCopied: boolean;
+  /** Asking someone else to fill a draft you are answering is nonsense. */
+  allowAsk: boolean;
   onToggleEqual: () => void;
   onToggleCorresponding: () => void;
   onAsk: () => void;
@@ -634,14 +645,16 @@ function RowMenu({
           <AtSign className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
           {corresponding ? t("correspondingUnset") : t("correspondingSet")}
         </button>
-        <button type="button" onClick={onAsk} className={item}>
-          {askCopied ? (
-            <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
-          ) : (
-            <Send className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
-          )}
-          {askCopied ? t("askCopied") : t("askContributor", { name })}
-        </button>
+        {allowAsk && (
+          <button type="button" onClick={onAsk} className={item}>
+            {askCopied ? (
+              <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+            ) : (
+              <Send className="h-3.5 w-3.5 shrink-0 text-on-surface-variant" />
+            )}
+            {askCopied ? t("askCopied") : t("askContributor", { name })}
+          </button>
+        )}
         {canAddOrcid && (
           <button
             type="button"
@@ -671,11 +684,12 @@ function AuthorRow({
   enter: boolean;
 }) {
   const t = useTranslations();
-  const { activeDraftId, authors, updateAuthorName, updateAuthorOrcid, setAuthorType, setAuthorMarker } =
+  const { activeDraftId, authors, title, updateAuthorName, updateAuthorOrcid, setAuthorType, setAuthorMarker } =
     useContributionStore();
-  const claimIndex = useContributionStore((s) => s.claimIndex);
-  const isClaimed = claimIndex === index;
+  const { locked, editableAuthorId } = useClaimLock();
   const author = authors[index];
+  const isClaimed = author !== undefined && author.id === editableAuthorId;
+  const rowLocked = locked && !isClaimed;
 
   const [loading, setLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -698,7 +712,7 @@ function AuthorRow({
    */
   async function handleAsk() {
     if (!author) return;
-    await copyAsk(await buildShareUrl(authors, { claimIndex: index, draftId: activeDraftId }));
+    await copyAsk(await buildShareUrl({ authors, title, claimId: author.id, sourceDraftId: activeDraftId }));
   }
 
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -790,6 +804,7 @@ function AuthorRow({
   }
 
   function handleSmartPaste(event: React.ClipboardEvent<HTMLInputElement>) {
+    if (rowLocked) return;
     const orcid = detectOrcid(event.clipboardData.getData("text"));
     if (!orcid) return;
     event.preventDefault();
@@ -797,6 +812,7 @@ function AuthorRow({
   }
 
   function commitName() {
+    if (rowLocked) return;
     // A long name leaves the input scrolled to its tail. Rewind it so the
     // truncation reads from the start ("Maximiliana Feathersto…") the moment
     // the field is left, rather than whenever the row next re-renders.
@@ -829,16 +845,22 @@ function AuthorRow({
       <div className={enter ? "enter-rise" : undefined} style={{ transitionDelay: `${Math.min(index, 5) * 40}ms` }}>
         {/* Identity line: everything that is one-per-contributor and short. */}
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            ref={setActivatorNodeRef}
-            {...attributes}
-            {...listeners}
-            aria-label={`${t("reorderContributor")} ${author.name}`}
-            className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-outline-variant transition-colors hover:text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
+          {locked ? (
+            // Placeholder, not a disabled handle: the list order is frozen for
+            // everyone while a claim is open, and the row still has to line up.
+            <span className="size-6 shrink-0" aria-hidden="true" />
+          ) : (
+            <button
+              type="button"
+              ref={setActivatorNodeRef}
+              {...attributes}
+              {...listeners}
+              aria-label={`${t("reorderContributor")} ${author.name}`}
+              className="flex size-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-outline-variant transition-colors hover:text-on-surface-variant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
 
           <span
             title={author.name}
@@ -859,6 +881,7 @@ function AuthorRow({
                 setNameDraft(event.target.value);
                 setNameError(null);
               }}
+              readOnly={rowLocked}
               onBlur={commitName}
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
@@ -887,8 +910,9 @@ function AuthorRow({
               <button
                 type="button"
                 onClick={() => setAuthorType(author.id, isNonAuthor ? "author" : "non-author")}
+                disabled={rowLocked}
                 title={isNonAuthor ? t("contributorTypeSetAuthor") : t("contributorTypeSetNonAuthor")}
-                className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant hover:text-primary transition-colors"
+                className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-medium text-on-surface-variant hover:text-primary transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isNonAuthor ? <UserMinus className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
                 {isNonAuthor ? t("contributorTypeNonAuthor") : t("contributorTypeAuthor")}
@@ -911,29 +935,34 @@ function AuthorRow({
               {/* Everything you can *do* to one contributor lives behind one
                   disclosure. Five inline chips per row cost three lines on a
                   phone, and this pane is where vertical space is worth most. */}
-              <RowMenu
-                name={author.name}
-                equalContribution={author.equalContribution}
-                corresponding={author.corresponding}
-                canAddOrcid={!hasOrcid && !editingOrcid}
-                askCopied={askCopied}
-                onToggleEqual={() => setAuthorMarker(author.id, "equalContribution", !author.equalContribution)}
-                onToggleCorresponding={() => setAuthorMarker(author.id, "corresponding", !author.corresponding)}
-                onAsk={() => void handleAsk()}
-                onAddOrcid={() => setEditingOrcid(true)}
-              />
+              {!rowLocked && (
+                <RowMenu
+                  name={author.name}
+                  equalContribution={author.equalContribution}
+                  corresponding={author.corresponding}
+                  canAddOrcid={!hasOrcid && !editingOrcid}
+                  askCopied={askCopied}
+                  allowAsk={!locked}
+                  onToggleEqual={() => setAuthorMarker(author.id, "equalContribution", !author.equalContribution)}
+                  onToggleCorresponding={() => setAuthorMarker(author.id, "corresponding", !author.corresponding)}
+                  onAsk={() => void handleAsk()}
+                  onAddOrcid={() => setEditingOrcid(true)}
+                />
+              )}
             </div>
           </div>
 
-          <button
-            type="button"
-            data-remove-author=""
-            onClick={() => onRemove(author, index)}
-            className="touch-target shrink-0 flex items-center justify-center size-8 rounded text-on-surface-variant hover:bg-error-container/30 hover:text-error transition-colors"
-            aria-label={`${t("removeContributor")} ${author.name}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {!locked && (
+            <button
+              type="button"
+              data-remove-author=""
+              onClick={() => onRemove(author, index)}
+              className="touch-target shrink-0 flex items-center justify-center size-8 rounded text-on-surface-variant hover:bg-error-container/30 hover:text-error transition-colors"
+              aria-label={`${t("removeContributor")} ${author.name}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* ORCID line. A 19-character iD never fits beside the type badge in this
@@ -961,7 +990,7 @@ function AuthorRow({
                   )}
                   <span className="sr-only">{t("opensInNewTab")}</span>
                 </a>
-                {orcidValid && lookedUp !== bareOrcid && (
+                {!rowLocked && orcidValid && lookedUp !== bareOrcid && (
                   <button
                     type="button"
                     disabled={loading}
@@ -974,19 +1003,21 @@ function AuthorRow({
                     {loading && t("lookingUp")}
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={clearOrcid}
-                  aria-label={t("removeOrcid")}
-                  className="ml-auto shrink-0 text-on-surface-variant transition-colors hover:text-error"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                {!rowLocked && (
+                  <button
+                    type="button"
+                    onClick={clearOrcid}
+                    aria-label={t("removeOrcid")}
+                    className="ml-auto shrink-0 text-on-surface-variant transition-colors hover:text-error"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 {lookedUp === bareOrcid && (
                   <span className="shrink-0 text-[11px] leading-tight text-primary">{t("nameUpdated")}</span>
                 )}
               </>
-            ) : editingOrcid ? (
+            ) : editingOrcid && !rowLocked ? (
               <input
                 // biome-ignore lint/a11y/noAutofocus: revealed on explicit user action, so focusing it is expected.
                 autoFocus
