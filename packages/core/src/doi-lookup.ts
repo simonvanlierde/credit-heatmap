@@ -19,8 +19,11 @@ const MESSAGES: Record<DoiErrorCode, string> = {
   UNAVAILABLE: "The Crossref service is unavailable. Try again shortly, or paste the author list.",
 };
 
-/** DOI accepted on input: bare form, a `doi:` prefix, or the doi.org URL. */
-export const DOI_INPUT_REGEX = /^(?:(?:https?:\/\/(?:dx\.)?doi\.org\/)|(?:doi:))?10\.\d{4,9}\/\S+$/i;
+/** Resolver prefixes stripped on input: doi.org and dx.doi.org, with or without a scheme or `www.`, plus a bare `doi:`. */
+const DOI_PREFIX = /^(?:(?:https?:\/\/)?(?:www\.)?(?:dx\.)?doi\.org\/|doi:)\s*/i;
+
+/** DOI accepted on input: bare form, a `doi:` prefix, or a doi.org URL. */
+export const DOI_INPUT_REGEX = /^(?:(?:https?:\/\/)?(?:www\.)?(?:dx\.)?doi\.org\/|doi:)?\s*10\.\d{4,9}\/\S+$/i;
 
 export interface DoiAuthor {
   name: string;
@@ -63,10 +66,7 @@ function fail(status: 400 | 404 | 422 | 502, code: DoiErrorCode): DoiLookupResul
  * case-insensitive but the suffix is not, so lowercasing can break resolution.
  */
 export function normalizeDoi(doi: string): string {
-  return doi
-    .trim()
-    .replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, "")
-    .replace(/^doi:/i, "");
+  return doi.trim().replace(DOI_PREFIX, "").trim();
 }
 
 /**

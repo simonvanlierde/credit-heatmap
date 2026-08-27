@@ -11,6 +11,11 @@ describe("normalizeDoi", () => {
     expect(normalizeDoi("https://doi.org/10.1038/S41586-020-2649-2")).toBe("10.1038/S41586-020-2649-2");
     expect(normalizeDoi("  doi:10.1038/x  ")).toBe("10.1038/x");
     expect(normalizeDoi("10.1038/x")).toBe("10.1038/x");
+    // Resolver URLs get pasted in every shape a browser bar or a citation offers.
+    expect(normalizeDoi("doi.org/10.1038/x")).toBe("10.1038/x");
+    expect(normalizeDoi("https://www.doi.org/10.1038/x")).toBe("10.1038/x");
+    expect(normalizeDoi("http://dx.doi.org/10.1038/x")).toBe("10.1038/x");
+    expect(normalizeDoi("DOI: 10.1038/x")).toBe("10.1038/x");
   });
 });
 

@@ -117,7 +117,9 @@ const FORMAT_LABEL: Record<Exclude<DetectedFormat, "unknown">, (t: ReturnType<ty
 export function ImportModal({ open, existingContributorCount, onImport, onLink, onClose }: Props) {
   const t = useTranslations();
   const [text, setText] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // Where the message belongs, not just what it says: a DOI failure shown at
+  // the foot of a tall dialog is far from the field that caused it.
+  const [error, setError] = useState<{ where: "doi" | "form"; message: string } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [pending, setPending] = useState<PendingImport | null>(null);
   const [doi, setDoi] = useState("");
@@ -146,8 +148,8 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
   const format: DetectedFormat = detect(text);
 
   /** Show an import error and announce it (errors interrupt via role="alert"). */
-  function showError(message: string) {
-    setError(message);
+  function showError(message: string, where: "doi" | "form" = "form") {
+    setError({ where, message });
     announce(message, { assertive: true });
   }
 
@@ -241,14 +243,14 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
     setError(null);
     const trimmed = normalizeDoi(doi);
     if (!DOI_INPUT_REGEX.test(trimmed)) {
-      showError(t("errDoiINVALID_DOI"));
+      showError(t("errDoiINVALID_DOI"), "doi");
       return;
     }
     setDoiLoading(true);
     const result = await fetchDoiWork(trimmed);
     setDoiLoading(false);
     if (!("ok" in result)) {
-      showError(t(DOI_ERROR_KEYS[result.code]));
+      showError(t(DOI_ERROR_KEYS[result.code]), "doi");
       return;
     }
     // Crossref names go through createAuthor like any other import, so the
@@ -264,7 +266,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
       }
     });
     if (authors.length === 0) {
-      showError(t("errImportFailed"));
+      showError(t("errImportFailed"), "doi");
       return;
     }
     stageImport({ authors, title: result.title });
@@ -303,10 +305,10 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
       onMouseDown={(event) => {
         if (event.target === dialogRef.current) dialogRef.current?.close();
       }}
-      className="relative m-auto w-full max-w-xl max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-lg bg-surface-bright p-0 text-on-surface shadow-2xl ring-1 ring-outline-variant/20 backdrop:bg-on-surface/30 backdrop:backdrop-blur-sm"
+      className="relative m-auto w-full max-w-xl max-h-[calc(100dvh-2rem)] overflow-y-auto overflow-x-hidden rounded-lg bg-surface-bright p-0 text-on-surface shadow-2xl ring-1 ring-outline-variant/20 backdrop:bg-on-surface/30 backdrop:backdrop-blur-sm"
     >
       <div>
-        <div className="px-8 py-6 border-b border-outline-variant/10 bg-surface-container-low">
+        <div className="px-8 py-4 border-b border-outline-variant/10 bg-surface-container-low">
           <h2
             id="import-title"
             className="text-2xl italic font-semibold text-primary"
@@ -327,12 +329,12 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
           </button>
         </div>
 
-        <div className="px-8 py-8 space-y-6">
+        <div className="px-8 py-5 space-y-4">
           {/* DOI lookup */}
           <div>
             <label
               htmlFor="import-doi"
-              className="block text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-3"
+              className="block text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-2"
             >
               {t("importFromDoi")}
             </label>
@@ -365,12 +367,16 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
                 {doiLoading ? t("doiLookingUp") : t("doiLookUp")}
               </button>
             </div>
-            <p className="mt-2 text-xs text-on-surface-variant">{t("doiHint")}</p>
+            {/* One slot for both, floored at the hint's two lines: swapping a
+                one-line error in for the hint must not move the panels below. */}
+            <p className={`mt-2 min-h-8 text-xs ${error?.where === "doi" ? "text-error" : "text-on-surface-variant"}`}>
+              {error?.where === "doi" ? error.message : t("doiHint")}
+            </p>
           </div>
 
           {/* Drop zone */}
           <div>
-            <p className="text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-3">
+            <p className="text-xs uppercase tracking-widest font-bold text-on-surface-variant mb-2">
               {t("structuredFileUpload")}
             </p>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop is a mouse-only progressive enhancement; the Browse button + file input below provide the accessible path. */}
@@ -379,19 +385,21 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
               onDragOver={handleFileDragOver}
               onDragLeave={() => setDragging(false)}
               onDrop={handleFileDrop}
-              className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-3 flex flex-wrap items-center gap-x-4 gap-y-3 transition-colors ${
                 dragging ? "border-primary bg-surface-container" : "border-outline-variant/40 bg-surface"
               }`}
             >
-              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                <FileUp className="h-7 w-7 text-primary" />
+              <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+                <FileUp className="h-5 w-5 text-primary" />
               </div>
-              <p className="text-sm font-medium text-on-surface">{t("dragDropFile")}</p>
-              <p className="text-xs text-on-surface-variant mt-1 mb-4">{t("acceptedFileTypes")}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-on-surface">{t("dragDropFile")}</p>
+                <p className="text-xs text-on-surface-variant mt-0.5">{t("acceptedFileTypes")}</p>
+              </div>
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="px-4 py-1.5 border border-primary text-primary text-xs font-semibold rounded hover:bg-primary hover:text-on-primary transition-colors"
+                className="shrink-0 px-4 py-1.5 border border-primary text-primary text-xs font-semibold rounded hover:bg-primary hover:text-on-primary transition-colors"
               >
                 {t("browseFiles")}
               </button>
@@ -434,7 +442,9 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
             />
           </div>
 
-          {error && <p className="text-sm text-error bg-error-container/30 rounded px-4 py-2">{error}</p>}
+          {error?.where === "form" && (
+            <p className="text-sm text-error bg-error-container/30 rounded px-4 py-2">{error.message}</p>
+          )}
 
           {pending && (
             <div role="alert" className="rounded-lg bg-error-container/30 p-4 text-sm text-on-surface">
@@ -466,7 +476,7 @@ export function ImportModal({ open, existingContributorCount, onImport, onLink, 
           )}
         </div>
 
-        <div className="px-8 py-5 border-t border-outline-variant/10 bg-surface-container-low flex justify-end gap-3">
+        <div className="px-8 py-3 border-t border-outline-variant/10 bg-surface-container-low flex justify-end gap-3">
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}
