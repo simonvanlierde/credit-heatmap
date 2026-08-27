@@ -119,7 +119,12 @@ export function buildHeatmapSvg(authors: Author[], opts?: HeatmapSvgOptions): st
   // Approx rendered width of a label. CJK glyphs render full-width (≈1em)
   // against a Latin advance of ≈0.62em, so count them as 1.6 units or a
   // six-character Japanese name overflows its band.
-  const CJK_CHAR = /[ᄀ-ᇿ⺀-꓏가-힣豈-﫿︰-﹏＀-￯]/;
+  // Escapes, not literals: the compat-ideograph block starts at U+F900, whose
+  // glyph is indistinguishable from U+8C48 in a source file, and the lookalike
+  // silently widened the range across everything up to U+FAFF.
+  // Jamo · CJK radicals through Yi · Hangul syllables · compat ideographs ·
+  // vertical/compat punctuation · full-width forms.
+  const CJK_CHAR = /[\u1100-\u11FF\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFFEF]/;
   const labelUnits = (label: string): number =>
     [...label].reduce((units, char) => units + (CJK_CHAR.test(char) ? 1.6 : 1), 0);
   const textW = (label: string, fontSize: number): number => labelUnits(label) * fontSize * CHAR_EM * scale;
