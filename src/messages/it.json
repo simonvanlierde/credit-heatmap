@@ -187,7 +187,6 @@
   "statusNotes": "{count, plural, one {# nota da rivedere} other {# note da rivedere}}",
   "statusDismiss": "Chiudi",
   "rolesUsed": "{used} di {total} ruoli usati",
-  "savedInBrowser": "Salvato in questo browser",
   "shareWarningTitle": "Questo link contiene i dati della bozza",
   "shareWarningBody": "Chiunque abbia questo link può leggere ogni nome, ORCID iD, tipo di contributore e assegnazione di ruolo.",
   "noContributorsHint": "Incolla qui sotto un DOI o un ORCID iD, digita un nome, oppure usa <b>Importa</b> nell'intestazione.",

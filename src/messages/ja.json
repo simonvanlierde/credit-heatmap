@@ -187,7 +187,6 @@
   "statusNotes": "{count, plural, other {確認事項 # 件}}",
   "statusDismiss": "閉じる",
   "rolesUsed": "{total} 種類中 {used} 種類を使用",
-  "savedInBrowser": "このブラウザーに保存されます",
   "shareWarningTitle": "このリンクにはデータが含まれます",
   "shareWarningBody": "このリンクを知っている人は、氏名、ORCID iD、貢献者の種別、役割の割り当てをすべて閲覧できます。",
   "noContributorsHint": "下に DOI または ORCID iD を貼り付けるか、名前を入力するか、ヘッダーの<b>インポート</b>をお使いください。",

@@ -187,7 +187,6 @@
   "statusNotes": "{count, plural, one {# nota a rever} other {# notas a rever}}",
   "statusDismiss": "Fechar",
   "rolesUsed": "{used} de {total} papéis usados",
-  "savedInBrowser": "Guardado neste navegador",
   "shareWarningTitle": "Esta ligação contém os seus dados",
   "shareWarningBody": "Qualquer pessoa com esta ligação pode ler todos os nomes, ORCID iD, tipo de contribuidor e atribuição de papéis.",
   "noContributorsHint": "Cole abaixo um DOI ou um ORCID iD, escreva um nome, ou use <b>Importar</b> no cabeçalho.",

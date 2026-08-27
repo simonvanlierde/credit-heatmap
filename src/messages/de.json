@@ -187,7 +187,6 @@
   "statusNotes": "{count, plural, one {# Hinweis zu prüfen} other {# Hinweise zu prüfen}}",
   "statusDismiss": "Schließen",
   "rolesUsed": "{used} von {total} Rollen belegt",
-  "savedInBrowser": "In diesem Browser gespeichert",
   "shareWarningTitle": "Dieser Link enthält Ihre Daten",
   "shareWarningBody": "Wer diesen Link hat, kann jeden Namen, jede ORCID iD, jeden Beitragstyp und jede Rollenzuweisung lesen.",
   "noContributorsHint": "Fügen Sie unten eine DOI oder eine ORCID iD ein, tippen Sie einen Namen, oder nutzen Sie <b>Importieren</b> in der Kopfzeile.",

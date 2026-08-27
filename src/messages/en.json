@@ -187,7 +187,6 @@
   "statusNotes": "{count, plural, one {# note to review} other {# notes to review}}",
   "statusDismiss": "Dismiss",
   "rolesUsed": "{used} of {total} roles used",
-  "savedInBrowser": "Saved in this browser",
   "shareWarningTitle": "This link carries your data",
   "shareWarningBody": "Anyone with this link can read every contributor name, ORCID iD, contributor type, and role assignment.",
   "noContributorsHint": "Paste a DOI or an ORCID iD below, type a name, or use <b>Import</b> in the header.",

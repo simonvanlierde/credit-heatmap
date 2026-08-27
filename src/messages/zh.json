@@ -187,7 +187,6 @@
   "statusNotes": "{count, plural, other {# 条待确认}}",
   "statusDismiss": "关闭",
   "rolesUsed": "已使用 {total} 种角色中的 {used} 种",
-  "savedInBrowser": "已保存在此浏览器中",
   "shareWarningTitle": "此链接包含您的数据",
   "shareWarningBody": "任何拿到此链接的人都可以查看每位贡献者的姓名、ORCID iD、贡献者类型和角色分配。",
   "noContributorsHint": "在下方粘贴 DOI 或 ORCID iD、输入姓名，或使用标题栏中的<b>导入</b>。",

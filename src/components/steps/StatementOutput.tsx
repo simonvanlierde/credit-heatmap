@@ -175,7 +175,6 @@ export function StatementOutput() {
           </span>
           <span>{t("contributorCount", { count: authors.length })}</span>
           <span>{t("rolesUsed", { used: assignedRoleCount, total: CREDIT_ROLES.length })}</span>
-          <span>{t("savedInBrowser")}</span>
         </div>
       )}
 

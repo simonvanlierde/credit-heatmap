@@ -187,7 +187,6 @@
   "statusNotes": "{count, plural, one {# aandachtspunt} other {# aandachtspunten}}",
   "statusDismiss": "Sluiten",
   "rolesUsed": "{used} van {total} rollen gebruikt",
-  "savedInBrowser": "Opgeslagen in deze browser",
   "shareWarningTitle": "Deze link bevat uw gegevens",
   "shareWarningBody": "Iedereen met deze link kan elke naam, ORCID iD, bijdragerstype en roltoewijzing lezen.",
   "noContributorsHint": "Plak hieronder een DOI of een ORCID iD, typ een naam, of gebruik <b>Importeren</b> in de koptekst.",
