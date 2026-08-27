@@ -12,11 +12,16 @@ export function PopoverContent({
   className,
   align = "start",
   sideOffset = 6,
+  container,
   ref,
   ...props
-}: React.ComponentPropsWithRef<typeof PopoverPrimitive.Content>) {
+}: React.ComponentPropsWithRef<typeof PopoverPrimitive.Content> & {
+  /** Portal target. Pass an open <dialog> element when the trigger lives inside
+   *  one: the top layer renders everything outside it inert. */
+  container?: HTMLElement | null;
+}) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={container}>
       <PopoverPrimitive.Content
         ref={ref}
         align={align}

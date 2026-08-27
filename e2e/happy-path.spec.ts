@@ -774,7 +774,7 @@ test.describe("Happy path UI flows", () => {
   test("bulk assigns one contributor without obscuring direct grid editing", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
-    await page.getByText("Bulk assign", { exact: true }).click();
+    await page.getByRole("button", { name: "Bulk assign" }).click();
 
     await page.getByRole("button", { name: "Clear every role" }).click();
     await expect(page.getByRole("button", { name: "Conceptualization for Ada Lovelace: None" })).toBeVisible();
@@ -795,7 +795,7 @@ test.describe("Happy path UI flows", () => {
       page.getByRole("button", { name: "Software for Alan M. Turing: Equal" }),
     ];
 
-    await page.getByText("Bulk assign", { exact: true }).click();
+    await page.getByRole("button", { name: "Bulk assign" }).click();
     await page.getByRole("combobox", { name: "Role for bulk assignment" }).click();
     await page.getByRole("option", { name: "Software", exact: true }).click();
     await page.getByRole("button", { name: "Assign to everyone" }).click();

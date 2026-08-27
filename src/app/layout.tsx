@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
 import { AboutPopover } from "@/components/AboutPopover";
-import { BrandMark } from "@/components/BrandMark";
+import { Lockup } from "@/components/BrandMark";
+import { BrandMenu } from "@/components/BrandMenu";
 import { HeaderActions } from "@/components/HeaderActions";
 import { HowItWorks } from "@/components/HowItWorks";
 import { LanguageSelector } from "@/components/LanguageSelector";
@@ -81,20 +82,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="mx-auto flex h-13 items-center justify-between gap-2 px-3 sm:px-8">
                 {/* Brand */}
                 <div className="flex items-center gap-8">
-                  <h1 className="flex items-center gap-2.5 text-primary">
-                    {/* Lockup: the matrix mark reads at cap height beside the wordmark. */}
-                    <BrandMark className="h-[1.15rem] w-[1.15rem] shrink-0 sm:h-[1.3rem] sm:w-[1.3rem]" />
-                    <span
-                      // The chrome needs 349px once every control is at its
-                      // 44px touch size, so below 22rem the mark carries the
-                      // brand alone rather than pushing Import off the edge.
-                      className="hidden min-[22rem]:inline font-headline text-lg italic font-semibold tracking-tight sm:text-xl"
-                      style={{ fontFamily: "var(--font-headline)" }}
-                    >
-                      CRediT Matrix
+                  <h1 className="flex items-center text-primary">
+                    {/* Below lg the lockup is the trigger for the two links the
+                        nav has no room for; from lg it is the plain lockup and
+                        the nav carries them itself. Exactly one is ever shown.
+                        The boundary is lg, not md: at md the lockup, the nav and
+                        the labelled actions together overrun the row, and the
+                        wordmark used to absorb it by wrapping out of the header. */}
+                    <BrandMenu version={packageJson.version} />
+                    <span className="hidden shrink-0 items-center gap-2.5 lg:flex">
+                      <Lockup />
                     </span>
                   </h1>
-                  <nav className="hidden md:flex gap-6 items-center">
+                  <nav className="hidden lg:flex gap-6 items-center">
                     <HowItWorks />
                     <AboutPopover version={packageJson.version} />
                   </nav>

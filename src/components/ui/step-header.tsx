@@ -9,7 +9,7 @@ export function StepHeader({ n, title, className }: { n: number; title: string; 
   return (
     <div className={`flex items-center gap-2.5 ${className ?? ""}`}>
       <StepNumber n={n} />
-      <h2 className="font-headline text-xl italic font-semibold text-primary">{title}</h2>
+      <h2 className="font-headline text-lg italic font-semibold text-primary">{title}</h2>
     </div>
   );
 }

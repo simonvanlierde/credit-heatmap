@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-08-27
+
+### Added
+
+- Below `lg` the lockup opens a menu carrying the *How it works* and *About* links the header has no
+  room for. *About* is reachable from the welcome card too.
+- Attribution for the CC BY 4.0 work the app redistributes. The role translations and NISO's badge
+  image now link to the licence deed, and the notice travels with the badge.
+- A copyright and licence line in *About*.
+
+### Changed
+
+- *About* is one panel shared by the header link, the lockup menu, and the welcome card. Its
+  acknowledgements and the NISO disclaimer are shorter.
+
+### Removed
+
+- The *Saved in this browser* line, which never changed. The drafts menu and the welcome card
+  already say it, and a failed save announces itself.
+
+### Fixed
+
+- The matrix controls sit beside their heading from `xl` instead of wrapping below it: *Bulk assign*
+  is the icon alone, the step headings are a size smaller, and the statement column gives back width
+  its 75ch prose never used.
+- The wordmark no longer wraps out of the fixed header. It appears only from `27rem`; below that the
+  mark carries the brand alone, and the name is still announced.
+- The header nav moved from `md` to `lg`, where it stopped overrunning the row.
+- Links inside a sentence are underlined, not only recoloured.
+
 ## [0.4.0] - 2026-08-27
 
 ### Changed
@@ -200,7 +230,8 @@ Persisted local drafts migrate automatically.
   contribution heatmap, JATS4R XML / CSV / JSON / Markdown exports, ORCID lookup,
   share links, and a framework-agnostic `@credit-generator/core` domain package.
 
-[Unreleased]: https://github.com/simonvanlierde/credit-matrix/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/simonvanlierde/credit-matrix/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/simonvanlierde/credit-matrix/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/simonvanlierde/credit-matrix/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/simonvanlierde/credit-matrix/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/simonvanlierde/credit-matrix/compare/v0.1.1...v0.2.0

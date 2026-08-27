@@ -89,6 +89,9 @@ contributors, through the matrix, to manuscript output.
 Use warm paper neutrals throughout the interface. Reserve ink blue for primary actions, links,
 focus, and selected states. Use contributor colors only to identify data.
 
+Ink blue does not clear 3:1 against muted paper text, so a link inside a sentence is underlined as
+well as recolored. A link that owns its own line may stay quiet until hover.
+
 ## Typography
 
 Use Newsreader with Georgia fallback for identity, section headings, and manuscript output. Keep
@@ -105,6 +108,11 @@ Use the mark in `currentColor` wherever it sits beside text (the header lockup d
 literal ink-blue tiers wherever it stands alone. The lockup is the mark at cap height, then a gap,
 then the wordmark in Newsreader italic. Never letterspace or recolor the wordmark away from the
 primary token, and never set the mark and the wordmark in different colors.
+
+The wordmark never wraps and never shrinks to fit. A two-line brand spills out of the fixed
+header, and a squeezed one stops being the wordmark: draw it only where the row measurably has the
+width, and let the mark carry the brand alone below that. Wherever the wordmark is not drawn, say
+the name anyway — the mark is decorative, so without it the heading has no accessible name.
 
 `docs/brand/` holds the sources for the exported PNG assets and the command that re-renders them.
 
@@ -187,6 +195,20 @@ inactive text readable, and explain how to recover.
 Keep identity and global actions in the fixed header. On narrow screens, use labeled icons without
 clipping or hiding accessible names.
 
+Measure the header before adding to it. Where a global link no longer fits, give it to the lockup,
+which is otherwise the one element up there with nothing to do: the product name opens what the
+product is. Earn that with a chevron: an unmarked lockup reads as a title, and a title nobody
+taps hides the link as thoroughly as a breakpoint does. Never park such links behind an unnamed
+glyph while named ones exist. The nav and the menu share one boundary, so exactly one is ever on
+screen.
+
+### Attribution
+
+A license that asks for attribution is satisfied in the deployed app, not only in the repository:
+someone using the site never opens `LICENSE`. Name the work, name its creator, and link the license
+itself. Put the notice beside the control that carries the material off the page, and keep the
+project's own copyright with the identity rather than in the small print.
+
 ### Contribution matrix
 
 Use the matrix on larger screens and a contributor-focused role list on narrow screens. Keep role
@@ -210,6 +232,7 @@ accessible label, and exported data. Keep bulk assignment behind a disclosure.
 - **Don't** add ornamental gradients, glass effects, oversized marketing type, or unrelated accents.
 - **Don't** use serif typography for dense controls or data labels.
 - **Don't** hide core contribution features on small screens.
-- **Don't** make color the only way to distinguish a matrix value.
+- **Don't** make color the only way to distinguish a matrix value, or a link from the prose it sits
+  in.
 - **Don't** height-lock the workspace without a viewport-height guard. A zoomed or short window
   needs ordinary document flow.

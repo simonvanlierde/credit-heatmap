@@ -1,8 +1,9 @@
 "use client";
 
 import { ExternalLink, Files, Fingerprint, Send, Sparkles, TableProperties, TextQuote, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "use-intl";
+import { AboutPopover } from "@/components/AboutPopover";
 import { StepNumber } from "@/components/ui/step-number";
 import { useContributionStore } from "@/store/contribution-store";
 
@@ -39,7 +40,7 @@ const STEPS = [
  * showModal()>` gives the focus trap, Escape handling, backdrop, and inert
  * background for free, from the same primitive ImportModal uses.
  */
-export function WelcomeCard() {
+export function WelcomeCard({ version }: { version: string }) {
   const welcomeOpen = useContributionStore((s) => s.welcomeOpen);
   const closeWelcome = useContributionStore((s) => s.closeWelcome);
   const loadSample = useContributionStore((s) => s.loadSample);
@@ -50,7 +51,12 @@ export function WelcomeCard() {
   // flags aren't known until HeaderActions triggers rehydration. Gate on that,
   // then auto-open exactly once for a first-time visitor.
   const [hydrated, setHydrated] = useState(false);
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  // State, not a ref: the About panel portals into the dialog rather than
+  // <body>, because showModal() puts this element in the top layer and makes
+  // the rest of the document inert, so a panel outside it would render but
+  // never take a click. The portal target has to reach render, so the element
+  // has to be state.
+  const [dialogEl, setDialogEl] = useState<HTMLDialogElement | null>(null);
   useEffect(() => {
     const onHydrated = () => {
       setHydrated(true);
@@ -69,23 +75,22 @@ export function WelcomeCard() {
   // Drive the native dialog from the store flag, so the header's "How it works"
   // and the first-run auto-open share one code path.
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (welcomeOpen && !dialog.open) dialog.showModal();
-    else if (!welcomeOpen && dialog.open) dialog.close();
-  }, [welcomeOpen]);
+    if (!dialogEl) return;
+    if (welcomeOpen && !dialogEl.open) dialogEl.showModal();
+    else if (!welcomeOpen && dialogEl.open) dialogEl.close();
+  }, [welcomeOpen, dialogEl]);
 
   if (!hydrated) return null;
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: the onMouseDown closes the dialog on backdrop click; Escape and the Dismiss button provide the accessible paths.
     <dialog
-      ref={dialogRef}
+      ref={setDialogEl}
       id="getting-started"
       aria-labelledby="getting-started-title"
       onClose={closeWelcome}
       onMouseDown={(event) => {
-        if (event.target === dialogRef.current) dialogRef.current?.close();
+        if (event.target === dialogEl) dialogEl?.close();
       }}
       className="m-auto w-full max-w-3xl max-h-[90dvh] overflow-y-auto rounded-lg bg-surface-bright p-0 text-on-surface shadow-2xl ring-1 ring-outline-variant/20 backdrop:bg-on-surface/30 backdrop:backdrop-blur-sm"
     >
@@ -178,6 +183,9 @@ export function WelcomeCard() {
             </>
           )}
           <span className="flex flex-wrap items-center gap-x-5 gap-y-3 sm:ml-auto">
+            {/* The one thing this card never says: what the app itself is, and
+                what it is built on. */}
+            <AboutPopover version={version} container={dialogEl} />
             <a
               href="https://credit.niso.org"
               target="_blank"

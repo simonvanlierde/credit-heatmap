@@ -4,11 +4,13 @@ import { AuthorList } from "@/components/steps/AuthorInput";
 import { ContributionGrid } from "@/components/steps/ContributionGrid";
 import { StatementOutput } from "@/components/steps/StatementOutput";
 import { WelcomeCard } from "@/components/WelcomeCard";
+// Server component: only the version string crosses into the client bundle.
+import packageJson from "../../package.json";
 
 export default function HomePage() {
   return (
     <>
-      <WelcomeCard />
+      <WelcomeCard version={packageJson.version} />
       <ClaimBanner />
       {/* Steps 1–3 in DOM (and tab) order. Below xl they stack and the page
           scrolls; from xl each step gets its own column, so the workflow reads
@@ -25,7 +27,7 @@ export default function HomePage() {
 
           `desk` additionally locks the row to the viewport height; each pane
           scrolls its own content from there. */}
-      <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[21rem_minmax(0,max-content)_minmax(26rem,30rem)] xl:items-start xl:justify-center desk:h-full desk:items-stretch desk:overflow-hidden">
+      <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[20rem_minmax(0,max-content)_minmax(26rem,29rem)] xl:items-start xl:justify-center desk:h-full desk:items-stretch desk:overflow-hidden">
         <LabelledSection labelKey="stepContributors" className="min-w-0 desk:min-h-0">
           <AuthorList />
         </LabelledSection>
