@@ -13,3 +13,8 @@ test-watch:
 # Lint and auto-fix
 lint-fix:
     pnpm biome check --write .
+
+# Release: bump package.json, sync CITATION.cff, commit, and tag
+# (write the dated CHANGELOG entry first)
+release version:
+    pnpm version {{version}} -m 'chore(release): v%s'
