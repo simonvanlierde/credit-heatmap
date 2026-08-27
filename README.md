@@ -25,10 +25,10 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
 - **Contributors**: add, rename, reorder, or paste a whole author list. Paste an ORCID iD or URL to
   look up the name, or a DOI to fill the whole list from the published record
 - **Ask your co-authors**: send each person a link addressed to their own row. They tick what they
-  did and send the link back; opening it fills in their row — roles, name, and iD — and nothing
+  did and send the link back; opening it fills in their row (roles, name, and iD) and nothing
   else
 - **Drafts**: one per paper, switched from the header. They stay in this browser
-- **Contribution grid**: click a cell to assign one of the 14 roles, as a yes/no value or as a
+- **Contribution grid**: select a cell to assign one of the 14 roles, as a yes/no value or as a
   contribution level. The grid is the heatmap, so you can transpose it, swap initials for full
   names, and recolor it
 - **Statements**: group by role or by author, with full names or initials, and optional level
@@ -144,8 +144,6 @@ invocation log. After changing the binding, check the first deploy's logs for
   systems ask for next.
 - **Make sharing discoverable.** The onboarding barely hints at sharing a draft or asking a
   co-author to fill in their own row. Both are easy to miss entirely.
-- **Move the statement options into a popover.** The statement's toggles sit inline; the heatmap's
-  live in an options popover.
 
 ## Contributing
 

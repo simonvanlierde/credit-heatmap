@@ -6,6 +6,7 @@
   "none": "Keine",
   "contributed": "Beigetragen",
   "emptyState": "Noch keine Beiträge zugewiesen.",
+  "heatmapTitle": "Beitragsheatmap",
   "equalContributionNote": "{names} haben gleichermaßen zu dieser Arbeit beigetragen.",
   "correspondenceNote": "Korrespondenz: {names}.",
   "nameListSeparator": ", ",

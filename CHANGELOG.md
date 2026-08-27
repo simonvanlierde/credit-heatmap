@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-27
+
+### Changed
+
+- The sample opens in Levels: its graded scores are the point, and yes/no hid them.
+- No page-width cap: the workflow row is content-sized and centered, so a large roster gives the
+  matrix the whole screen and every visible column is one it does not scroll, while a small roster
+  leaves symmetric gutters instead of stretched cells. The contributors and statement columns are
+  clamped.
+- Both output panes organize the same way: the mode control stays visible, and the display options
+  (the statement's wording toggles; the heatmap's color, transpose, and initials, now on one line)
+  live behind an icon-only gear that never wraps away from its mode control. The CRediT badge gets
+  its own line under the export controls instead of dangling off their right edge.
+- The Levels legend hint is shorter and capped to one line, so toggling modes no longer bounces the
+  heatmap export buttons. Their visible "Heatmap" label folded into the group's accessible name,
+  keeping the whole footer on one line.
+
+### Removed
+
+- The in-pane "Clear local draft" flow and the pane's stays-in-this-browser footer note. Deleting
+  a paper is the Drafts menu's job, and that menu already says drafts stay in this browser, right
+  where deleting them lives.
+
+### Fixed
+
+- On narrow screens in Levels, a role button's label no longer sits on the dynamic fill, where a
+  mid-tone preset had no readable text color at all; a small swatch carries the color instead.
+
 ## [0.3.0] - 2026-08-27
 
 ### Added
@@ -172,7 +200,8 @@ Persisted local drafts migrate automatically.
   contribution heatmap, JATS4R XML / CSV / JSON / Markdown exports, ORCID lookup,
   share links, and a framework-agnostic `@credit-generator/core` domain package.
 
-[Unreleased]: https://github.com/simonvanlierde/credit-matrix/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/simonvanlierde/credit-matrix/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/simonvanlierde/credit-matrix/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/simonvanlierde/credit-matrix/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/simonvanlierde/credit-matrix/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/simonvanlierde/credit-matrix/compare/v0.1.0...v0.1.1

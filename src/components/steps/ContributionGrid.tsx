@@ -355,136 +355,145 @@ export function ContributionGrid() {
             value={inputMode}
             onChange={setInputMode}
           />
-          {/* Every bulk action is list-wide, which a claim freezes outright. */}
-          {!locked && (
-            <Popover>
-              <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
-                <ListChecks className="size-3.5" aria-hidden="true" />
-                {t("bulkAssign")}
-              </PopoverTrigger>
-              <PopoverContent align="end" className="grid w-72 max-w-[calc(100vw-2rem)] gap-4">
-                {graded && (
-                  <div className="grid gap-2 text-xs font-semibold text-on-surface">
-                    <span id="bulk-level">{t("bulkAssignLevel")}</span>
-                    <Select value={bulkLevel} onValueChange={setBulkLevel}>
-                      <SelectTrigger className="w-full text-xs font-normal" aria-labelledby="bulk-level">
+          {/* One non-wrapping pair, so a narrow header moves them below the
+              mode control together and the gear never dangles alone. */}
+          <span className="flex items-center gap-2">
+            {/* Every bulk action is list-wide, which a claim freezes outright. */}
+            {!locked && (
+              <Popover>
+                <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
+                  <ListChecks className="size-3.5" aria-hidden="true" />
+                  {t("bulkAssign")}
+                </PopoverTrigger>
+                <PopoverContent align="end" className="grid w-72 max-w-[calc(100vw-2rem)] gap-4">
+                  {graded && (
+                    <div className="grid gap-2 text-xs font-semibold text-on-surface">
+                      <span id="bulk-level">{t("bulkAssignLevel")}</span>
+                      <Select value={bulkLevel} onValueChange={setBulkLevel}>
+                        <SelectTrigger className="w-full text-xs font-normal" aria-labelledby="bulk-level">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ASSIGNABLE_LEVELS.map(({ key, score }) => (
+                            <SelectItem key={key} value={String(score)}>
+                              {translateUi(key)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {/* A <legend> renders unreliably inside a `display: grid` fieldset,
+                  so the group is labelled by a plain heading instead. */}
+                  <fieldset aria-labelledby="bulk-one-contributor" className="grid gap-2">
+                    <p id="bulk-one-contributor" className="mb-1 text-xs font-semibold text-on-surface">
+                      {t("bulkOneContributor")}
+                    </p>
+                    <Select value={bulkAuthor?.id} onValueChange={setBulkAuthorId}>
+                      <SelectTrigger className="w-full text-xs" aria-label={t("a11yBulkContributor")}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {ASSIGNABLE_LEVELS.map(({ key, score }) => (
-                          <SelectItem key={key} value={String(score)}>
-                            {translateUi(key)}
+                        {authors.map((author) => (
+                          <SelectItem key={author.id} value={author.id}>
+                            {author.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                )}
-                {/* A <legend> renders unreliably inside a `display: grid` fieldset,
-                  so the group is labelled by a plain heading instead. */}
-                <fieldset aria-labelledby="bulk-one-contributor" className="grid gap-2">
-                  <p id="bulk-one-contributor" className="mb-1 text-xs font-semibold text-on-surface">
-                    {t("bulkOneContributor")}
-                  </p>
-                  <Select value={bulkAuthor?.id} onValueChange={setBulkAuthorId}>
-                    <SelectTrigger className="w-full text-xs" aria-label={t("a11yBulkContributor")}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {authors.map((author) => (
-                        <SelectItem key={author.id} value={author.id}>
-                          {author.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="grid grid-cols-2 gap-2">
-                    <BulkButton onClick={() => runBulk(() => setAllAuthorScores(bulkAuthor.id, assignScore))}>
-                      {t("bulkAssignAll")}
-                    </BulkButton>
-                    <BulkButton onClick={() => runBulk(() => setAllAuthorScores(bulkAuthor.id, 0))}>
-                      {t("bulkClearAll")}
-                    </BulkButton>
-                  </div>
-                </fieldset>
-                <fieldset
-                  aria-labelledby="bulk-one-role"
-                  className="grid gap-2 border-t border-outline-variant/30 pt-3"
+                    <div className="grid grid-cols-2 gap-2">
+                      <BulkButton onClick={() => runBulk(() => setAllAuthorScores(bulkAuthor.id, assignScore))}>
+                        {t("bulkAssignAll")}
+                      </BulkButton>
+                      <BulkButton onClick={() => runBulk(() => setAllAuthorScores(bulkAuthor.id, 0))}>
+                        {t("bulkClearAll")}
+                      </BulkButton>
+                    </div>
+                  </fieldset>
+                  <fieldset
+                    aria-labelledby="bulk-one-role"
+                    className="grid gap-2 border-t border-outline-variant/30 pt-3"
+                  >
+                    <p id="bulk-one-role" className="mb-1 text-xs font-semibold text-on-surface">
+                      {t("bulkOneRole")}
+                    </p>
+                    <Select value={bulkRoleIndex} onValueChange={setBulkRoleIndex}>
+                      <SelectTrigger className="w-full text-xs" aria-label={t("a11yBulkRole")}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CREDIT_ROLES.map((role, roleIndex) => (
+                          <SelectItem key={role.name} value={String(roleIndex)}>
+                            {translateInterfaceRole(role.name)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="grid grid-cols-2 gap-2">
+                      <BulkButton onClick={() => runBulk(() => setRoleScores(parsedBulkRoleIndex, assignScore))}>
+                        {t("bulkAssignToAll")}
+                      </BulkButton>
+                      <BulkButton onClick={() => runBulk(() => setRoleScores(parsedBulkRoleIndex, 0))}>
+                        {t("bulkClearRole")}
+                      </BulkButton>
+                    </div>
+                  </fieldset>
+                </PopoverContent>
+              </Popover>
+            )}
+            {/* Icon-only: display settings, not a workflow action, so it earns
+              the quietest slot at the cluster's far end. */}
+            <Popover>
+              <PopoverTrigger
+                aria-label={t("heatmapOptions")}
+                title={t("heatmapOptions")}
+                className="flex size-9 items-center justify-center rounded-lg border border-outline-variant/60 text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary"
+              >
+                <Settings2 className="size-4" aria-hidden="true" />
+              </PopoverTrigger>
+              <PopoverContent align="end" className="flex w-auto max-w-[calc(100vw-2rem)] flex-wrap items-center gap-3">
+                <ColorPopover
+                  value={heatmapMonoColor}
+                  onChange={setHeatmapMonoColor}
+                  label={t("gridColor")}
+                  trigger={
+                    <button
+                      type="button"
+                      aria-label={t("gridColor")}
+                      title={t("gridColor")}
+                      className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      {t("colorLabel")}
+                      <span
+                        className="h-3 w-3 rounded-full border border-outline-variant/50"
+                        style={{ backgroundColor: heatmapMonoColor }}
+                      />
+                    </button>
+                  }
+                />
+                <button
+                  type="button"
+                  aria-pressed={transpose}
+                  onClick={() => setTranspose(!transpose)}
+                  title={t("transposeHint")}
+                  className={`flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
+                    transpose
+                      ? "border-primary text-primary"
+                      : "border-outline-variant/60 text-on-surface-variant hover:border-primary hover:text-primary"
+                  }`}
                 >
-                  <p id="bulk-one-role" className="mb-1 text-xs font-semibold text-on-surface">
-                    {t("bulkOneRole")}
-                  </p>
-                  <Select value={bulkRoleIndex} onValueChange={setBulkRoleIndex}>
-                    <SelectTrigger className="w-full text-xs" aria-label={t("a11yBulkRole")}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CREDIT_ROLES.map((role, roleIndex) => (
-                        <SelectItem key={role.name} value={String(roleIndex)}>
-                          {translateInterfaceRole(role.name)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="grid grid-cols-2 gap-2">
-                    <BulkButton onClick={() => runBulk(() => setRoleScores(parsedBulkRoleIndex, assignScore))}>
-                      {t("bulkAssignToAll")}
-                    </BulkButton>
-                    <BulkButton onClick={() => runBulk(() => setRoleScores(parsedBulkRoleIndex, 0))}>
-                      {t("bulkClearRole")}
-                    </BulkButton>
-                  </div>
-                </fieldset>
+                  {t("transpose")}
+                  {transpose ? <Columns3 className="h-3.5 w-3.5" /> : <Rows3 className="h-3.5 w-3.5" />}
+                </button>
+                <span className="flex min-h-9 items-center gap-1.5 text-xs text-on-surface-variant">
+                  {/* The accessible name starts with the visible "Use initials",
+                    so voice control saying the visible label hits it (2.5.3). */}
+                  <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label={t("a11yUseInitials")} />
+                  {t("useInitials")}
+                </span>
               </PopoverContent>
             </Popover>
-          )}
-          <Popover>
-            <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
-              <Settings2 className="size-3.5" aria-hidden="true" />
-              {t("heatmapOptions")}
-            </PopoverTrigger>
-            <PopoverContent align="end" className="flex w-64 flex-wrap items-center gap-3">
-              <ColorPopover
-                value={heatmapMonoColor}
-                onChange={setHeatmapMonoColor}
-                label={t("gridColor")}
-                trigger={
-                  <button
-                    type="button"
-                    aria-label={t("gridColor")}
-                    title={t("gridColor")}
-                    className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  >
-                    {t("colorLabel")}
-                    <span
-                      className="h-3 w-3 rounded-full border border-outline-variant/50"
-                      style={{ backgroundColor: heatmapMonoColor }}
-                    />
-                  </button>
-                }
-              />
-              <button
-                type="button"
-                aria-pressed={transpose}
-                onClick={() => setTranspose(!transpose)}
-                title={t("transposeHint")}
-                className={`flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${
-                  transpose
-                    ? "border-primary text-primary"
-                    : "border-outline-variant/60 text-on-surface-variant hover:border-primary hover:text-primary"
-                }`}
-              >
-                {t("transpose")}
-                {transpose ? <Columns3 className="h-3.5 w-3.5" /> : <Rows3 className="h-3.5 w-3.5" />}
-              </button>
-              <span className="flex min-h-9 items-center gap-1.5 text-xs text-on-surface-variant">
-                {/* The accessible name starts with the visible "Use initials",
-                    so voice control saying the visible label hits it (2.5.3). */}
-                <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label={t("a11yUseInitials")} />
-                {t("useInitials")}
-              </span>
-            </PopoverContent>
-          </Popover>
+          </span>
         </div>
       </div>
 
@@ -753,7 +762,10 @@ export function ContributionGrid() {
           of the row instead of displacing them.
           `w-0 min-w-full` keeps this row out of the card's max-content width, so
           switching modes cannot resize the whole column to fit a longer legend. */}
-      <div className="mt-2 flex w-0 min-w-full items-center justify-between gap-3">
+      {/* items-start: the legend may wrap taller in Levels, and a centered
+          export cluster would ride the height change. Anchored to the row's
+          top, it holds still whatever the legend does below. */}
+      <div className="mt-2 flex w-0 min-w-full items-start justify-between gap-3">
         <GridLegend monoColor={heatmapMonoColor} graded={graded} translateUi={translateUi} />
         <HeatmapExports
           authors={authors}
@@ -870,13 +882,14 @@ function GridLegend({
     // get the full width and no longer dangle onto a second row in Levels. Both
     // modes are two lines, so switching them cannot change the row's height.
     <div className="flex min-w-0 flex-col gap-1 text-xs text-on-surface-variant">
-      <span className="flex items-center gap-3">
+      <span className="flex min-w-0 items-center gap-3">
         <span className="font-mono text-xs uppercase tracking-wider">{graded ? t("legendLevel") : t("legendKey")}</span>
         {/* Yes/no needs no hint: the grid says it. Levels does, because the click
-            cycle isn't visible. It sits here rather than beside the mode control,
-            where switching modes reflowed the whole header and shifted the matrix. */}
+            cycle isn't visible. Capped to one line (full text in the tooltip):
+            a wrapped hint made this row taller in Levels, so toggling modes
+            bounced the export cluster below. */}
         {graded && (
-          <span>
+          <span className="min-w-0 truncate" title={`${t("clickToCycle")} · ${t("levelKeysHint")}`}>
             {/* A language-neutral separator: the two hints are separate
                 sentences, and jamming them read as one run-on label. */}
             {t("clickToCycle")} <span className="hidden md:inline">· {t("levelKeysHint")}</span>
@@ -906,9 +919,14 @@ type ExportFormat = "svg" | "png";
 
 /**
  * Rasterise an SVG string to a PNG Blob entirely in the browser, with no
- * server round-trip. Renders at 2× for crisp output suitable for slides/docs.
+ * server round-trip.
+ *
+ * 3×, not 2×: at the default 22px cell a single-column journal figure comes
+ * out around 500 CSS px wide, which 2× rasterises to ~3.4in at 300 dpi — under
+ * the 85mm single-column width most publishers ask for. 3× clears it, and
+ * still lands well inside the clipboard's practical size.
  */
-function svgToPngBlob(svg: string, scale = 2): Promise<Blob> {
+function svgToPngBlob(svg: string, scale = 3): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);
@@ -1008,10 +1026,9 @@ function HeatmapExports({
     // The error gets its own full-width line under the buttons instead of a
     // 120px truncation: the hover-title fallback was unreachable on touch.
     <div className="flex shrink-0 flex-col items-end gap-1">
-      <div className="flex items-center gap-2">
-        <span className="font-mono uppercase tracking-wider text-[11px] text-on-surface-variant">
-          {t("heatmapLabel")}
-        </span>
+      {/* No visible "HEATMAP" label: the group's accessible name carries it,
+          and the freed width is what keeps the legend beside it on one line. */}
+      <fieldset aria-label={t("heatmapLabel")} className="flex items-center gap-2">
         <button
           type="button"
           disabled={loading !== null}
@@ -1034,7 +1051,7 @@ function HeatmapExports({
             {loading === format ? "…" : format.toUpperCase()}
           </button>
         ))}
-      </div>
+      </fieldset>
       {error && <span className="max-w-56 text-right text-[11px] text-error">{error}</span>}
     </div>
   );

@@ -1,7 +1,7 @@
 /**
  * UI-string translations: the non-role strings in human-facing output
  * (statement + heatmap): "Acknowledgements", the contribution-level labels, the
- * heatmap title, and the empty-state line.
+ * heatmap's accessible name, and the empty-state line.
  *
  * Mirrors the role-catalog setup (one lazy-loaded JSON per locale, code-split by
  * the bundler) so the live UI and exports share one mechanism and this can grow
@@ -20,6 +20,7 @@ export type UiKey =
   | "none"
   | "contributed"
   | "emptyState"
+  | "heatmapTitle"
   | "equalContributionNote"
   | "correspondenceNote"
   | "nameListSeparator"
@@ -53,6 +54,8 @@ const EN_UI: Record<UiKey, string> = {
   none: "None",
   contributed: "Contributed",
   emptyState: "No contributions assigned yet.",
+  // Accessible name for the exported heatmap SVG; nothing draws it.
+  heatmapTitle: "Contribution heatmap",
   // `{names}` is substituted with the marked contributors.
   equalContributionNote: "{names} contributed equally to this work.",
   correspondenceNote: "Correspondence: {names}.",

@@ -114,11 +114,14 @@ Follow the task order: contributors, contributions, then statement and export.
 
 Use one column on small screens. From `xl`, give all three steps their own column, so the workflow
 reads left to right. Never give the statement a full-width row. Its prose is capped at 75ch, so a
-1200px row wraps the text at half its width and leaves the rest empty. Size the matrix column to the
-matrix, and let the statement absorb the space the matrix doesn't need.
+wide column wraps the text at half its width and leaves the rest empty. Clamp the contributors and
+statement columns, and size the matrix to its roster: with many contributors it takes the screen
+(every visible column is one it does not scroll), and with few, the content-sized row centers in
+symmetric gutters rather than stretching cells to fill.
 
-Let the page use the screen it's given, up to `100rem`. A cap that holds until a late breakpoint
-letterboxes the laptops this workspace is built for.
+Let the page use the screen it's given. There is no page-width cap: the workflow row is
+content-sized and centered, so unused width shows up as symmetric gutters, and a roster that needs
+the width gets all of it.
 
 On a desktop-sized window the workspace is height-locked to the viewport. The page itself doesn't
 scroll; each pane scrolls its own content.

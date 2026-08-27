@@ -138,7 +138,6 @@ export function AuthorList() {
     loadSample,
     moveAuthor,
     removeAuthor,
-    reset,
     restoreAuthor,
     setTitle,
     title,
@@ -159,12 +158,9 @@ export function AuthorList() {
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [removed, setRemoved] = useState<{ author: Author; index: number } | null>(null);
-  const [clearPending, setClearPending] = useState(false);
   const [focusAfterRemove, setFocusAfterRemove] = useState<number | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const addInputRef = useRef<HTMLInputElement>(null);
-  const clearDraftRef = useRef<HTMLButtonElement>(null);
-  const cancelClearRef = useRef<HTMLButtonElement>(null);
   // Rows that arrive after the app has settled animate in; a restored draft does not.
   const settled = useSettled();
 
@@ -181,24 +177,6 @@ export function AuthorList() {
   // it after a switch would insert one paper's contributor into another.
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-runs on draft switch by design
   useEffect(() => setRemoved(null), [activeDraftId]);
-
-  // The t("clearDraft") button is replaced by the Cancel/Clear draft pair,
-  // so activating it unmounts the focused element. Carry focus across the swap
-  // in both directions instead of letting it fall back to <body>.
-  const clearWasPending = useRef(false);
-  useEffect(() => {
-    if (clearPending === clearWasPending.current) return;
-    clearWasPending.current = clearPending;
-    if (clearPending) {
-      cancelClearRef.current?.focus();
-      return;
-    }
-    // After an actual clear the list is empty, which disables the trigger;
-    // focusing it would silently do nothing, so fall through to the add field.
-    const trigger = clearDraftRef.current;
-    if (trigger && !trigger.disabled) trigger.focus();
-    else addInputRef.current?.focus();
-  }, [clearPending]);
 
   // Runs after the removed row has left the DOM, so the buttons queried here
   // are the surviving ones. Falls back to the add field when the list empties.
@@ -374,16 +352,6 @@ export function AuthorList() {
     if (event.key === "Enter") void handleAdd();
   }
 
-  function handleClearDraft() {
-    reset();
-    useContributionStore.persist.clearStorage();
-    setClearPending(false);
-    // The cleared roster no longer holds the removed row's neighbours; an
-    // undo would resurrect a contributor into an emptied draft.
-    setRemoved(null);
-    announce(t("annDraftCleared"));
-  }
-
   /** Pasting a whole author list adds every name; single names paste normally. */
   function handleAddPaste(event: React.ClipboardEvent<HTMLInputElement>) {
     const tokens = splitNameList(event.clipboardData.getData("text"));
@@ -527,40 +495,8 @@ export function AuthorList() {
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-outline-variant/20 pt-3">
-        <p className="text-xs text-on-surface-variant">{t("draftStaysLocal")}</p>
-        {locked ? null : clearPending ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
-            <span className="text-on-surface">{t("clearDraftQuestion")}</span>
-            <button
-              ref={cancelClearRef}
-              type="button"
-              onClick={() => setClearPending(false)}
-              className="min-h-6 rounded px-2 font-medium text-on-surface-variant hover:text-on-surface"
-            >
-              {t("cancel")}
-            </button>
-            <button
-              type="button"
-              onClick={handleClearDraft}
-              className="min-h-6 rounded bg-error-container px-2 font-semibold text-on-error-container"
-            >
-              {t("clearDraftConfirm")}
-            </button>
-          </div>
-        ) : (
-          <button
-            ref={clearDraftRef}
-            type="button"
-            onClick={() => setClearPending(true)}
-            disabled={authors.length === 0}
-            className="inline-flex min-h-6 items-center gap-1.5 rounded text-xs font-medium text-on-surface-variant transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Trash2 className="size-3.5" aria-hidden="true" />
-            {t("clearDraft")}
-          </button>
-        )}
-      </div>
+      {/* No footer note: the Drafts menu already says drafts stay in this
+          browser, right where deleting them lives. */}
     </div>
   );
 }
