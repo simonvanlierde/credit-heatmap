@@ -93,6 +93,7 @@ const UI_KEYS: UiKey[] = [
   "none",
   "contributed",
   "emptyState",
+  "heatmapTitle",
   "equalContributionNote",
   "correspondenceNote",
   "nameListSeparator",

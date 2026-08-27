@@ -132,4 +132,51 @@ describe("buildHeatmapSvg", () => {
 
     expect(b).toBe(a);
   });
+
+  it("names the graphic for assistive technology without drawing a title", () => {
+    const svg = buildHeatmapSvg(authorsWithScores());
+    expect(svg).toContain('role="img"');
+    expect(svg).toContain("<title>Contribution heatmap</title>");
+    // A <title> is an accessible name, not a caption: nothing draws it.
+    expect(svg).not.toMatch(/<text[^>]*>Contribution heatmap</);
+  });
+
+  it("wraps the legend under a narrow figure instead of widening the canvas", () => {
+    const everyRole = [
+      createAuthor("Jane Smith", { contributions: CREDIT_ROLES.map((r) => ({ role: r.name, score: 100 })) }),
+    ];
+    const narrow = buildHeatmapSvg(authorsWithScores()); // 2 initials wide
+    const wide = buildHeatmapSvg(everyRole, { transpose: true }); // all 14 roles wide
+
+    // Two keys per row under the narrow figure, all four in one row under the wide one.
+    expect(legendRowCount(narrow)).toBe(2);
+    expect(legendRowCount(wide)).toBe(1);
+    // The wrap is what keeps the narrow canvas narrow: it must not inherit the
+    // width of an unwrapped four-key legend.
+    expect(svgWidth(narrow)).toBeLessThan(svgWidth(wide));
+  });
+
+  it("sizes the label bands from the labels they carry", () => {
+    // Initials on the left band vs. full names: the wider labels move the grid
+    // right by their own extra width, and nothing else changes.
+    const initials = buildHeatmapSvg(authorsWithScores(), { transpose: true });
+    const names = buildHeatmapSvg(authorsWithScores(), { transpose: true, acronyms: false });
+    expect(svgWidth(names)).toBeGreaterThan(svgWidth(initials));
+    expect(firstCellX(names)).toBeGreaterThan(firstCellX(initials));
+  });
 });
+
+/** Distinct y positions among the legend swatches (14×14 rects). */
+function legendRowCount(svg: string): number {
+  const ys = [...svg.matchAll(/<rect x="[\d.]+" y="([\d.]+)" width="14" height="14"/g)].map((m) => m[1]);
+  return new Set(ys).size;
+}
+
+function svgWidth(svg: string): number {
+  return Number(svg.match(/<svg[^>]*width="([\d.]+)"/)?.[1]);
+}
+
+/** x of the first grid cell — i.e. where the left label band ends. */
+function firstCellX(svg: string): number {
+  return Number(svg.match(/<rect x="([\d.]+)"[^>]*width="22" height="22"/)?.[1]);
+}
