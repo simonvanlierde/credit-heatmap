@@ -346,9 +346,9 @@ export function ContributionGrid() {
 
   return (
     <div className="flex min-w-0 max-w-full flex-col bg-surface-bright rounded-lg shadow-sm border border-outline-variant/20 p-3 md:p-4 desk:h-full desk:overflow-y-auto">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <StepHeader n={2} title={t("stepContributions")} />
-        <div className="flex flex-wrap items-start gap-2">
+        <div className="flex flex-wrap items-start gap-1.5">
           <SegmentedControl
             ariaLabel={t("assignmentMode")}
             options={inputModeOptions}
@@ -357,13 +357,16 @@ export function ContributionGrid() {
           />
           {/* One non-wrapping pair, so a narrow header moves them below the
               mode control together and the gear never dangles alone. */}
-          <span className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5">
             {/* Every bulk action is list-wide, which a claim freezes outright. */}
             {!locked && (
               <Popover>
-                <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
-                  <ListChecks className="size-3.5" aria-hidden="true" />
-                  {t("bulkAssign")}
+                <PopoverTrigger
+                  aria-label={t("bulkAssign")}
+                  title={t("bulkAssign")}
+                  className="flex size-9 items-center justify-center rounded-lg border border-outline-variant/60 text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary"
+                >
+                  <ListChecks className="size-4" aria-hidden="true" />
                 </PopoverTrigger>
                 <PopoverContent align="end" className="grid w-72 max-w-[calc(100vw-2rem)] gap-4">
                   {graded && (
