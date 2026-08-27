@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- The sample opens in Levels: its graded scores are the point, and yes/no hid them.
+- Both output panes organize the same way: the mode control stays visible, and the display options
+  (the statement's wording toggles, the heatmap's color, transpose, and initials) live behind an
+  icon-only gear at the cluster's end.
+- The Levels legend hint is shorter and capped to one line, so toggling modes no longer bounces the
+  heatmap export buttons.
+
+### Removed
+
+- The in-pane "Clear local draft" flow. Deleting a paper is the Drafts menu's job; the second path
+  duplicated it with worse affordances. The stays-in-this-browser note remains.
+
+### Fixed
+
+- On narrow screens in Levels, a role button's label no longer sits on the dynamic fill, where a
+  mid-tone preset had no readable text color at all; a small swatch carries the color instead.
+
 ## [0.3.0] - 2026-08-27
 
 ### Added

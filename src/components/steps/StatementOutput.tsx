@@ -12,10 +12,11 @@ import {
   toMarkdown,
   validateContributions,
 } from "@credit-generator/core";
-import { CheckCircle2, Copy, Download, Info, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Copy, Download, Info, Settings2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { useTranslations } from "use-intl";
 import { CreditBadge } from "@/components/ui/credit-badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SegmentedControl } from "@/components/ui/segmented";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StepHeader } from "@/components/ui/step-header";
@@ -116,22 +117,37 @@ export function StatementOutput() {
             { value: "by-role", label: t("groupByRole") },
           ]}
         />
-        <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-          <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label={t("a11yUseInitials")} />
-          {t("useInitials")}
-        </span>
-        {canShowLevels && (
-          <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-            <Switch checked={showLevels} onCheckedChange={setShowLevels} aria-label={t("a11yShowLevels")} />
-            {t("showLevels")}
-          </span>
-        )}
-        {hasNonAuthors && (
-          <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-            <Switch checked={separateAck} onCheckedChange={setSeparateAck} aria-label={t("a11ySeparateAcks")} />
-            {t("separateAcknowledgements")}
-          </span>
-        )}
+        {/* The grouping is the statement's mode and stays visible; the wording
+            toggles are display options and live behind the same icon-only gear
+            the heatmap's options use. Conditional toggles appearing inside the
+            popover can no longer reflow this row. */}
+        <Popover>
+          <PopoverTrigger
+            aria-label={t("statementOptions")}
+            title={t("statementOptions")}
+            className="flex size-9 items-center justify-center rounded-lg border border-outline-variant/60 text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary"
+          >
+            <Settings2 className="size-4" aria-hidden="true" />
+          </PopoverTrigger>
+          <PopoverContent align="end" className="grid w-60 gap-3">
+            <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+              <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label={t("a11yUseInitials")} />
+              {t("useInitials")}
+            </span>
+            {canShowLevels && (
+              <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+                <Switch checked={showLevels} onCheckedChange={setShowLevels} aria-label={t("a11yShowLevels")} />
+                {t("showLevels")}
+              </span>
+            )}
+            {hasNonAuthors && (
+              <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+                <Switch checked={separateAck} onCheckedChange={setSeparateAck} aria-label={t("a11ySeparateAcks")} />
+                {t("separateAcknowledgements")}
+              </span>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
 
       {hasAuthors && (

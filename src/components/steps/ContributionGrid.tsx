@@ -438,10 +438,15 @@ export function ContributionGrid() {
               </PopoverContent>
             </Popover>
           )}
+          {/* Icon-only: display settings, not a workflow action, so it earns
+              the quietest slot at the cluster's far end. */}
           <Popover>
-            <PopoverTrigger className="flex min-h-9 items-center gap-1.5 rounded-lg border border-outline-variant/60 px-3 text-xs font-medium text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary">
-              <Settings2 className="size-3.5" aria-hidden="true" />
-              {t("heatmapOptions")}
+            <PopoverTrigger
+              aria-label={t("heatmapOptions")}
+              title={t("heatmapOptions")}
+              className="flex size-9 items-center justify-center rounded-lg border border-outline-variant/60 text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary"
+            >
+              <Settings2 className="size-4" aria-hidden="true" />
             </PopoverTrigger>
             <PopoverContent align="end" className="flex w-64 flex-wrap items-center gap-3">
               <ColorPopover
@@ -753,7 +758,10 @@ export function ContributionGrid() {
           of the row instead of displacing them.
           `w-0 min-w-full` keeps this row out of the card's max-content width, so
           switching modes cannot resize the whole column to fit a longer legend. */}
-      <div className="mt-2 flex w-0 min-w-full items-center justify-between gap-3">
+      {/* items-start: the legend may wrap taller in Levels, and a centered
+          export cluster would ride the height change. Anchored to the row's
+          top, it holds still whatever the legend does below. */}
+      <div className="mt-2 flex w-0 min-w-full items-start justify-between gap-3">
         <GridLegend monoColor={heatmapMonoColor} graded={graded} translateUi={translateUi} />
         <HeatmapExports
           authors={authors}
@@ -870,13 +878,14 @@ function GridLegend({
     // get the full width and no longer dangle onto a second row in Levels. Both
     // modes are two lines, so switching them cannot change the row's height.
     <div className="flex min-w-0 flex-col gap-1 text-xs text-on-surface-variant">
-      <span className="flex items-center gap-3">
+      <span className="flex min-w-0 items-center gap-3">
         <span className="font-mono text-xs uppercase tracking-wider">{graded ? t("legendLevel") : t("legendKey")}</span>
         {/* Yes/no needs no hint: the grid says it. Levels does, because the click
-            cycle isn't visible. It sits here rather than beside the mode control,
-            where switching modes reflowed the whole header and shifted the matrix. */}
+            cycle isn't visible. Capped to one line (full text in the tooltip):
+            a wrapped hint made this row taller in Levels, so toggling modes
+            bounced the export cluster below. */}
         {graded && (
-          <span>
+          <span className="min-w-0 truncate" title={`${t("clickToCycle")} · ${t("levelKeysHint")}`}>
             {/* A language-neutral separator: the two hints are separate
                 sentences, and jamming them read as one run-on label. */}
             {t("clickToCycle")} <span className="hidden md:inline">· {t("levelKeysHint")}</span>
@@ -906,9 +915,14 @@ type ExportFormat = "svg" | "png";
 
 /**
  * Rasterise an SVG string to a PNG Blob entirely in the browser, with no
- * server round-trip. Renders at 2× for crisp output suitable for slides/docs.
+ * server round-trip.
+ *
+ * 3×, not 2×: at the default 22px cell a single-column journal figure comes
+ * out around 500 CSS px wide, which 2× rasterises to ~3.4in at 300 dpi — under
+ * the 85mm single-column width most publishers ask for. 3× clears it, and
+ * still lands well inside the clipboard's practical size.
  */
-function svgToPngBlob(svg: string, scale = 2): Promise<Blob> {
+function svgToPngBlob(svg: string, scale = 3): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);

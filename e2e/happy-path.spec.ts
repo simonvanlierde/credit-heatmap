@@ -424,15 +424,19 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: None" })).toBeVisible();
   });
 
-  test("persists and clears the local draft", async ({ page }) => {
+  test("persists the draft, and deleting it from the picker empties the workspace", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
     await page.reload();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
-    await page.getByRole("button", { name: "Clear local draft" }).click();
-    await page.getByRole("button", { name: "Clear draft" }).click();
+    // The Drafts menu owns deletion; deleting the only draft lands on a
+    // fresh, empty one, and the emptiness survives a reload.
+    await page.getByRole("button", { name: /^Drafts:/ }).click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(0);
@@ -594,7 +598,10 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Author" }).first().click();
     const statement = page.getByLabel("Statement and export").locator("p").filter({ hasText: "CRediT:" });
     await expect(statement).toContainText("Acknowledgements: Ada Lovelace");
+    // The wording toggles live behind the statement's options gear now.
+    await page.getByRole("button", { name: "Statement options" }).click();
     await page.getByRole("switch", { name: /Separate acknowledgements/ }).click();
+    await page.keyboard.press("Escape");
     await expect(statement).not.toContainText("Acknowledgements:");
   });
 
@@ -736,7 +743,7 @@ test.describe("Happy path UI flows", () => {
     await adder.press("Enter");
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(8);
 
-    await page.getByText("Heatmap options", { exact: true }).click();
+    await page.getByRole("button", { name: "Heatmap options" }).click();
     await page.getByRole("button", { name: "Transpose" }).click();
     await page.keyboard.press("Escape");
 

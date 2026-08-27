@@ -220,7 +220,7 @@ test.describe("Accessibility (axe-core)", () => {
   test("the assigned-cell checkmark stays legible on every grid color", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
-    await page.getByText("Heatmap options", { exact: true }).click();
+    await page.getByRole("button", { name: "Heatmap options" }).click();
     await page.getByRole("button", { name: "Heatmap color" }).click();
     // The Okabe-Ito yellow is the worst case: a white glyph vanishes on it.
     await page.getByRole("button", { name: "Set color Yellow" }).click();
@@ -245,7 +245,7 @@ test.describe("Accessibility (axe-core)", () => {
 
     const reorder = await settled(page.getByRole("button", { name: /Reorder Ada/ }));
     const roleInfo = await settled(page.getByRole("button", { name: "About Conceptualization" }));
-    await page.getByText("Heatmap options", { exact: true }).click();
+    await page.getByRole("button", { name: "Heatmap options" }).click();
     await page.getByRole("button", { name: "Heatmap color" }).click();
     const swatch = await settled(page.getByRole("button", { name: /Set color/ }).first());
 

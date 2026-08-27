@@ -144,8 +144,6 @@ invocation log. After changing the binding, check the first deploy's logs for
   systems ask for next.
 - **Make sharing discoverable.** The onboarding barely hints at sharing a draft or asking a
   co-author to fill in their own row. Both are easy to miss entirely.
-- **Move the statement options into a popover.** The statement's toggles sit inline; the heatmap's
-  live in an options popover.
 
 ## Contributing
 
