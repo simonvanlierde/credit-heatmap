@@ -2,6 +2,7 @@
 
 import { Code, ExternalLink } from "lucide-react";
 import { useTranslations } from "use-intl";
+import { PRODUCT_NAME } from "@/components/BrandMark";
 import { IN_TEXT_LINK, LicenseLink } from "@/components/ui/license-link";
 
 /**
@@ -18,7 +19,7 @@ export function AboutPanel({ version }: { version: string }) {
     <>
       <div>
         <p className="font-semibold text-on-surface">
-          CRediT Matrix <span className="font-mono text-xs font-normal text-on-surface-variant">v{version}</span>
+          {PRODUCT_NAME} <span className="font-mono text-xs font-normal text-on-surface-variant">v{version}</span>
         </p>
         <p className="mt-0.5">{t("aboutTagline")}</p>
       </div>

@@ -111,6 +111,53 @@ test.describe("Accessibility (axe-core)", () => {
     // a Radix radiogroup control is covered by the segmented-control test below.
   });
 
+  /**
+   * Below `lg` the header nav is hidden and the brand lockup becomes the only
+   * route to "How it works" and "About". Every other header assertion in the
+   * suite runs at the 1280px default, where the nav still carries them — so
+   * without these the whole mobile branch could break, or the nav's `lg`
+   * boundary silently revert to `md`, with the suite still green.
+   */
+  test("below lg the brand menu carries the links the nav drops", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "How it works" })).toBeHidden();
+
+    await page.getByRole("heading", { name: "CRediT Matrix" }).getByRole("button").click();
+    await expect(page.getByRole("button", { name: "How it works" })).toBeVisible();
+    await expect(page.getByText("Acknowledgements")).toBeVisible();
+
+    const results = await scan(page);
+    expect(results.violations).toEqual([]);
+  });
+
+  /**
+   * The About panel portals into the <dialog> rather than <body>: showModal()
+   * puts the dialog in the top layer and makes the rest of the document inert,
+   * so a panel portalled outside it would render and never take a click. Hit
+   * testing is the only thing that catches that — the panel looks fine either
+   * way.
+   */
+  test("the About panel inside the welcome modal is operable, and Escape closes only it", async ({ page }) => {
+    await page.addInitScript((key) => window.localStorage.removeItem(key), PERSIST_KEY);
+    await page.goto("/");
+    const dialog = page.locator("dialog#getting-started");
+    await dialog.getByRole("button", { name: "About this app" }).click();
+
+    const panel = page.getByText("Acknowledgements");
+    await expect(panel).toBeVisible();
+    const box = await panel.boundingBox();
+    const topmost = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.textContent ?? null, [
+      (box?.x ?? 0) + 2,
+      (box?.y ?? 0) + 2,
+    ] as [number, number]);
+    expect(topmost).toBe("Acknowledgements");
+
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await expect(dialog).toHaveAttribute("open", "");
+  });
+
   test("dark mode (loaded state) has no detectable violations", async ({ page }) => {
     // defaultTheme="system" + enableSystem, so emulating the color scheme flips
     // <html class="dark"> without needing to click the toggle.

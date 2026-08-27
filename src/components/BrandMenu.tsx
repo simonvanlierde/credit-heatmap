@@ -22,6 +22,7 @@ import { useContributionStore } from "@/store/contribution-store";
 export function BrandMenu({ version }: { version: string }) {
   const [open, setOpen] = useState(false);
   const openWelcome = useContributionStore((s) => s.openWelcome);
+  const welcomeOpen = useContributionStore((s) => s.welcomeOpen);
   const t = useTranslations();
 
   return (
@@ -43,6 +44,7 @@ export function BrandMenu({ version }: { version: string }) {
             text with an icon reads as a heading, not as the thing to tap. */}
         <button
           type="button"
+          aria-expanded={welcomeOpen}
           aria-controls="getting-started"
           onClick={() => {
             // Close first: the welcome dialog is modal, and a popover left open

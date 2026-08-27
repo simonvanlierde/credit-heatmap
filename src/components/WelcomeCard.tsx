@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, Files, Fingerprint, Send, Sparkles, TableProperties, TextQuote, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "use-intl";
 import { AboutPopover } from "@/components/AboutPopover";
 import { StepNumber } from "@/components/ui/step-number";
@@ -51,16 +51,12 @@ export function WelcomeCard({ version }: { version: string }) {
   // flags aren't known until HeaderActions triggers rehydration. Gate on that,
   // then auto-open exactly once for a first-time visitor.
   const [hydrated, setHydrated] = useState(false);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  // The About panel portals into the dialog rather than <body>: showModal()
-  // puts this element in the top layer and makes the rest of the document
-  // inert, so a panel outside it would render but never take a click. A stable
-  // callback ref, so React sets it once on mount instead of every render.
+  // State, not a ref: the About panel portals into the dialog rather than
+  // <body>, because showModal() puts this element in the top layer and makes
+  // the rest of the document inert, so a panel outside it would render but
+  // never take a click. The portal target has to reach render, so the element
+  // has to be state.
   const [dialogEl, setDialogEl] = useState<HTMLDialogElement | null>(null);
-  const attachDialog = useCallback((element: HTMLDialogElement | null) => {
-    dialogRef.current = element;
-    setDialogEl(element);
-  }, []);
   useEffect(() => {
     const onHydrated = () => {
       setHydrated(true);
@@ -79,23 +75,22 @@ export function WelcomeCard({ version }: { version: string }) {
   // Drive the native dialog from the store flag, so the header's "How it works"
   // and the first-run auto-open share one code path.
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (welcomeOpen && !dialog.open) dialog.showModal();
-    else if (!welcomeOpen && dialog.open) dialog.close();
-  }, [welcomeOpen]);
+    if (!dialogEl) return;
+    if (welcomeOpen && !dialogEl.open) dialogEl.showModal();
+    else if (!welcomeOpen && dialogEl.open) dialogEl.close();
+  }, [welcomeOpen, dialogEl]);
 
   if (!hydrated) return null;
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: the onMouseDown closes the dialog on backdrop click; Escape and the Dismiss button provide the accessible paths.
     <dialog
-      ref={attachDialog}
+      ref={setDialogEl}
       id="getting-started"
       aria-labelledby="getting-started-title"
       onClose={closeWelcome}
       onMouseDown={(event) => {
-        if (event.target === dialogRef.current) dialogRef.current?.close();
+        if (event.target === dialogEl) dialogEl?.close();
       }}
       className="m-auto w-full max-w-3xl max-h-[90dvh] overflow-y-auto rounded-lg bg-surface-bright p-0 text-on-surface shadow-2xl ring-1 ring-outline-variant/20 backdrop:bg-on-surface/30 backdrop:backdrop-blur-sm"
     >

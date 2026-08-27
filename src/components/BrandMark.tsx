@@ -40,7 +40,7 @@ export function BrandMark({ className }: { className?: string }) {
   );
 }
 
-const PRODUCT_NAME = "CRediT Matrix";
+export const PRODUCT_NAME = "CRediT Matrix";
 
 /**
  * The lockup: the mark at cap height, a gap, then the wordmark. One source of
