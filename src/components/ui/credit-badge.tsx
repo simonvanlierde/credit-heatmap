@@ -4,6 +4,7 @@ import { BadgeCheck, Check, Copy, Download, ImageDown } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "use-intl";
 import { useCopyStatus } from "@/lib/use-copy-status";
+import { LicenseLink } from "./license-link";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
 const BADGE_SRC = "/credit-badge.png";
@@ -108,6 +109,14 @@ export function CreditBadge({ className }: { className?: string }) {
             {t("downloadPng")}
           </a>
         </div>
+
+        {/* The badge image is redistributed from this app — copied, downloaded
+            and hot-linked by the snippet above — so its attribution belongs
+            here, beside the copy, not only in the About panel. */}
+        <p className="mt-3 border-t border-outline-variant/30 pt-2 text-[11px] text-on-surface-variant">
+          {t("creditBadge")} © NISO<span aria-hidden="true"> · </span>
+          <LicenseLink>CC BY 4.0</LicenseLink>
+        </p>
       </PopoverContent>
     </Popover>
   );

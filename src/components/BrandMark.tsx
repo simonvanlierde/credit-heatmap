@@ -39,3 +39,34 @@ export function BrandMark({ className }: { className?: string }) {
     </svg>
   );
 }
+
+const PRODUCT_NAME = "CRediT Matrix";
+
+/**
+ * The lockup: the mark at cap height, a gap, then the wordmark. One source of
+ * truth, so the header's plain lockup and the mobile brand menu that wraps the
+ * same marks in a trigger can never drift apart.
+ *
+ * The wordmark never wraps and never shrinks: a two-line brand overflows the
+ * 52px header, and a squeezed one stops being the wordmark. It appears only from
+ * 27rem, where the row measurably has the ~171px the lockup needs beside 232px
+ * of controls at their 44px touch size. Below that the mark carries the brand
+ * alone, and the menu it opens names the product on its first line.
+ */
+export function Lockup() {
+  return (
+    <>
+      <BrandMark className="h-[1.15rem] w-[1.15rem] shrink-0 sm:h-[1.3rem] sm:w-[1.3rem]" />
+      {/* Where the wordmark is not drawn the name is still said: the mark is
+          decorative, so without this the <h1> and the menu button it wraps have
+          no accessible name at all. */}
+      <span className="sr-only min-[27rem]:hidden">{PRODUCT_NAME}</span>
+      <span
+        className="hidden min-[27rem]:inline whitespace-nowrap font-headline text-lg italic font-semibold tracking-tight sm:text-xl"
+        style={{ fontFamily: "var(--font-headline)" }}
+      >
+        {PRODUCT_NAME}
+      </span>
+    </>
+  );
+}

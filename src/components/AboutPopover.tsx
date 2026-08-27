@@ -1,12 +1,16 @@
 "use client";
 
-import { Code, ExternalLink, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { useTranslations } from "use-intl";
+import { AboutPanel } from "@/components/AboutPanel";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-/** `version` is read from package.json by the (server) layout, so the manifest
- *  never reaches the client bundle. */
-export function AboutPopover({ version }: { version: string }) {
+/**
+ * The labelled About link. `container` targets the portal at an open modal
+ * dialog: the top layer makes the rest of the document inert, so a panel
+ * portalled to <body> from inside a dialog would render unclickable.
+ */
+export function AboutPopover({ version, container }: { version: string; container?: HTMLElement | null }) {
   const t = useTranslations();
   return (
     <Popover>
@@ -20,55 +24,12 @@ export function AboutPopover({ version }: { version: string }) {
           {t("about")}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="max-w-xs space-y-3 text-sm text-on-surface-variant">
-        <div>
-          <p className="font-semibold text-on-surface">
-            CRediT Matrix <span className="font-mono text-xs font-normal text-on-surface-variant">v{version}</span>
-          </p>
-          <p className="mt-0.5">{t("aboutTagline")}</p>
-        </div>
-        <a
-          href="https://github.com/simonvanlierde/credit-matrix"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
-        >
-          <Code className="size-4" aria-hidden="true" />
-          {t("sourceOnGitHub")}
-          <ExternalLink className="size-3" aria-hidden="true" />
-          <span className="sr-only">{t("opensInNewTab")}</span>
-        </a>
-        <div className="border-t border-outline-variant/30 pt-2 text-xs space-y-1.5">
-          <p>
-            {t("aboutInspiredBy")}{" "}
-            <a
-              href="https://github.com/IPHYS-Bioinformatics/CRediT-Generator"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 text-primary hover:underline"
-            >
-              Python/Dash CRediT Generator
-              <ExternalLink className="size-3" aria-hidden="true" />
-              <span className="sr-only">{t("opensInNewTab")}</span>
-            </a>
-            .
-          </p>
-          <p>
-            {t("aboutOutputTranslations")}{" "}
-            <a
-              href="https://github.com/contributorshipcollaboration/credit-translation"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 text-primary hover:underline"
-            >
-              credit-translation contributors
-              <ExternalLink className="size-3" aria-hidden="true" />
-              <span className="sr-only">{t("opensInNewTab")}</span>
-            </a>
-            , CC BY 4.0.
-          </p>
-          <p>{t("aboutTaxonomy")}</p>
-        </div>
+      <PopoverContent
+        align="start"
+        container={container}
+        className="w-[22rem] max-w-[calc(100vw-1.5rem)] space-y-3 text-sm text-on-surface-variant"
+      >
+        <AboutPanel version={version} />
       </PopoverContent>
     </Popover>
   );

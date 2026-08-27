@@ -1,8 +1,9 @@
 "use client";
 
 import { ExternalLink, Files, Fingerprint, Send, Sparkles, TableProperties, TextQuote, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "use-intl";
+import { AboutPopover } from "@/components/AboutPopover";
 import { StepNumber } from "@/components/ui/step-number";
 import { useContributionStore } from "@/store/contribution-store";
 
@@ -39,7 +40,7 @@ const STEPS = [
  * showModal()>` gives the focus trap, Escape handling, backdrop, and inert
  * background for free, from the same primitive ImportModal uses.
  */
-export function WelcomeCard() {
+export function WelcomeCard({ version }: { version: string }) {
   const welcomeOpen = useContributionStore((s) => s.welcomeOpen);
   const closeWelcome = useContributionStore((s) => s.closeWelcome);
   const loadSample = useContributionStore((s) => s.loadSample);
@@ -51,6 +52,15 @@ export function WelcomeCard() {
   // then auto-open exactly once for a first-time visitor.
   const [hydrated, setHydrated] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // The About panel portals into the dialog rather than <body>: showModal()
+  // puts this element in the top layer and makes the rest of the document
+  // inert, so a panel outside it would render but never take a click. A stable
+  // callback ref, so React sets it once on mount instead of every render.
+  const [dialogEl, setDialogEl] = useState<HTMLDialogElement | null>(null);
+  const attachDialog = useCallback((element: HTMLDialogElement | null) => {
+    dialogRef.current = element;
+    setDialogEl(element);
+  }, []);
   useEffect(() => {
     const onHydrated = () => {
       setHydrated(true);
@@ -80,7 +90,7 @@ export function WelcomeCard() {
   return (
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: the onMouseDown closes the dialog on backdrop click; Escape and the Dismiss button provide the accessible paths.
     <dialog
-      ref={dialogRef}
+      ref={attachDialog}
       id="getting-started"
       aria-labelledby="getting-started-title"
       onClose={closeWelcome}
@@ -178,6 +188,9 @@ export function WelcomeCard() {
             </>
           )}
           <span className="flex flex-wrap items-center gap-x-5 gap-y-3 sm:ml-auto">
+            {/* The one thing this card never says: what the app itself is, and
+                what it is built on. */}
+            <AboutPopover version={version} container={dialogEl} />
             <a
               href="https://credit.niso.org"
               target="_blank"

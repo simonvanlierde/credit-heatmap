@@ -4,6 +4,36 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- The lockup opens a menu below `lg`, where the header has no room for the *How it works* and
+  *About* links: tapping the product name reaches both. The two affordances share one boundary, so
+  exactly one is ever on screen. *About* is also reachable from the welcome card, which until now
+  never said what the app itself is.
+- Attribution for the CC BY 4.0 work the app redistributes: the role translations and NISO's badge
+  image both link to the licence deed from the app itself, not only from the repository. The badge
+  notice sits beside the copy, download, and embed actions that carry the image off the page.
+- A copyright and licence line in *About*, with the identity rather than in the small print.
+
+### Changed
+
+- *About* is one panel shared by the header link, the lockup menu, and the welcome card, so the
+  three can never disagree. Its acknowledgements are shorter and now sit under a heading of their
+  own, below the authorship line.
+
+### Fixed
+
+- The wordmark no longer wraps to two lines and spills out of the fixed header. It needs ~145px
+  beside 232px of controls at their tap-target size, so it is drawn only from `27rem`, where the row
+  measurably has the width; the mark carries the brand alone below that, and the name is still
+  announced to screen readers.
+- The header nav moved from `md` to `lg`. At `md` the lockup, the nav, and the labelled actions
+  overran the row by 57px, and the wordmark absorbed it by wrapping.
+- Links inside a sentence are underlined, not only recoloured: ink blue against muted paper does
+  not clear 3:1 against the prose around it on its own.
+
 ## [0.4.0] - 2026-08-27
 
 ### Changed
