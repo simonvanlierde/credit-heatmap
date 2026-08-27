@@ -41,15 +41,15 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
     await expect(page.getByLabel("Name or ORCID iD", { exact: true }).first()).toHaveValue("Ada Lovelace");
 
-    // The contribution grid renders one editable cell per role × author. In
-    // the default Yes / no mode, assigned cells read as "Contributed"; switching
-    // to Levels surfaces the sample's graded scores.
-    const cell = page.getByRole("button", { name: "Conceptualization for Ada Lovelace: Contributed" });
-    await expect(cell).toHaveAttribute("aria-pressed", "true");
+    // The sample's scores are graded, so it opens in Levels; switching to
+    // Yes / no collapses them to plain Contributed toggles.
+    const cell = page.getByRole("button", { name: "Conceptualization for Ada Lovelace: Lead" });
+    await expect(cell).toBeVisible();
     await expect(cell.locator("svg")).toBeVisible();
     await expect(page.getByText("Ready to export", { exact: true })).toBeVisible();
-    await page.getByRole("radio", { name: "Levels" }).click();
-    await expect(page.getByRole("button", { name: "Conceptualization for Ada Lovelace: Lead" })).toBeVisible();
+    await page.getByRole("radio", { name: "Yes / no" }).click();
+    const toggled = page.getByRole("button", { name: "Conceptualization for Ada Lovelace: Contributed" });
+    await expect(toggled).toHaveAttribute("aria-pressed", "true");
 
     // A statement is generated from the sample contributions.
     await expect(page.getByText(/^CRediT:/)).toBeVisible();
@@ -58,6 +58,8 @@ test.describe("Happy path UI flows", () => {
   test("Clicking a grid cell toggles the contribution into the statement", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Load sample data" }).click();
+    // The sample opens in Levels; this test is about the yes/no toggle.
+    await page.getByRole("radio", { name: "Yes / no" }).click();
 
     // Ada has no Data curation in the sample; one click assigns it.
     const cell = page.getByRole("button", { name: /^Data curation for Ada Lovelace:/ });
@@ -292,7 +294,7 @@ test.describe("Happy path UI flows", () => {
     await expect(onScreen(page, /Rosalind E\. Franklin's roles were filled in/)).toBeVisible();
 
     // Her row lands; her opinion about Ada's row does not.
-    await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: Contributed" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: Lead" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Validation for Ada Lovelace: None" })).toBeVisible();
   });
 
@@ -320,7 +322,7 @@ test.describe("Happy path UI flows", () => {
     await page.locator("#import-text").fill(returnedUrl);
     await page.getByRole("button", { name: "Import data" }).click();
 
-    await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: Contributed" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: Lead" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Validation for Ada Lovelace: None" })).toBeVisible();
 
     // Dismissing the outcome strip takes the row's Updated mark down with it.
@@ -410,9 +412,10 @@ test.describe("Happy path UI flows", () => {
     await page.locator("#import-text").fill(returnedUrl);
     await page.getByRole("button", { name: "Import data" }).click();
 
-    // It switched to paper two and merged there.
-    await expect(page.getByRole("button", { name: /^Drafts: Paper two/ })).toBeVisible();
+    // It switched to paper two and merged there. Paper two is an ordinary
+    // yes/no draft, so the merged full score reads as Contributed.
     await expect(page.getByRole("button", { name: "Validation for Rosalind E. Franklin: Contributed" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Drafts: Paper two/ })).toBeVisible();
 
     // Paper one still has its three sample contributors, unchanged.
     await page.getByRole("button", { name: /^Drafts:/ }).click();
@@ -767,7 +770,7 @@ test.describe("Happy path UI flows", () => {
     await page.getByRole("button", { name: "Clear every role" }).click();
     await expect(page.getByRole("button", { name: "Conceptualization for Ada Lovelace: None" })).toBeVisible();
     await page.getByRole("button", { name: "Assign every role", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Conceptualization for Ada Lovelace: Contributed" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Conceptualization for Ada Lovelace: Equal" })).toBeVisible();
   });
 
   // The "One role" panel (setRoleScores) had no coverage at any level, so a
@@ -778,9 +781,9 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
     const everyoneOnSoftware = [
-      page.getByRole("button", { name: "Software for Ada Lovelace: Contributed" }),
-      page.getByRole("button", { name: "Software for Rosalind E. Franklin: Contributed" }),
-      page.getByRole("button", { name: "Software for Alan M. Turing: Contributed" }),
+      page.getByRole("button", { name: "Software for Ada Lovelace: Equal" }),
+      page.getByRole("button", { name: "Software for Rosalind E. Franklin: Equal" }),
+      page.getByRole("button", { name: "Software for Alan M. Turing: Equal" }),
     ];
 
     await page.getByText("Bulk assign", { exact: true }).click();

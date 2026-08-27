@@ -67,6 +67,8 @@ describe("contribution store", () => {
       expect(authors[0]?.contributions.find((c) => c.role === "Conceptualization")?.score).toBe(100);
       expect(authors[1]?.contributions.find((c) => c.role === "Investigation")?.score).toBe(100);
       expect(authors[2]?.contributions.find((c) => c.role === "Conceptualization")?.score).toBe(0);
+      // Graded scores deserve the graded view: the sample switches to Levels.
+      expect(store().inputMode).toBe("levels");
     });
 
     it("refuses the sample under a claim, like every other whole-roster write", () => {

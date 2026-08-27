@@ -537,19 +537,27 @@ export function ContributionGrid() {
                     level,
                   })}
                   onClick={() => handleCellClick(selectedAuthor, roleIndex, score)}
-                  className={`contribution-cell flex min-h-11 min-w-24 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 ${
-                    score > 0 ? "shadow-sm" : "bg-surface-container-high text-on-surface-variant"
+                  className={`contribution-cell flex min-h-11 min-w-24 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-surface-container-high px-3 text-xs font-semibold transition-[background-color,box-shadow] duration-[120ms] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-40 ${
+                    score > 0 ? "text-on-surface shadow-sm" : "text-on-surface-variant"
                   }`}
-                  // Measured, not hardcoded white: the pale fills (light presets,
-                  // "supporting") fail 4.5:1 under white text, the same trap the
-                  // desktop cell's check mark already avoids with onColor.
-                  style={(() => {
-                    if (score <= 0) return undefined;
-                    const fill = heatCellColor(heatmapMonoColor, graded ? score : 100);
-                    return { backgroundColor: fill, color: onColor(fill) };
-                  })()}
                 >
-                  {score > 0 && <Check aria-hidden="true" className="size-4" strokeWidth={3} />}
+                  {/* The label never sits on the dynamic fill: a mid-tone
+                      preset has no 4.5:1 text companion at all, and the
+                      palette is user-picked. The swatch carries the color;
+                      its check needs only the 3:1 non-text ratio, which
+                      onColor guarantees. */}
+                  {score > 0 && (
+                    <span
+                      aria-hidden="true"
+                      className="flex size-5 shrink-0 items-center justify-center rounded"
+                      style={(() => {
+                        const fill = heatCellColor(heatmapMonoColor, graded ? score : 100);
+                        return { backgroundColor: fill, color: onColor(fill) };
+                      })()}
+                    >
+                      <Check className="size-3.5" strokeWidth={3} />
+                    </span>
+                  )}
                   {level}
                 </button>
               </li>

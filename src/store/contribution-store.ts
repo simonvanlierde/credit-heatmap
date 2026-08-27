@@ -697,6 +697,9 @@ export const useContributionStore = create<ContributionState>()(
         set((state) => {
           if (claimRefuses(state)) return;
           state.authors = normalizeAuthors(buildSampleAuthors(names));
+          // The sample's scores are graded; yes/no would hide the very thing
+          // it exists to demonstrate.
+          state.inputMode = "levels";
         }),
 
       addAuthor: (name, orcid) => {
