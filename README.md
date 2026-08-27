@@ -28,7 +28,7 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
   did and send the link back; opening it fills in their row — roles, name, and iD — and nothing
   else
 - **Drafts**: one per paper, switched from the header. They stay in this browser
-- **Contribution grid**: click a cell to assign one of the 14 roles, as a yes/no value or as a
+- **Contribution grid**: select a cell to assign one of the 14 roles, as a yes/no value or as a
   contribution level. The grid is the heatmap, so you can transpose it, swap initials for full
   names, and recolor it
 - **Statements**: group by role or by author, with full names or initials, and optional level
