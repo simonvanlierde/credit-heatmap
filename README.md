@@ -25,7 +25,7 @@ CRediT Matrix is an independent project. It is not affiliated with or endorsed b
 - **Contributors**: add, rename, reorder, or paste a whole author list. Paste an ORCID iD or URL to
   look up the name, or a DOI to fill the whole list from the published record
 - **Ask your co-authors**: send each person a link addressed to their own row. They tick what they
-  did and send the link back; opening it fills in their row — roles, name, and iD — and nothing
+  did and send the link back; opening it fills in their row (roles, name, and iD) and nothing
   else
 - **Drafts**: one per paper, switched from the header. They stay in this browser
 - **Contribution grid**: select a cell to assign one of the 14 roles, as a yes/no value or as a

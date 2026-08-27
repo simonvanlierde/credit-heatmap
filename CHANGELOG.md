@@ -18,13 +18,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   live behind an icon-only gear that never wraps away from its mode control. The CRediT badge gets
   its own line under the export controls instead of dangling off their right edge.
 - The Levels legend hint is shorter and capped to one line, so toggling modes no longer bounces the
-  heatmap export buttons — whose visible "Heatmap" label folded into the group's accessible name,
+  heatmap export buttons. Their visible "Heatmap" label folded into the group's accessible name,
   keeping the whole footer on one line.
 
 ### Removed
 
 - The in-pane "Clear local draft" flow and the pane's stays-in-this-browser footer note. Deleting
-  a paper is the Drafts menu's job, and that menu already says drafts stay in this browser — right
+  a paper is the Drafts menu's job, and that menu already says drafts stay in this browser, right
   where deleting them lives.
 
 ### Fixed
