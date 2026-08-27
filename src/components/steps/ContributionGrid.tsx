@@ -451,7 +451,7 @@ export function ContributionGrid() {
               >
                 <Settings2 className="size-4" aria-hidden="true" />
               </PopoverTrigger>
-              <PopoverContent align="end" className="flex w-64 flex-wrap items-center gap-3">
+              <PopoverContent align="end" className="flex w-auto max-w-[calc(100vw-2rem)] flex-wrap items-center gap-3">
                 <ColorPopover
                   value={heatmapMonoColor}
                   onChange={setHeatmapMonoColor}

@@ -495,11 +495,8 @@ export function AuthorList() {
         </div>
       )}
 
-      {/* Deleting a paper is the Drafts menu's job; a second, in-pane clear
-          flow duplicated it with worse affordances. The privacy fact stays. */}
-      <div className="mt-3 border-t border-outline-variant/20 pt-3">
-        <p className="text-xs text-on-surface-variant">{t("draftStaysLocal")}</p>
-      </div>
+      {/* No footer note: the Drafts menu already says drafts stay in this
+          browser, right where deleting them lives. */}
     </div>
   );
 }

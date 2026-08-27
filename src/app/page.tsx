@@ -16,14 +16,16 @@ export default function HomePage() {
 
           The statement never spans a full-width row: its prose is capped at 75ch
           for readability, so a wide column would wrap the text at half its
-          width and leave the rest empty. The statement column is therefore
-          clamped (26–30rem) and the *matrix* absorbs the leftover width — it
-          is the pane that actually grows with more contributors, and every
-          column it gains is one less it has to scroll.
+          width and leave the rest empty. Contributors and statement are
+          therefore clamped, and the matrix column takes exactly the width its
+          roster needs (minmax(0,max-content)): a wide monitor goes to more
+          visible columns when there are many contributors, and to centered
+          gutters (justify-center) when there are not. Narrower windows shrink
+          the matrix into its own scroller instead of overflowing the page.
 
           `desk` additionally locks the row to the viewport height; each pane
           scrolls its own content from there. */}
-      <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[21rem_minmax(0,1fr)_minmax(26rem,30rem)] xl:items-start desk:h-full desk:items-stretch desk:overflow-hidden">
+      <div className="flex flex-col gap-3 p-3 md:gap-4 md:p-4 xl:grid xl:grid-cols-[21rem_minmax(0,max-content)_minmax(26rem,30rem)] xl:items-start xl:justify-center desk:h-full desk:items-stretch desk:overflow-hidden">
         <LabelledSection labelKey="stepContributors" className="min-w-0 desk:min-h-0">
           <AuthorList />
         </LabelledSection>

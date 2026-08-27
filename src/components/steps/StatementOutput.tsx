@@ -320,7 +320,9 @@ export function StatementOutput() {
           </div>
         </div>
 
-        <CreditBadge className="sm:ml-auto flex items-center gap-1.5 text-xs font-medium text-on-surface-variant hover:text-primary transition-colors" />
+        {/* Its own left-aligned line: hung off the right edge it read as a
+            dangling leftover of the export row rather than a quiet extra. */}
+        <CreditBadge className="basis-full flex items-center gap-1.5 text-xs font-medium text-on-surface-variant hover:text-primary transition-colors" />
       </div>
     </div>
   );
