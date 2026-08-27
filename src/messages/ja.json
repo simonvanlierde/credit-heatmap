@@ -11,7 +11,7 @@
   "undo": "元に戻す",
   "cancel": "キャンセル",
   "skipToContent": "コンテンツへスキップ",
-  "draftStaysLocal": "この下書きは削除するまでこのブラウザーに保存されます。",
+  "draftStaysLocal": "この下書きはこのブラウザーに保存されます。削除は「下書き」メニューから行えます。",
   "noContributorsYet": "貢献者はまだいません。",
   "loadSample": "サンプルデータを読み込む",
   "sampleNames": "Hideki Yukawa\nMichiyo Tsujimura\nShinya Yamanaka",

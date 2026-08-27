@@ -11,7 +11,7 @@
   "undo": "Undo",
   "cancel": "Cancel",
   "skipToContent": "Skip to content",
-  "draftStaysLocal": "This draft stays in this browser until you delete it.",
+  "draftStaysLocal": "This draft stays in this browser; delete it from the Drafts menu.",
   "noContributorsYet": "No contributors yet.",
   "loadSample": "Load sample data",
   "sampleNames": "Ada Lovelace\nRosalind E. Franklin\nAlan M. Turing",

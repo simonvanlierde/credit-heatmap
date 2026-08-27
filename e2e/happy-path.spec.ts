@@ -702,7 +702,9 @@ test.describe("Happy path UI flows", () => {
     await expect(page.getByRole("button", { name: /^Remove / })).toHaveCount(3);
 
     // The export buttons and the card width must not move when the legend grows.
-    const exports = page.getByText("Heatmap", { exact: true });
+    // Start from Yes / no (the sample opens in Levels) so the flip is real.
+    await page.getByRole("radio", { name: "Yes / no" }).click();
+    const exports = page.getByRole("group", { name: "Heatmap" });
     const card = page.locator("section[aria-label='Contribution grid'] > div");
     const before = { x: (await exports.boundingBox())?.x, w: (await card.boundingBox())?.width };
     await page.getByRole("radio", { name: "Levels" }).click();

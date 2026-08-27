@@ -13,7 +13,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (the statement's wording toggles, the heatmap's color, transpose, and initials) live behind an
   icon-only gear at the cluster's end.
 - The Levels legend hint is shorter and capped to one line, so toggling modes no longer bounces the
-  heatmap export buttons.
+  heatmap export buttons — whose visible "Heatmap" label folded into the group's accessible name,
+  keeping the whole footer on one line.
+- On wide screens the matrix absorbs the leftover width instead of the statement: it is the pane
+  that grows with more contributors, and the statement column is clamped so its prose never wraps
+  at half-width.
+- The stays-in-this-browser note now says where deletion lives: the Drafts menu.
 
 ### Removed
 

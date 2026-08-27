@@ -107,47 +107,51 @@ export function StatementOutput() {
           instead of reflowing a justified cluster, so nothing jumps around. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <StepHeader n={3} title={t("statementExportLabel")} className="mr-2" />
-        <SegmentedControl
-          ariaLabel={t("a11yStatementGrouping")}
-          size="sm"
-          value={grouping}
-          onChange={setGrouping}
-          options={[
-            { value: "by-author", label: t("groupByAuthor") },
-            { value: "by-role", label: t("groupByRole") },
-          ]}
-        />
-        {/* The grouping is the statement's mode and stays visible; the wording
+        {/* One non-wrapping cluster: when the column is narrow the pair moves
+            below the heading together, and the gear never dangles alone. */}
+        <span className="flex items-center gap-2">
+          <SegmentedControl
+            ariaLabel={t("a11yStatementGrouping")}
+            size="sm"
+            value={grouping}
+            onChange={setGrouping}
+            options={[
+              { value: "by-author", label: t("groupByAuthor") },
+              { value: "by-role", label: t("groupByRole") },
+            ]}
+          />
+          {/* The grouping is the statement's mode and stays visible; the wording
             toggles are display options and live behind the same icon-only gear
             the heatmap's options use. Conditional toggles appearing inside the
             popover can no longer reflow this row. */}
-        <Popover>
-          <PopoverTrigger
-            aria-label={t("statementOptions")}
-            title={t("statementOptions")}
-            className="flex size-9 items-center justify-center rounded-lg border border-outline-variant/60 text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary"
-          >
-            <Settings2 className="size-4" aria-hidden="true" />
-          </PopoverTrigger>
-          <PopoverContent align="end" className="grid w-60 gap-3">
-            <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-              <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label={t("a11yUseInitials")} />
-              {t("useInitials")}
-            </span>
-            {canShowLevels && (
+          <Popover>
+            <PopoverTrigger
+              aria-label={t("statementOptions")}
+              title={t("statementOptions")}
+              className="flex size-9 items-center justify-center rounded-lg border border-outline-variant/60 text-on-surface-variant transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:border-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary"
+            >
+              <Settings2 className="size-4" aria-hidden="true" />
+            </PopoverTrigger>
+            <PopoverContent align="end" className="grid w-60 gap-3">
               <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-                <Switch checked={showLevels} onCheckedChange={setShowLevels} aria-label={t("a11yShowLevels")} />
-                {t("showLevels")}
+                <Switch checked={acronyms} onCheckedChange={setAcronyms} aria-label={t("a11yUseInitials")} />
+                {t("useInitials")}
               </span>
-            )}
-            {hasNonAuthors && (
-              <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-                <Switch checked={separateAck} onCheckedChange={setSeparateAck} aria-label={t("a11ySeparateAcks")} />
-                {t("separateAcknowledgements")}
-              </span>
-            )}
-          </PopoverContent>
-        </Popover>
+              {canShowLevels && (
+                <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+                  <Switch checked={showLevels} onCheckedChange={setShowLevels} aria-label={t("a11yShowLevels")} />
+                  {t("showLevels")}
+                </span>
+              )}
+              {hasNonAuthors && (
+                <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+                  <Switch checked={separateAck} onCheckedChange={setSeparateAck} aria-label={t("a11ySeparateAcks")} />
+                  {t("separateAcknowledgements")}
+                </span>
+              )}
+            </PopoverContent>
+          </Popover>
+        </span>
       </div>
 
       {hasAuthors && (
