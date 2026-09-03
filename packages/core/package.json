@@ -16,12 +16,12 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
-    "@types/node": "^26.0.0",
-    "@vitest/coverage-v8": "^4.1.9",
-    "vitest": "^4.1.9",
-    "linkedom": "^0.18.12"
+    "@types/node": "^26.4.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "vitest": "^4.1.11",
+    "linkedom": "^0.18.13"
   }
 }
